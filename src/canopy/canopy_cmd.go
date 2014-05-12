@@ -20,6 +20,10 @@ func main() {
         dl := datalayer.NewCassandraDatalayer()
         dl.Connect("canopy")
         dl.CreateAccount(flag.Arg(1), flag.Arg(2), flag.Arg(3))
+    } else if flag.Arg(0) == "delete-account" {
+        dl := datalayer.NewCassandraDatalayer()
+        dl.Connect("canopy")
+        dl.DeleteAccount(flag.Arg(1))
     } else if flag.Arg(0) == "reset-db" {
         dl := datalayer.NewCassandraDatalayer()
         dl.EraseDb("canopy")

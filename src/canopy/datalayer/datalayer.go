@@ -14,7 +14,7 @@ var creationQueries []string = []string{
         PRIMARY KEY(device_uid, propname, time)
     ) WITH COMPACT STORAGE`,
 
-    `CREATE TABLE account (
+    `CREATE TABLE accounts (
         username text,
         email text,
         password_hash text,
