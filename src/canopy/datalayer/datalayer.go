@@ -17,7 +17,7 @@ var creationQueries []string = []string{
     `CREATE TABLE accounts (
         username text,
         email text,
-        password_hash text,
+        password_hash blob,
         PRIMARY KEY(username)
     ) WITH COMPACT STORAGE`,
 
