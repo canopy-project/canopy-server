@@ -16,6 +16,14 @@ func main() {
     } else if flag.Arg(0) == "create-db" {
         dl := datalayer.NewCassandraDatalayer()
         dl.PrepDb("canopy")
+    } else if flag.Arg(0) == "create-account" {
+        dl := datalayer.NewCassandraDatalayer()
+        dl.Connect("canopy")
+        dl.CreateAccount(flag.Arg(1), flag.Arg(2), flag.Arg(3))
+    } else if flag.Arg(0) == "reset-db" {
+        dl := datalayer.NewCassandraDatalayer()
+        dl.EraseDb("canopy")
+        dl.PrepDb("canopy")
     } else {
         fmt.Println("Unknown command: ", flag.Arg(0))
     }

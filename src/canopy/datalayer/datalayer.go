@@ -5,7 +5,28 @@ import (
     "github.com/gocql/gocql"
     "log"
 )
+var creationQueries []string = []string{
+    `CREATE TABLE propvals (
+        device_uid text,
+        propname text,
+        time timestamp,
+        value double,
+        PRIMARY KEY(device_uid, propname, time)
+    ) WITH COMPACT STORAGE`,
 
+    `CREATE TABLE account (
+        username text,
+        email text,
+        password_hash text,
+        PRIMARY KEY(username)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE account_emails (
+        email text,
+        username text,
+        PRIMARY KEY(email)
+    ) WITH COMPACT STORAGE`,
+}
 
 type CassandraDatalayer struct {
     
@@ -58,15 +79,9 @@ func (dl *CassandraDatalayer) PrepDb(keyspace string) {
     dl.cluster.Consistency = gocql.Quorum
     dl.session, _ = dl.cluster.CreateSession()
 
-    if err := dl.session.Query(`
-            CREATE TABLE propvals (
-                device_uid text, 
-                propname text, 
-                time timestamp, 
-                value double, 
-                PRIMARY KEY(device_uid, propname, time)
-            ) WITH COMPACT STORAGE 
-    `).Exec(); err != nil {
-        log.Print(err)
+    for _, query := range creationQueries {
+        if err := dl.session.Query(query).Exec(); err != nil {
+            log.Print(query, "\n", err)
+        }
     }
 }
