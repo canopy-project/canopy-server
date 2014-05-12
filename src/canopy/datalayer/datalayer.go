@@ -14,10 +14,32 @@ var creationQueries []string = []string{
         PRIMARY KEY(device_uid, propname, time)
     ) WITH COMPACT STORAGE`,
 
-    `CREATE TABLE accounts (
+    `CREATE TABLE devices (
+        device_uid text,
+        friendly_name text,
+        PRIMARY KEY(device_uid)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE device_group (
         username text,
-        email text,
-        password_hash blob,
+        group_name text,
+        group_order int,
+        device_uid text,
+        device_friendly_name text,
+        PRIMARY KEY(username, group_name, group_order)
+    )`,
+
+    `CREATE TABLE control_event (
+        time_issued timestamp,
+        device_uid text,
+        control_name text,
+        value double,
+        PRIMARY KEY(timestamp, device_uid)
+    )`,
+
+    `CREATE TABLE device_permissions (
+        username text,
+        device_uid text,
         PRIMARY KEY(username)
     ) WITH COMPACT STORAGE`,
 
