@@ -17,11 +17,11 @@ func NewCassandraDatalayer() *CassandraDatalayer {
     return &CassandraDatalayer{cluster: nil, session: nil}
 }
 
-func (dl *CassandraDatalayer) Connect() {
+func (dl *CassandraDatalayer) Connect(keyspace string) {
     dl.cluster = gocql.NewCluster("127.0.0.1")
-    dl.cluster.Keyspace = "canopy3"
-    dl.cluster.Consistency = gocql.Any;
-    dl.session, _ = dl.cluster.CreateSession();
+    dl.cluster.Keyspace = keyspace
+    dl.cluster.Consistency = gocql.Any
+    dl.session, _ = dl.cluster.CreateSession()
 }
 
 func (dl *CassandraDatalayer) StorePropertyValue(device_uid string, propname string, value float64) {
@@ -33,20 +33,30 @@ func (dl *CassandraDatalayer) StorePropertyValue(device_uid string, propname str
     }
 }
 
-func (dl *CassandraDatalayer) PrepDb() {
+func (dl *CassandraDatalayer) EraseDb(keyspace string) {
     dl.cluster = gocql.NewCluster("127.0.0.1")
-    dl.session, _ = dl.cluster.CreateSession();
+    dl.session, _ = dl.cluster.CreateSession()
     if err := dl.session.Query(`
-            CREATE KEYSPACE canopy3
-            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3};
+        DROP KEYSPACE ` + keyspace + `
+    `).Exec(); err != nil {
+        log.Print(err)
+    }
+}
+
+func (dl *CassandraDatalayer) PrepDb(keyspace string) {
+    dl.cluster = gocql.NewCluster("127.0.0.1")
+    dl.session, _ = dl.cluster.CreateSession()
+    if err := dl.session.Query(`
+            CREATE KEYSPACE ` + keyspace + `
+            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
     `).Exec(); err != nil {
         log.Print(err)
     }
 
     dl.cluster = gocql.NewCluster("127.0.0.1")
-    dl.cluster.Keyspace = "canopy3"
-    dl.cluster.Consistency = gocql.Quorum;
-    dl.session, _ = dl.cluster.CreateSession();
+    dl.cluster.Keyspace = keyspace
+    dl.cluster.Consistency = gocql.Quorum
+    dl.session, _ = dl.cluster.CreateSession()
 
     if err := dl.session.Query(`
             CREATE TABLE propvals (
@@ -55,7 +65,7 @@ func (dl *CassandraDatalayer) PrepDb() {
                 time timestamp, 
                 value double, 
                 PRIMARY KEY(device_uid, propname, time)
-            ) WITH COMPACT STORAGE; 
+            ) WITH COMPACT STORAGE 
     `).Exec(); err != nil {
         log.Print(err)
     }
