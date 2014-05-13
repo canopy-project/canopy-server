@@ -40,7 +40,8 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
     session, _ := store.Get(r, "canopy-login-session")
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
-    if dl.VerifyAccountPassword(username, password) {
+    _, err = dl.LookupAccountVerifyPassword(username, password)
+    if err != nil {
         session.Values["logged_in_username"] = username
         err := session.Save(r, w)
         if err != nil {
