@@ -34,12 +34,19 @@ var creationQueries []string = []string{
         device_uid text,
         control_name text,
         value double,
-        PRIMARY KEY(timestamp, device_uid)
+        PRIMARY KEY(time_issued, device_uid)
     )`,
 
     `CREATE TABLE device_permissions (
         username text,
         device_uid text,
+        PRIMARY KEY(username)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE accounts (
+        username text,
+        email text,
+        password_hash blob,
         PRIMARY KEY(username)
     ) WITH COMPACT STORAGE`,
 

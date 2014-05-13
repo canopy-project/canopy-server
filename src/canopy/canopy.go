@@ -7,27 +7,57 @@ import (
     "github.com/gorilla/sessions"
     "github.com/gorilla/context"
     "canopy/datalayer"
+    "encoding/json"
 )
 
 var store = sessions.NewCookieStore([]byte("my_production_secret"))
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+    var data map[string]interface{}
+    decoder := json.NewDecoder(r.Body)
+    err := decoder.Decode(&data)
+    if err != nil {
+        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
+        return
+    }
+
+    username, ok := data["username"].(string)
+    if !ok {
+        fmt.Fprintf(w, "{\"error\" : \"string_username_expected\"}")
+        return
+    }
+
+    password, ok := data["password"].(string)
+    if !ok {
+        fmt.Fprintf(w, "{\"error\" : \"string_password_expected\"}")
+        return
+    }
+
     session, _ := store.Get(r, "canopy-login-session")
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
-    if dl.VerifyAccountPassword("greg", "mypass") {
-        session.Values["logged_in_username"] = "greg"
+    if dl.VerifyAccountPassword(username, password) {
+        session.Values["logged_in_username"] = username
         err := session.Save(r, w)
         if err != nil {
-            fmt.Fprintf(w, "", err);
+            fmt.Fprintf(w, "{\"error\" : \"saving_session\"}")
+            return
         }
-        fmt.Fprintf(w, "logged in!")
+        fmt.Fprintf(w, "{\"success\" : true}")
+        return
     } else {
-        fmt.Fprintf(w, "incorrect password")
+        fmt.Fprintf(w, "{\"error\" : \"incorrect_password\"}")
+        return
     }
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
     session, _ := store.Get(r, "canopy-login-session")
     session.Values["logged_in_username"] = ""
     err := session.Save(r, w)
@@ -37,12 +67,26 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "logged out!")
 }
 func privHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
     session, _ := store.Get(r, "canopy-login-session")
-    if session.Values["logged_in_username"].(string) == "sam" {
-        fmt.Fprintf(w, "access granted");
+    fmt.Println(session.Values)
+    
+    username, ok := session.Values["logged_in_username"]
+    if ok {
+        username_string, ok := username.(string)
+        if ok && username_string != "" {
+            fmt.Fprintf(w, "access granted");
+            fmt.Println("access granted")
+        } else {
+            fmt.Fprintf(w, "bACCESS DENIED");
+            fmt.Println("baccess denied")
+        }
     } else {
-        fmt.Fprintf(w, "ACCESS DENIED");
+        fmt.Fprintf(w, "aACCESS DENIED");
+        fmt.Println("aaccess denied")
     }
+    fmt.Println("done w/ private handler")
 }
 
 func main() {
