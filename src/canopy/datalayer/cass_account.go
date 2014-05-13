@@ -7,7 +7,7 @@ import (
 )
 
 var salt = "aik897sipz0Z*@4:zikp"
-var hashCost = 12 // between 4 and 31.. 14 takes about 1 sec to compute
+var hashCost = 10 // between 4 and 31.. 14 takes about 1 sec to compute
 
 func (dl *CassandraDatalayer) CreateAccount(username string, email string, password string) {
     hashed_password, _ := bcrypt.GenerateFromPassword([]byte(password + salt), 14)

@@ -56,37 +56,41 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
     session, _ := store.Get(r, "canopy-login-session")
     session.Values["logged_in_username"] = ""
     err := session.Save(r, w)
     if err != nil {
-        fmt.Fprintf(w, "", err);
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{ \"error\" : \"could_not_logout\"");
+        return;
     }
-    fmt.Fprintf(w, "logged out!")
+    fmt.Fprintf(w, "{ \"success\" : true }")
 }
-func privHandler(w http.ResponseWriter, r *http.Request) {
+func meHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
     session, _ := store.Get(r, "canopy-login-session")
-    fmt.Println(session.Values)
     
     username, ok := session.Values["logged_in_username"]
     if ok {
         username_string, ok := username.(string)
         if ok && username_string != "" {
-            fmt.Fprintf(w, "access granted");
-            fmt.Println("access granted")
+            fmt.Fprintf(w, "{\"username\" : \"%s\"}", username_string);
+            return
         } else {
-            fmt.Fprintf(w, "bACCESS DENIED");
-            fmt.Println("baccess denied")
+            w.WriteHeader(http.StatusUnauthorized);
+            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+            return
         }
     } else {
-        fmt.Fprintf(w, "aACCESS DENIED");
-        fmt.Println("aaccess denied")
+        w.WriteHeader(http.StatusUnauthorized);
+        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+        return
     }
-    fmt.Println("done w/ private handler")
 }
 
 func main() {
@@ -94,6 +98,6 @@ func main() {
     http.Handle("/echo", websocket.Handler(CanopyWebsocketServer))
     http.HandleFunc("/login", loginHandler)
     http.HandleFunc("/logout", logoutHandler)
-    http.HandleFunc("/private", privHandler)
+    http.HandleFunc("/me", meHandler)
     http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
 }
