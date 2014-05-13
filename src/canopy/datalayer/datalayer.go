@@ -48,7 +48,8 @@ var creationQueries []string = []string{
     `CREATE TABLE device_permissions (
         username text,
         device_id uuid,
-        PRIMARY KEY(username)
+        access_level int
+        PRIMARY KEY(username, device_id)
     ) WITH COMPACT STORAGE`,
 
     `CREATE TABLE accounts (

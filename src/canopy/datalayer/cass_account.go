@@ -11,6 +11,7 @@ var salt = "aik897sipz0Z*@4:zikp"
 var hashCost = 10 // between 4 and 31.. 14 takes about 1 sec to compute
 
 type CassandraAccount struct {
+    dl *CassandraDatalayer
     username string
     email string
     password_hash []byte
@@ -40,7 +41,26 @@ func (dl *CassandraDatalayer) CreateAccount(username string, email string, passw
         return nil, err
     }
 
-    return &CassandraAccount{username, email, password_hash}, nil
+    return &CassandraAccount{dl, username, email, password_hash}, nil
+}
+
+func (dl *CassandraDatalayer) DeleteAccount(username string) {
+    account, _ := dl.LookupAccount(username)
+    email := account.GetEmail()
+
+    if err := dl.session.Query(`
+            DELETE FROM accounts
+            WHERE username = ?
+    `, username).Exec(); err != nil {
+        log.Print(err)
+    }
+
+    if err := dl.session.Query(`
+            DELETE FROM account_emails
+            WHERE email = ?
+    `, email).Exec(); err != nil {
+        log.Print(err)
+    }
 }
 
 func (dl *CassandraDatalayer)LookupAccount(usernameOrEmail string) (*CassandraAccount, error) {
@@ -85,21 +105,32 @@ func (account* CassandraAccount)VerifyPassword(password string) bool {
     return (err == nil)
 }
 
-func (dl *CassandraDatalayer) DeleteAccount(username string) {
-    account, _ := dl.LookupAccount(username)
-    email := account.GetEmail()
-
-    if err := dl.session.Query(`
-            DELETE FROM accounts
+/*
+ * Obtain list of devices I have access to 
+ */
+func (account * CassandraAccount)GetDevices() ([]*CassandraDevice, error) {
+    devices := []*CassandraDevice{}
+    var deviceId gocql.UUID
+    var accessLevel int
+    
+    iter := account.dl.session.Query(`
+            SELECT device_id, access_level FROM accounts 
             WHERE username = ?
-    `, username).Exec(); err != nil {
-        log.Print(err)
+    `, account.GetUsername()).Consistency(gocql.One).Iter()
+    for iter.Scan(&deviceId, &accessLevel) {
+        if accessLevel > 0 {
+            /* TODO: can we do another query inside an iterator? */
+            device, err := account.dl.LookupDevice(deviceId)
+            if err != nil {
+                iter.Close()
+                return []*CassandraDevice{}, err
+            }
+            devices = append(devices, device)
+        }
+    }
+    if err := iter.Close(); err != nil {
+        return []*CassandraDevice{}, err
     }
 
-    if err := dl.session.Query(`
-            DELETE FROM account_emails
-            WHERE email = ?
-    `, email).Exec(); err != nil {
-        log.Print(err)
-    }
+    return devices, nil
 }
