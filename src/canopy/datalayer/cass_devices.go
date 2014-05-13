@@ -34,12 +34,13 @@ func (dl *CassandraDatalayer) LookupDevice(deviceId gocql.UUID) (*CassandraDevic
     var device CassandraDevice
 
     device.deviceId = deviceId
+    device.dl = dl
 
     err := dl.session.Query(`
         SELECT friendly_name
         FROM devices
         WHERE device_id = ?
-        LIMIT 1`).Consistency(gocql.One).Scan(&device.friendlyName)
+        LIMIT 1`, deviceId).Consistency(gocql.One).Scan(&device.friendlyName)
     if err != nil {
         return nil, err
     }
@@ -47,7 +48,7 @@ func (dl *CassandraDatalayer) LookupDevice(deviceId gocql.UUID) (*CassandraDevic
     return &device, nil
 }
 
-func (device *CassandraDevice) GetId() [16]byte {
+func (device *CassandraDevice) GetId() gocql.UUID {
     return device.deviceId
 }
 

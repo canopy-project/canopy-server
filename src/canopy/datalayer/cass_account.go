@@ -75,6 +75,7 @@ func (dl *CassandraDatalayer)LookupAccount(usernameOrEmail string) (*CassandraAc
             return nil, err
     }
     /* TODO: try email if username not found */
+    account.dl = dl
     return &account, nil
 }
 
@@ -108,15 +109,16 @@ func (account* CassandraAccount)VerifyPassword(password string) bool {
 /*
  * Obtain list of devices I have access to 
  */
-func (account * CassandraAccount)GetDevices() ([]*CassandraDevice, error) {
+func (account *CassandraAccount)GetDevices() ([]*CassandraDevice, error) {
     devices := []*CassandraDevice{}
     var deviceId gocql.UUID
     var accessLevel int
-    
-    iter := account.dl.session.Query(`
-            SELECT device_id, access_level FROM accounts 
+
+    query := account.dl.session.Query(`
+            SELECT device_id, access_level FROM device_permissions 
             WHERE username = ?
-    `, account.GetUsername()).Consistency(gocql.One).Iter()
+    `, account.GetUsername()).Consistency(gocql.One)
+    iter := query.Iter()
     for iter.Scan(&deviceId, &accessLevel) {
         if accessLevel > 0 {
             /* TODO: can we do another query inside an iterator? */

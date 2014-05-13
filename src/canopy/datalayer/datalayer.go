@@ -37,18 +37,10 @@ var creationQueries []string = []string{
         PRIMARY KEY(device_id, time_issued)
     )`,
 
-    `CREATE TABLE sensor_data (
-        device_id uuid,
-        time timestamp,
-        control_name text,
-        value double,
-        PRIMARY KEY(device_id, time_issued)
-    )`,
-
     `CREATE TABLE device_permissions (
         username text,
         device_id uuid,
-        access_level int
+        access_level int,
         PRIMARY KEY(username, device_id)
     ) WITH COMPACT STORAGE`,
 
