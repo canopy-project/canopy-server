@@ -69,6 +69,71 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
     }
     fmt.Fprintf(w, "{ \"success\" : true }")
 }
+
+func createAccountHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+    var data map[string]interface{}
+    decoder := json.NewDecoder(r.Body)
+    err := decoder.Decode(&data)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
+        return
+    }
+
+    username, ok := data["username"].(string)
+    if !ok {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"string_username_expected\"}")
+        return
+    }
+
+    email, ok := data["username"].(string)
+    if !ok {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"string_email_expected\"}")
+        return
+    }
+
+    password, ok := data["password"].(string)
+    if !ok {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"string_password_expected\"}")
+        return
+    }
+
+    password_confirm, ok := data["password_confirm"].(string)
+    if !ok {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"string_password_confirm_expected\"}")
+        return
+    }
+
+    if (password != password_confirm) {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"passwords_dont_match\"}")
+        return
+    }
+
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+
+    dl.CreateAccount(username, email, password);
+    session, _ := store.Get(r, "canopy-login-session")
+    session.Values["logged_in_username"] = username
+    err = session.Save(r, w)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"saving_session\"}")
+        return
+    }
+    fmt.Fprintf(w, "{\"success\" : true}")
+    return
+}
+
 func meHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
@@ -93,11 +158,35 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
+func devicesHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    session, _ := store.Get(r, "canopy-login-session")
+    
+    username, ok := session.Values["logged_in_username"]
+    if ok {
+        username_string, ok := username.(string)
+        if !(ok && username_string != "") {
+            w.WriteHeader(http.StatusUnauthorized);
+            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+            return
+        }
+    } else {
+        w.WriteHeader(http.StatusUnauthorized);
+        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+        return
+    }
+
+    //devices := dl.getDevices()
+}
+
 func main() {
     fmt.Println("starting server");
     http.Handle("/echo", websocket.Handler(CanopyWebsocketServer))
     http.HandleFunc("/login", loginHandler)
     http.HandleFunc("/logout", logoutHandler)
+    http.HandleFunc("/create_account", createAccountHandler)
     http.HandleFunc("/me", meHandler)
     http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
 }

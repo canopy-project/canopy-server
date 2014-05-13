@@ -6,40 +6,48 @@ import (
     "log"
 )
 var creationQueries []string = []string{
-    `CREATE TABLE propvals (
-        device_uid text,
+    `CREATE TABLE sensor_data (
+        device_id uuid,
         propname text,
         time timestamp,
         value double,
-        PRIMARY KEY(device_uid, propname, time)
+        PRIMARY KEY(device_id, propname, time)
     ) WITH COMPACT STORAGE`,
 
     `CREATE TABLE devices (
-        device_uid text,
+        device_id uuid,
         friendly_name text,
-        PRIMARY KEY(device_uid)
+        PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 
     `CREATE TABLE device_group (
         username text,
         group_name text,
         group_order int,
-        device_uid text,
+        device_id uuid,
         device_friendly_name text,
         PRIMARY KEY(username, group_name, group_order)
     )`,
 
     `CREATE TABLE control_event (
+        device_id uuid,
         time_issued timestamp,
-        device_uid text,
         control_name text,
         value double,
-        PRIMARY KEY(time_issued, device_uid)
+        PRIMARY KEY(device_id, time_issued)
+    )`,
+
+    `CREATE TABLE sensor_data (
+        device_id uuid,
+        time timestamp,
+        control_name text,
+        value double,
+        PRIMARY KEY(device_id, time_issued)
     )`,
 
     `CREATE TABLE device_permissions (
         username text,
-        device_uid text,
+        device_id uuid,
         PRIMARY KEY(username)
     ) WITH COMPACT STORAGE`,
 
@@ -74,11 +82,11 @@ func (dl *CassandraDatalayer) Connect(keyspace string) {
     dl.session, _ = dl.cluster.CreateSession()
 }
 
-func (dl *CassandraDatalayer) StorePropertyValue(device_uid string, propname string, value float64) {
+func (dl *CassandraDatalayer) StorePropertyValue(device_id string, propname string, value float64) {
     if err := dl.session.Query(`
-            INSERT INTO propvals (device_uid, propname, time, value)
+            INSERT INTO sensor_data (device_id, propname, time, value)
             VALUES (?, ?, dateof(now()), ?)
-    `, device_uid, propname, value).Exec(); err != nil {
+    `, device_id, propname, value).Exec(); err != nil {
         log.Print(err)
     }
 }
