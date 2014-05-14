@@ -41,7 +41,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
     _, err = dl.LookupAccountVerifyPassword(username, password)
-    if err != nil {
+    if err == nil {
         session.Values["logged_in_username"] = username
         err := session.Save(r, w)
         if err != nil {
@@ -149,14 +149,31 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
             return
         } else {
             w.WriteHeader(http.StatusUnauthorized);
-            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"}");
             return
         }
     } else {
         w.WriteHeader(http.StatusUnauthorized);
-        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"}");
         return
     }
+}
+
+/*
+{
+    "devices" : [
+        {
+            "device_id" : UUID,
+            "friendly_name"
+        }
+    ]
+} */
+type devicesResponse_Device struct {
+    DeviceId string `json:"device_id"`
+    FriendlyName string `json:"friendly_name"`
+}
+type devicesResponse struct {
+    Devices []devicesResponse_Device `json:"devices"`
 }
 
 func devicesHandler(w http.ResponseWriter, r *http.Request) {
@@ -165,9 +182,10 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Credentials", "true")
     session, _ := store.Get(r, "canopy-login-session")
     
+    var username_string string
     username, ok := session.Values["logged_in_username"]
     if ok {
-        username_string, ok := username.(string)
+        username_string, ok = username.(string)
         if !(ok && username_string != "") {
             w.WriteHeader(http.StatusUnauthorized);
             fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
@@ -178,8 +196,38 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
         return
     }
+    
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+    account, err := dl.LookupAccount(username_string)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+        return
+    }
 
-    //devices := dl.getDevices()
+    devices, err := account.GetDevices()
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
+        return
+    }
+
+    var devResp devicesResponse
+
+    for _, device := range devices {
+        devResp.Devices = append(devResp.Devices, devicesResponse_Device{device.GetId().String(), device.GetFriendlyName()})
+    }
+
+    jsn, err := json.Marshal(devResp)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"generating_json\"}");
+        return
+    }
+    fmt.Fprintf(w, string(jsn))
+
+    return 
 }
 
 func main() {
@@ -189,5 +237,6 @@ func main() {
     http.HandleFunc("/logout", logoutHandler)
     http.HandleFunc("/create_account", createAccountHandler)
     http.HandleFunc("/me", meHandler)
+    http.HandleFunc("/devices", devicesHandler)
     http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
 }
