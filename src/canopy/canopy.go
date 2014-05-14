@@ -159,23 +159,6 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
     }
 }
 
-/*
-{
-    "devices" : [
-        {
-            "device_id" : UUID,
-            "friendly_name"
-        }
-    ]
-} */
-type devicesResponse_Device struct {
-    DeviceId string `json:"device_id"`
-    FriendlyName string `json:"friendly_name"`
-}
-type devicesResponse struct {
-    Devices []devicesResponse_Device `json:"devices"`
-}
-
 func devicesHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
@@ -212,21 +195,14 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
         return
     }
-
-    var devResp devicesResponse
-
-    for _, device := range devices {
-        devResp.Devices = append(devResp.Devices, devicesResponse_Device{device.GetId().String(), device.GetFriendlyName()})
-    }
-
-    jsn, err := json.Marshal(devResp)
+    out, err := devicesToJson(devices)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"generating_json\"}");
         return
     }
-    fmt.Fprintf(w, string(jsn))
-
+    fmt.Fprintf(w, out);
+  
     return 
 }
 
