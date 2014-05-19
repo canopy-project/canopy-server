@@ -76,6 +76,7 @@ func (dl *CassandraDatalayer) Connect(keyspace string) {
 }
 
 func (dl *CassandraDatalayer) StorePropertyValue(device_id string, propname string, value float64) {
+    /* deprecated */
     if err := dl.session.Query(`
             INSERT INTO sensor_data (device_id, propname, time, value)
             VALUES (?, ?, dateof(now()), ?)

@@ -3,6 +3,7 @@ package datalayer
 import (
     "github.com/gocql/gocql"
     "log"
+    "errors"
     "fmt"
     "code.google.com/p/go.crypto/bcrypt"
 )
@@ -135,4 +136,31 @@ func (account *CassandraAccount)GetDevices() ([]*CassandraDevice, error) {
     }
 
     return devices, nil
+}
+
+/*
+ * Obtain specific device, if I have permission.
+ */
+func (account *CassandraAccount)GetDeviceById(deviceId gocql.UUID) (*CassandraDevice, error) {
+    var accessLevel int
+
+    if err := account.dl.session.Query(`
+        SELECT access_level FROM device_permissions
+        WHERE username = ? AND device_id = ?
+        LIMIT 1
+    `, account.GetUsername(), deviceId).Consistency(gocql.One).Scan(
+        &accessLevel); err != nil {
+            return nil, err
+    }
+
+    if (accessLevel == NoAccess) {
+        return nil, errors.New("insufficient permissions ");
+    }
+
+    device, err := account.dl.LookupDevice(deviceId)
+    if err != nil {
+        return nil, err
+    }
+
+    return device, nil
 }

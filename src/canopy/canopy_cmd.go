@@ -1,9 +1,11 @@
 package main
 
 import (
+    "github.com/gocql/gocql"
     "canopy/datalayer"
     "flag"
     "fmt"
+    "time"
 )
 
 func main() {
@@ -68,6 +70,28 @@ func main() {
             fmt.Printf("%s %s\n", device.GetId(), device.GetFriendlyName())
         }
         
+    } else if flag.Arg(0) == "gen-fake-sensor-data" {
+        dl := datalayer.NewCassandraDatalayer()
+        dl.Connect("canopy")
+        deviceId, err := gocql.ParseUUID(flag.Arg(1))
+        if err != nil {
+            fmt.Println("Error parsing UUID: ", flag.Arg(1), ":", err)
+            return;
+        }
+        device, err := dl.LookupDevice(deviceId)
+        if err != nil {
+            fmt.Println("Device not found: ", flag.Arg(1), ":", err)
+            return;
+        }
+        for i := 0; i < 100; i++ {
+            val := float64(i % 16);
+            t := time.Now().Add(time.Duration(-i)*time.Second)
+            err = device.InsertSensorSample(flag.Arg(2), t, val)
+            if err != nil {
+                fmt.Println("Error inserting sample: ", err)
+            }
+        }
+
     } else {
         fmt.Println("Unknown command: ", flag.Arg(0))
     }

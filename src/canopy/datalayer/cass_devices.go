@@ -2,6 +2,7 @@ package datalayer
 
 import (
     "github.com/gocql/gocql"
+    "time"
 )
 
 type AccessLevel int
@@ -16,6 +17,11 @@ type CassandraDevice struct {
     dl *CassandraDatalayer
     deviceId gocql.UUID
     friendlyName string
+}
+
+type SensorSample struct {
+    Timestamp time.Time
+    Value float64
 }
 
 func (dl *CassandraDatalayer) CreateDevice(friendlyName string) (*CassandraDevice, error) {
@@ -65,11 +71,37 @@ func (device *CassandraDevice) SetAccountAccess(account *CassandraAccount, level
     return err
 }
 
-/*func (dl *CassandraDatalayer) (GetSensorData(device_uuid gocql.UUID, propname string, startTime time.Time, endTime time.Time) {
-    if err := dl.session.Query(`
-            INSERT INTO devices (device_id, friendly_name)
-            VALUES (?, ?)
-    `, gocql.TimeUUID(), friendlyName).Exec(); err != nil {
-        log.Print(err)
+func (device *CassandraDevice) InsertSensorSample(propname string, t time.Time, value float64) error {
+    err := device.dl.session.Query(`
+            INSERT INTO sensor_data (device_id, propname, time, value)
+            VALUES (?, ?, ?, ?)
+    `, device.GetId(), propname, t, value).Exec()
+    if err != nil {
+        return err;
     }
-}*/
+    return nil;
+}
+
+func (device *CassandraDevice) GetSensorData(propname string, startTime time.Time, endTime time.Time) ([]SensorSample, error) {
+    var value float64
+    var timestamp time.Time
+    /* TODO: restrict between startTime and endTime */
+    query := device.dl.session.Query(`
+            SELECT time, value
+            FROM sensor_data
+            WHERE device_id = ?
+                AND propname = ?
+    `, device.GetId(), propname).Consistency(gocql.One);
+
+    iter := query.Iter()
+    samples := []SensorSample{}
+    for iter.Scan(&timestamp, &value) {
+        samples = append(samples, SensorSample{timestamp, value})
+    }
+    if err := iter.Close(); err != nil {
+        return []SensorSample{}, err
+    }
+
+    return samples, nil
+}
+

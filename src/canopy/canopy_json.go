@@ -3,6 +3,7 @@ package main
 import (
     "canopy/datalayer"
     "encoding/json"
+    "time"
 )
 
 type jsonDeviceClassItem struct {
@@ -22,6 +23,14 @@ type jsonDevicesItem struct {
     DeviceId string `json:"device_id"`
     FriendlyName string `json:"friendly_name"`
     ClassItems map[string]jsonDeviceClassItem `json:"device_class"`
+}
+
+type jsonSample struct {
+    Time string `json:"t"`
+    Value float64 `json:"v"`
+}
+type jsonSamples struct {
+    Samples []jsonSample `json:"samples"`
 }
 
 func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
@@ -45,19 +54,34 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
             "Reboots the device",
             "trigger",
         }
-        outDeviceClass["darkness"] = jsonDeviceClassItem{
+        /*outDeviceClass["darkness"] = jsonDeviceClassItem{
             "control",
             "float",
             0.0,
             10.0,
             "Darkness of toast",
             "parameter",
-        }
+        }*/
         out.Devices = append(
             out.Devices, jsonDevicesItem{
                 device.GetId().String(), 
                 device.GetFriendlyName(),
                 outDeviceClass})
+    }
+
+    jsn, err := json.Marshal(out)
+    if err != nil {
+        return "", err
+    }
+    return string(jsn), nil
+}
+
+func samplesToJson(samples []datalayer.SensorSample) (string, error) {
+    out := jsonSamples{[]jsonSample{}}
+    for _, sample := range samples {
+        out.Samples = append(out.Samples, jsonSample{
+            sample.Timestamp.Format(time.RFC3339),
+            sample.Value});
     }
 
     jsn, err := json.Marshal(out)
