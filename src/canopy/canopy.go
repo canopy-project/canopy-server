@@ -9,6 +9,7 @@ import (
     "github.com/gorilla/context"
     "github.com/gorilla/mux"
     "canopy/datalayer"
+    "canopy/pigeon"
     "encoding/json"
     "time"
 )
@@ -276,12 +277,74 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
     return 
 }
 
+func controlHandler(w http.ResponseWriter, r *http.Request) {
+    vars := mux.Vars(r)
+    deviceIdString := vars["id"]
+    //controlName := vars["control"]
+
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    session, _ := store.Get(r, "canopy-login-session")
+    
+    var username_string string
+    username, ok := session.Values["logged_in_username"]
+    if ok {
+        username_string, ok = username.(string)
+        if !(ok && username_string != "") {
+            w.WriteHeader(http.StatusUnauthorized);
+            fmt.Fprintf(w, "{\"error\" : \"not_logged_in1\"}");
+            return
+        }
+    } else {
+        w.WriteHeader(http.StatusUnauthorized);
+        fmt.Fprintf(w, "{\"error\" : \"not_logged_in2\"}");
+        return
+    }
+    
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+    account, err := dl.LookupAccount(username_string)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+        return
+    }
+
+    uuid, err := gocql.ParseUUID(deviceIdString)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"Device UUID expected\"}");
+        return
+    }
+
+    _, err = account.GetDeviceById(uuid)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"Could not find or access device\"}");
+        return
+    }
+
+    msg := &pigeon.PigeonMessage { 
+        Data : map[string]interface{} {"hello" : interface{}("world")},
+    }
+    err = gPigeon.SendMessage(deviceIdString, msg, time.Duration(100*time.Millisecond))
+    if err != nil {
+        fmt.Fprintf(w, "{\"error\" : \"SendMessage failed\"}");
+    }
+
+    fmt.Fprintf(w, "{\"result\" : \"ok\"}");
+    return 
+}
+var gPigeon = pigeon.InitPigeonSystem()
+
 func main() {
     fmt.Println("starting server");
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)
     r.HandleFunc("/devices/{id}/{sensor}/data", sensorDataHandler);
+    r.HandleFunc("/devices/{id}/{control}/control", controlHandler);
     r.HandleFunc("/devices", devicesHandler)
     r.HandleFunc("/login", loginHandler);
     r.HandleFunc("/logout", logoutHandler);
