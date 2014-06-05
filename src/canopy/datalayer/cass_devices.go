@@ -3,6 +3,7 @@ package datalayer
 import (
     "github.com/gocql/gocql"
     "time"
+    "canopy/sddl"
 )
 
 type AccessLevel int
@@ -82,6 +83,23 @@ func (device *CassandraDevice) InsertSensorSample(propname string, t time.Time, 
     return nil;
 }
 
+func (device *CassandraDevice) SetSDDLClass(sddl *sddl.Class) error {
+    sddlText, err := sddl.ToString()
+    if err != nil {
+        return err
+    }
+
+    err = device.dl.session.Query(`
+            UPDATE devices
+            SET sddl = ?
+            WHERE device_id = ?
+    `, sddlText, device.GetId()).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil;
+}
+
 func (device *CassandraDevice) GetSensorData(propname string, startTime time.Time, endTime time.Time) ([]SensorSample, error) {
     var value float64
     var timestamp time.Time
@@ -104,4 +122,22 @@ func (device *CassandraDevice) GetSensorData(propname string, startTime time.Tim
 
     return samples, nil
 }
+
+/*func (device *CassandraDevice) SDDLClass() (sddl.Class, error) [
+    query := device.dl.session.Query(`
+            SELECT time, value
+            FROM sensor_data
+            WHERE device_id = ?
+                AND propname = ?
+    `, device.GetId(), propname).Consistency(gocql.One);
+        sddlClassString := device.
+        var sddlClassGo map[string]interface{}
+        decoder := json.NewDecoder(r.Body)
+        err := decoder.Decode(&data)
+        if err != nil {
+            fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
+            return
+        }
+
+}*/
 

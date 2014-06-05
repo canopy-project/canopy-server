@@ -22,7 +22,7 @@ type jsonDevices struct {
 type jsonDevicesItem struct {
     DeviceId string `json:"device_id"`
     FriendlyName string `json:"friendly_name"`
-    ClassItems map[string]jsonDeviceClassItem `json:"device_class"`
+    ClassItems map[string]jsonDeviceClassItem `json:"sddl_class"`
 }
 
 type jsonSample struct {
@@ -37,31 +37,8 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
     var out jsonDevices
 
     for _, device := range devices {
-        outDeviceClass := make(map[string]jsonDeviceClassItem)
-        outDeviceClass["cpu"] = jsonDeviceClassItem{
-            "sensor",
-            "float32",
-            0.0,
-            1.0,
-            "CPU usage percentage",
-            "",
-        }
-        outDeviceClass["reboot"] = jsonDeviceClassItem{
-            "control",
-            "boolean",
-            0.0,
-            0.0,
-            "Reboots the device",
-            "trigger",
-        }
-        /*outDeviceClass["darkness"] = jsonDeviceClassItem{
-            "control",
-            "float",
-            0.0,
-            10.0,
-            "Darkness of toast",
-            "parameter",
-        }*/
+        outDeviceClass := device.GetSDDLClass()
+
         out.Devices = append(
             out.Devices, jsonDevicesItem{
                 device.GetId().String(), 

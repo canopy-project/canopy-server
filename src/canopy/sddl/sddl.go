@@ -3,6 +3,7 @@ package sddl
 import (
     "errors"
     "fmt"
+    "encoding/json"
     "strings"
 )
 
@@ -208,6 +209,11 @@ func (prop *Class) Json() map[string]interface{} {
     return prop.jsonObj
 }
 
+func (prop *Class) ToString() (string, error) {
+    out, err := json.Marshal(prop.Json())
+    return string(out), err
+}
+
 func (prop *Class) Authors() []string {
     return prop.authors
 }
@@ -340,9 +346,22 @@ func parseSensor(name string, json map[string]interface{}) (*Sensor, error) {
     }
     return &prop, nil
 }
-func ParseClass(name string, json map[string]interface{}) (*Class, error) {
+
+func ParseClassString(name string, jsonString string) (*Class, error) {
+    var data map[string]interface{}
+
+    err := json.Unmarshal([]byte(jsonString), &data)
+    if err != nil {
+        return nil, err
+    }
+
+    return ParseClass(name, data)
+}
+
+func ParseClass(name string, jsn map[string]interface{}) (*Class, error) {
     class := Class{name: name, properties: []Property{}, authors: []string{}}
-    for k, v := range json {
+    class.jsonObj = jsn
+    for k, v := range jsn {
         var ok bool
         if strings.HasPrefix(k, "control ") {
             vObj, ok := v.(map[string]interface{})
@@ -398,9 +417,9 @@ func ParseClass(name string, json map[string]interface{}) (*Class, error) {
     return &class, nil
 }
 
-func ParseDocument(json map[string]interface{}) (*Document, error) {
+func ParseDocument(jsn map[string]interface{}) (*Document, error) {
     doc := Document{properties: []Property{}, authors: []string{}}
-    for k, v := range json {
+    for k, v := range jsn {
         var ok bool
         if strings.HasPrefix(k, "control ") {
             vObj, ok := v.(map[string]interface{})

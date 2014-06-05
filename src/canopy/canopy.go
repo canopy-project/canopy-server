@@ -325,8 +325,17 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    /* Parse input as json and just forward it along using pigeon */
+    var data map[string]interface{}
+    decoder := json.NewDecoder(r.Body)
+    err := decoder.Decode(&data)
+    if err != nil {
+        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
+        return
+    }
+
     msg := &pigeon.PigeonMessage { 
-        Data : map[string]interface{} {"hello" : interface{}("world")},
+        Data : data,
     }
     err = gPigeon.SendMessage(deviceIdString, msg, time.Duration(100*time.Millisecond))
     if err != nil {
@@ -336,6 +345,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     fmt.Fprintf(w, "{\"result\" : \"ok\"}");
     return 
 }
+
 var gPigeon = pigeon.InitPigeonSystem()
 
 func main() {
@@ -343,8 +353,9 @@ func main() {
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)
-    r.HandleFunc("/devices/{id}/{sensor}/data", sensorDataHandler);
-    r.HandleFunc("/devices/{id}/{control}/control", controlHandler);
+    r.HandleFunc("/device/{id}", getDeviceInfoHandler).Methods("GET");
+    r.HandleFunc("/device/{id}", controlHandler).Methods("POST");
+    r.HandleFunc("/device/{id}/{sensor}", sensorDataHandler).Methods("GET");
     r.HandleFunc("/devices", devicesHandler)
     r.HandleFunc("/login", loginHandler);
     r.HandleFunc("/logout", logoutHandler);

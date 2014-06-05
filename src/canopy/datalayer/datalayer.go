@@ -17,6 +17,7 @@ var creationQueries []string = []string{
     `CREATE TABLE devices (
         device_id uuid,
         friendly_name text,
+        sddl text,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 

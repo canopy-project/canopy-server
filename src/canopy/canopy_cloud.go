@@ -90,10 +90,13 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
         if mailbox != nil {
             msg, _ := mailbox.RecieveMessage(time.Duration(100*time.Millisecond))
             if msg != nil {
-                fmt.Println("Message recieved: ", msg)
+                msgString, err := json.Marshal(msg)
+                if err != nil {
+                    fmt.Println("Unexpected error:", err);
+                }
+                
+                websocket.Message.Send(ws, msgString)
             }
         }
-
-        //websocket.Message.Send(ws, message)
     }
 }
