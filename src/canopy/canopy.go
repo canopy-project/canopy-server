@@ -328,7 +328,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     /* Parse input as json and just forward it along using pigeon */
     var data map[string]interface{}
     decoder := json.NewDecoder(r.Body)
-    err := decoder.Decode(&data)
+    err = decoder.Decode(&data)
     if err != nil {
         fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
         return
@@ -353,7 +353,7 @@ func main() {
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)
-    r.HandleFunc("/device/{id}", getDeviceInfoHandler).Methods("GET");
+    /*r.HandleFunc("/device/{id}", getDeviceInfoHandler).Methods("GET");*/
     r.HandleFunc("/device/{id}", controlHandler).Methods("POST");
     r.HandleFunc("/device/{id}/{sensor}", sensorDataHandler).Methods("GET");
     r.HandleFunc("/devices", devicesHandler)

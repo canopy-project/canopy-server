@@ -6,15 +6,6 @@ import (
     "time"
 )
 
-type jsonDeviceClassItem struct {
-    Category string `json:"category"`
-    Datatype string `json:"datatype"`
-    MinValue float64 `json:"min_value"`
-    MaxValue float64 `json:"max_value"`
-    Description string `json:"description"`
-    ControlType string `json:"control_type"`
-}
-
 type jsonDevices struct {
     Devices []jsonDevicesItem `json:"devices"`
 }
@@ -22,13 +13,14 @@ type jsonDevices struct {
 type jsonDevicesItem struct {
     DeviceId string `json:"device_id"`
     FriendlyName string `json:"friendly_name"`
-    ClassItems map[string]jsonDeviceClassItem `json:"sddl_class"`
+    ClassItems map[string]interface{} `json:"sddl_class"`
 }
 
 type jsonSample struct {
     Time string `json:"t"`
     Value float64 `json:"v"`
 }
+
 type jsonSamples struct {
     Samples []jsonSample `json:"samples"`
 }
@@ -37,13 +29,14 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
     var out jsonDevices
 
     for _, device := range devices {
-        outDeviceClass := device.GetSDDLClass()
+        outDeviceClass := device.SDDLClass()
+        outDeviceClassJson := outDeviceClass.Json()
 
         out.Devices = append(
             out.Devices, jsonDevicesItem{
                 device.GetId().String(), 
                 device.GetFriendlyName(),
-                outDeviceClass})
+                outDeviceClassJson})
     }
 
     jsn, err := json.Marshal(out)

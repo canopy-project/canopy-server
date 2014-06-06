@@ -18,6 +18,8 @@ type CassandraDevice struct {
     dl *CassandraDatalayer
     deviceId gocql.UUID
     friendlyName string
+    class *sddl.Class
+    classString string
 }
 
 type SensorSample struct {
@@ -34,7 +36,15 @@ func (dl *CassandraDatalayer) CreateDevice(friendlyName string) (*CassandraDevic
     `, deviceId, friendlyName).Exec(); err != nil {
         return nil, err
     }
-    return &CassandraDevice{dl, deviceId, friendlyName}, nil
+    return &CassandraDevice{dl, deviceId, friendlyName, nil, ""}, nil
+}
+
+func (dl *CassandraDatalayer) LookupDeviceByStringId(id string) (*CassandraDevice, error) {
+    deviceId, err := gocql.ParseUUID(id)
+    if err != nil {
+        return nil, err
+    }
+    return dl.LookupDevice(deviceId)
 }
 
 func (dl *CassandraDatalayer) LookupDevice(deviceId gocql.UUID) (*CassandraDevice, error) {
@@ -44,12 +54,21 @@ func (dl *CassandraDatalayer) LookupDevice(deviceId gocql.UUID) (*CassandraDevic
     device.dl = dl
 
     err := dl.session.Query(`
-        SELECT friendly_name
+        SELECT friendly_name, sddl
         FROM devices
         WHERE device_id = ?
-        LIMIT 1`, deviceId).Consistency(gocql.One).Scan(&device.friendlyName)
+        LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
+            &device.friendlyName,
+            &device.classString)
     if err != nil {
         return nil, err
+    }
+
+    if device.classString != "" {
+        device.class, err = sddl.ParseClassString("anonymous", device.classString)
+        if err != nil {
+            return nil, err
+        }
     }
 
     return &device, nil
@@ -83,8 +102,8 @@ func (device *CassandraDevice) InsertSensorSample(propname string, t time.Time, 
     return nil;
 }
 
-func (device *CassandraDevice) SetSDDLClass(sddl *sddl.Class) error {
-    sddlText, err := sddl.ToString()
+func (device *CassandraDevice) SetSDDLClass(class *sddl.Class) error {
+    sddlText, err := class.ToString()
     if err != nil {
         return err
     }
@@ -123,21 +142,10 @@ func (device *CassandraDevice) GetSensorData(propname string, startTime time.Tim
     return samples, nil
 }
 
-/*func (device *CassandraDevice) SDDLClass() (sddl.Class, error) [
-    query := device.dl.session.Query(`
-            SELECT time, value
-            FROM sensor_data
-            WHERE device_id = ?
-                AND propname = ?
-    `, device.GetId(), propname).Consistency(gocql.One);
-        sddlClassString := device.
-        var sddlClassGo map[string]interface{}
-        decoder := json.NewDecoder(r.Body)
-        err := decoder.Decode(&data)
-        if err != nil {
-            fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
-            return
-        }
+func (device *CassandraDevice) SDDLClass() *sddl.Class {
+    return device.class
+}
 
-}*/
-
+func (device *CassandraDevice) SDDLClassString() string{
+    return device.classString
+}

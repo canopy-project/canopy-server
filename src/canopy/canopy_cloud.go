@@ -2,7 +2,6 @@ package main
 
 import (
     "fmt"
-    "github.com/gocql/gocql"
     "time"
     "encoding/json"
     "code.google.com/p/go.net/websocket"
@@ -10,47 +9,81 @@ import (
     "net"
     "canopy/datalayer"
     "canopy/pigeon"
+    "canopy/sddl"
 )
 
 // Process JSON message from the client
 func processPayload(dl *datalayer.CassandraDatalayer, payload string) string{
-    var f interface{}
+    var payloadObj map[string]interface{}
+    var device *datalayer.CassandraDevice
     var deviceIdString string
-    var cpu float64
 
-    err := json.Unmarshal([]byte(payload), &f)
+    err := json.Unmarshal([]byte(payload), &payloadObj)
     if err != nil{
         fmt.Println("Error JSON decoding payload: ", payload)
         return "";
     }
 
-    m := f.(map[string]interface{})
-    for k, v := range m {
+    /* Lookup device */
+    _, ok := payloadObj["device_id"]
+    if ok {
+        deviceIdString, ok = payloadObj["device_id"].(string)
+        if !ok {
+            fmt.Println("Expected string for device_id")
+            return "";
+        }
+
+        device, err = dl.LookupDeviceByStringId(deviceIdString)
+        if err != nil {
+            fmt.Println("Device not found: ", deviceIdString, err)
+            return "";
+        }
+    } else {
+            fmt.Println("device-id field mandatory")
+            return "";
+    }
+
+    /* Store SDDL class */
+    _, ok = payloadObj["sddl"]
+    if ok {
+        sddlJson, ok := payloadObj["sddl"].(map[string]interface{})
+        if !ok {
+            fmt.Println("Expected object for SDDL")
+            return "";
+        }
+        sddlClass, err := sddl.ParseClass("anonymous", sddlJson)
+        if !ok {
+            fmt.Println("Failed parsing sddl class definition: ", err)
+            return "";
+        }
+
+        err = device.SetSDDLClass(sddlClass)
+        if err != nil {
+            fmt.Println("Error storing SDDL class during processPayload")
+            return "";
+        }
+    } else {
+            fmt.Println("sddl field mandatory")
+            return "";
+    }
+
+
+    /* Store sensor data */
+    for k, v := range payloadObj {
+        /* hack */
+        if k == "device_id" || k == "sddl" {
+            continue
+        }
         switch vv := v.(type) {
             case float64:
-                cpu = vv
-            case string:
-                deviceIdString = vv
+                err = device.InsertSensorSample(k, time.Now(), vv);
+                if err != nil {
+                    fmt.Println("Error saving sample", err)
+                    return ""
+                }
             default:
                 fmt.Println(k, "is of a type I don't know how to handle");
         }
-    }
-
-    deviceId, err := gocql.ParseUUID(deviceIdString)
-    if err != nil {
-        fmt.Println("Invalid UUID", deviceIdString, err);
-        return ""
-    }
-
-    device, err := dl.LookupDevice(deviceId)
-    if err != nil {
-        fmt.Println("Could not lookup device: ", deviceIdString, err)
-        return ""
-    }
-    err = device.InsertSensorSample("cpu", time.Now(), cpu);
-    if err != nil {
-        fmt.Println("Error saving sample", err)
-        return ""
     }
 
     return deviceIdString;
