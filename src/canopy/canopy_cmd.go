@@ -3,6 +3,7 @@ package main
 import (
     "github.com/gocql/gocql"
     "canopy/datalayer"
+    "canopy/mail"
     "flag"
     "fmt"
     "time"
@@ -92,6 +93,27 @@ func main() {
             }
         }
 
+    } else if flag.Arg(0) == "test-email" {
+        mailer, err := mail.NewDefaultMailClient()
+        if err != nil {
+            fmt.Println("Error initializing mail client: ", err)
+            return
+        }
+        mail := mailer.NewMail();
+        err = mail.AddTo(flag.Arg(1), "Customer")
+        if err != nil {
+            fmt.Println("Invalid recipient: ", flag.Arg(1), err)
+            return
+        }
+        mail.SetSubject("Test email from Canopy")
+        mail.SetHTML("<b>Canopy Rulez</b>")
+        mail.SetFrom("no-reply@canopy.link", "The Canopy Team")
+        err = mailer.Send(mail)
+        if err != nil {
+            fmt.Println("Error sending email:", err)
+            return
+        }
+        fmt.Println("Email sent.")
     } else {
         fmt.Println("Unknown command: ", flag.Arg(0))
     }

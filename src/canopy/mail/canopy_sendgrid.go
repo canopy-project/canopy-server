@@ -3,6 +3,7 @@ package mail
 import (
     "errors"
     "github.com/sendgrid/sendgrid-go"
+    "os"
     "time"
 )
 
@@ -16,7 +17,16 @@ type CanopySGMail struct {
 
 func NewSendGridMailClient() (MailClient, error) {
     client := CanopySGClient{}
-    client.sg = sendgrid.NewSendGridClient("canopy", "1234")
+    username := os.Getenv("SENDGRID_USERNAME")
+    if username == "" {
+        return nil, errors.New("You must set environment variable SENDGRID_USERNAME")
+    }
+
+    secret := os.Getenv("SENDGRID_SECRET_KEY")
+    if secret == "" {
+        return nil, errors.New("You must set environment variable SENDGRID_SECRET_KEY")
+    }
+    client.sg = sendgrid.NewSendGridClient(username, secret)
     return &client, nil
 }
 
