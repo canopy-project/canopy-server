@@ -31,14 +31,16 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
 
     for _, device := range devices {
         outDeviceClass := device.SDDLClass()
-        outDeviceClassJson := outDeviceClass.Json()
+        if outDeviceClass != nil {
+            outDeviceClassJson := outDeviceClass.Json()
 
-        out.Devices = append(
-            out.Devices, jsonDevicesItem{
-                device.GetId().String(), 
-                device.GetFriendlyName(),
-                IsDeviceConnected(device.GetId().String()),
-                outDeviceClassJson})
+            out.Devices = append(
+                out.Devices, jsonDevicesItem{
+                    device.GetId().String(), 
+                    device.GetFriendlyName(),
+                    IsDeviceConnected(device.GetId().String()),
+                    outDeviceClassJson})
+        }
     }
 
     jsn, err := json.Marshal(out)
