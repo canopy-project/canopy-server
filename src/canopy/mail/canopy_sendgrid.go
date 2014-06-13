@@ -53,7 +53,9 @@ func (mail *CanopySGMail) AddTo(email string, name string) error {
     if err != nil {
         return err
     }
-    mail.sgmail.AddToName(name)
+    if name != "" {
+        mail.sgmail.AddToName(name)
+    }
     return nil
 }
 

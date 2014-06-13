@@ -9,6 +9,7 @@ import (
     "github.com/gorilla/context"
     "github.com/gorilla/mux"
     "canopy/datalayer"
+    "canopy/mail"
     "canopy/pigeon"
     "encoding/json"
     "time"
@@ -346,6 +347,186 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     return 
 }
 
+func shareHandler(w http.ResponseWriter, r *http.Request) {
+    /*
+     *  POST
+     *  {
+     *      "device_id" : <DEVICE_ID>,
+     *      "access_level" : <ACCESS_LEVEL>,
+     *      "sharing_level" : <SHARING_LEVEL>,
+     *      "email_address" : <EMAIL_ADDRESS>,
+     *  }
+     *
+     * TODO: Add to REST API documentation
+     */
+    var data map[string]interface{}
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    session, _ := store.Get(r, "canopy-login-session")
+
+    decoder := json.NewDecoder(r.Body)
+    err := decoder.Decode(&data)
+    if err != nil {
+        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
+        return
+    }
+
+    deviceId, ok := data["device_id"].(string)
+    if !ok {
+        fmt.Fprintf(w, "{\"error\" : \"device_id expected\"}")
+        return
+    }
+
+    //accessLevel, ok := data["access_level"].(int)
+    /*_, ok = data["access_level"].(float)
+    if !ok {
+        fmt.Fprintf(w, "{\"error\" : \"access_level expected\"}")
+        return
+    }*/
+
+    //sharingLevel, ok := data["sharing_level"].(int)
+    /*_, ok = data["sharing_level"].(float)
+    if !ok {
+        fmt.Fprintf(w, "{\"error\" : \"sharing_level expected\"}")
+        return
+    }*/
+
+    email, ok := data["email"].(string)
+    if !ok {
+        fmt.Fprintf(w, "{\"error\" : \"email expected\"}")
+        return
+    }
+    var username_string string
+    username, ok := session.Values["logged_in_username"]
+    if ok {
+        username_string, ok = username.(string)
+        if !(ok && username_string != "") {
+            w.WriteHeader(http.StatusUnauthorized);
+            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+            return
+        }
+    } else {
+        w.WriteHeader(http.StatusUnauthorized);
+        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+        return
+    }
+
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+    account, err := dl.LookupAccount(username_string)
+    if account == nil || err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+        return
+    }
+
+    mailer, err := mail.NewDefaultMailClient()
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"Failed to initialize mail client\"}")
+        return
+    }
+    mail := mailer.NewMail();
+    err = mail.AddTo(email, "")
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"Invalid email recipient\"}")
+        return
+    }
+    mail.SetSubject("Greg's Smart fan")
+    mail.SetHTML(`
+<img src="http://canopy.link/canopy_logo.jpg"></img>
+<h2>I've shared a device with you.</h2>
+<a href="http://canopy.link/canopy-app/index_nodes.html?share_device=` + deviceId + `">Greg's Smart Fan</a>
+<h2>What is Canopy?</h2>
+<b>Canopy</b> is a secure platform for monitoring and controlling physical
+devices.  Learn more at <a href=http://canopy.link>http://canopy.link</a>
+`)
+    mail.SetFrom("greg@canopy.link", "greg (via Canopy)")
+    err = mailer.Send(mail)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"Error sending email\"}")
+        return
+    }
+
+    fmt.Fprintf(w, "{\"result\" : \"ok\"}");
+    return 
+}
+
+func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
+    /*
+     *  POST
+     *  {
+     *      "device_id" : <DEVICE_ID>,
+     *  }
+     *
+     * TODO: Add to REST API documentation
+     * TODO: Highly insecure!!!
+     */
+    var data map[string]interface{}
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    session, _ := store.Get(r, "canopy-login-session")
+
+    decoder := json.NewDecoder(r.Body)
+    err := decoder.Decode(&data)
+    if err != nil {
+        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
+        return
+    }
+
+    deviceId, ok := data["device_id"].(string)
+    if !ok {
+        fmt.Fprintf(w, "{\"error\" : \"device_id expected\"}")
+        return
+    }
+
+    var username_string string
+    username, ok := session.Values["logged_in_username"]
+    if ok {
+        username_string, ok = username.(string)
+        if !(ok && username_string != "") {
+            w.WriteHeader(http.StatusUnauthorized);
+            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+            return
+        }
+    } else {
+        w.WriteHeader(http.StatusUnauthorized);
+        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+        return
+    }
+
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+    account, err := dl.LookupAccount(username_string)
+    if account == nil || err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+        return
+    }
+
+    device, err := dl.LookupDeviceByStringId(deviceId)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
+        return
+    }
+
+    /* Grant permissions to the user to access the device */
+    err = device.SetAccountAccess(account, datalayer.ReadWriteShareAccess)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"could_not_grant_access\"}");
+        return
+    }
+
+    fmt.Fprintf(w, "{\"result\" : \"ok\"}");
+    return 
+}
+
 var gPigeon = pigeon.InitPigeonSystem()
 
 func main() {
@@ -357,6 +538,8 @@ func main() {
     r.HandleFunc("/device/{id}", controlHandler).Methods("POST");
     r.HandleFunc("/device/{id}/{sensor}", sensorDataHandler).Methods("GET");
     r.HandleFunc("/devices", devicesHandler)
+    r.HandleFunc("/share", shareHandler)
+    r.HandleFunc("/finish_share_transaction", finishShareTransactionHandler)
     r.HandleFunc("/login", loginHandler);
     r.HandleFunc("/logout", logoutHandler);
     r.HandleFunc("/me", meHandler);
