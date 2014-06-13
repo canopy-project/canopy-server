@@ -378,6 +378,16 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+
+    device, err := dl.LookupDeviceByStringId(deviceId)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
+        return
+    }
+
     //accessLevel, ok := data["access_level"].(int)
     /*_, ok = data["access_level"].(float)
     if !ok {
@@ -412,8 +422,6 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
     account, err := dl.LookupAccount(username_string)
     if account == nil || err != nil {
         w.WriteHeader(http.StatusInternalServerError);
@@ -434,11 +442,11 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w, "{\"error\" : \"Invalid email recipient\"}")
         return
     }
-    mail.SetSubject("Greg's Smart fan")
+    mail.SetSubject(device.GetFriendlyName())
     mail.SetHTML(`
 <img src="http://canopy.link/canopy_logo.jpg"></img>
 <h2>I've shared a device with you.</h2>
-<a href="http://canopy.link/canopy-app/index_nodes.html?share_device=` + deviceId + `">Greg's Smart Fan</a>
+<a href="http://canopy.link/canopy-app/index_nodes.html?share_device=` + deviceId + `">` + device.GetFriendlyName() + `</a>
 <h2>What is Canopy?</h2>
 <b>Canopy</b> is a secure platform for monitoring and controlling physical
 devices.  Learn more at <a href=http://canopy.link>http://canopy.link</a>
@@ -546,5 +554,9 @@ func main() {
 
     http.Handle("/echo", websocket.Handler(CanopyWebsocketServer))
     http.Handle("/", r)
-    http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
+    //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
+    err := http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
+    if err != nil {
+        fmt.Println(err);
+    }
 }

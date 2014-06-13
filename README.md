@@ -23,3 +23,7 @@ default.  To updgrade:
     $ sudo add-apt-repository ppa:duh/golang
     $ sudo apt-get update
     $ sudo apt-get install golang
+
+CERT GENERATION
+
+    $ openssl genrsa -out key.pem 1024

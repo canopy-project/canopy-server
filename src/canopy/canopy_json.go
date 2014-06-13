@@ -13,6 +13,7 @@ type jsonDevices struct {
 type jsonDevicesItem struct {
     DeviceId string `json:"device_id"`
     FriendlyName string `json:"friendly_name"`
+    Connected bool `json:"connected"`
     ClassItems map[string]interface{} `json:"sddl_class"`
 }
 
@@ -36,6 +37,7 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
             out.Devices, jsonDevicesItem{
                 device.GetId().String(), 
                 device.GetFriendlyName(),
+                IsDeviceConnected(device.GetId().String()),
                 outDeviceClassJson})
     }
 

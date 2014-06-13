@@ -89,6 +89,10 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string) string{
     return deviceIdString;
 }
 
+func IsDeviceConnected(deviceIdString string) bool {
+    return (gPigeon.Mailbox(deviceIdString) != nil)
+}
+
 // Main websocket server routine.
 // This event loop runs until the websocket connection is broken.
 func CanopyWebsocketServer(ws *websocket.Conn) {
@@ -113,6 +117,9 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
             }
         } else if err == io.EOF {
             // connection closed
+            if mailbox != nil {
+                mailbox.Close()
+            }
             return;
         } else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
             // timeout reached, no data for me this time

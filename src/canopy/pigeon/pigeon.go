@@ -26,6 +26,8 @@ type PigeonSystem struct {
 
 type PigeonMailbox struct {
     ch chan *PigeonMessage
+    id string
+    sys *PigeonSystem
 }
 
 type PigeonMessage struct {
@@ -37,9 +39,13 @@ func InitPigeonSystem() *PigeonSystem {
 }
 
 func (pigeon *PigeonSystem)CreateMailbox(mailboxId string) (*PigeonMailbox) {
-    mailbox := PigeonMailbox{make(chan *PigeonMessage)}
+    mailbox := PigeonMailbox{make(chan *PigeonMessage), mailboxId, pigeon}
     pigeon.mailboxes[mailboxId] = &mailbox;
     return &mailbox
+}
+
+func (pigeon *PigeonSystem)Mailbox(mailboxId string) (*PigeonMailbox) {
+    return pigeon.mailboxes[mailboxId];
 }
 
 func (pigeon *PigeonSystem)SendMessage(mailboxId string, msg *PigeonMessage, timeout time.Duration) error{
@@ -63,4 +69,8 @@ func (mailbox *PigeonMailbox)RecieveMessage(timeout time.Duration) (*PigeonMessa
         case <- time.After(timeout):
             return nil, errors.New("ReceiveMessage timed out")
     }
+}
+
+func (mailbox *PigeonMailbox)Close() {
+    delete(mailbox.sys.mailboxes, mailbox.id)
 }
