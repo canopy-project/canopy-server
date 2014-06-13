@@ -523,7 +523,7 @@ func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    fmt.Fprintf(w, "{\"result\" : \"ok\"}");
+    fmt.Fprintf(w, "{\"result\" : \"ok\", \"device_friendly_name\" : \"%s\" }", device.GetFriendlyName());
     return 
 }
 
