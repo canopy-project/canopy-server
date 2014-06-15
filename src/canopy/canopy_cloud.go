@@ -13,7 +13,7 @@ import (
 )
 
 // Process JSON message from the client
-func processPayload(dl *datalayer.CassandraDatalayer, payload string) string{
+func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32) string{
     var payloadObj map[string]interface{}
     var device *datalayer.CassandraDevice
     var deviceIdString string
@@ -69,20 +69,22 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string) string{
 
 
     /* Store sensor data */
-    for k, v := range payloadObj {
-        /* hack */
-        if k == "device_id" || k == "sddl" {
-            continue
-        }
-        switch vv := v.(type) {
-            case float64:
-                err = device.InsertSensorSample(k, time.Now(), vv);
-                if err != nil {
-                    fmt.Println("Error saving sample", err)
-                    return ""
-                }
-            default:
-                fmt.Println(k, "is of a type I don't know how to handle");
+    if cnt % 10 == 0 {
+        for k, v := range payloadObj {
+            /* hack */
+            if k == "device_id" || k == "sddl" {
+                continue
+            }
+            switch vv := v.(type) {
+                case float64:
+                    err = device.InsertSensorSample(k, time.Now(), vv);
+                    if err != nil {
+                        fmt.Println("Error saving sample", err)
+                        return ""
+                    }
+                default:
+                    fmt.Println(k, "is of a type I don't know how to handle");
+            }
         }
     }
 
@@ -98,6 +100,9 @@ func IsDeviceConnected(deviceIdString string) bool {
 func CanopyWebsocketServer(ws *websocket.Conn) {
 
     var mailbox *pigeon.PigeonMailbox
+    var cnt int32
+    
+    cnt = 0
 
     // connect to cassandra
     dl := datalayer.NewCassandraDatalayer()
@@ -111,7 +116,8 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
         err := websocket.Message.Receive(ws, &in)
         if err == nil {
             // success, payload received
-            deviceId := processPayload(dl, in)
+            cnt++;
+            deviceId := processPayload(dl, in, cnt)
             if deviceId != "" && mailbox == nil {
                 mailbox = gPigeon.CreateMailbox(deviceId)
             }

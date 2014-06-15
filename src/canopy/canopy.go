@@ -446,7 +446,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
     mail.SetHTML(`
 <img src="http://canopy.link/canopy_logo.jpg"></img>
 <h2>I've shared a device with you.</h2>
-<a href="http://canopy.link/canopy-app/index_nodes.html?share_device=` + deviceId + `">` + device.GetFriendlyName() + `</a>
+<a href="http://canopy.link/go.php?share_device=` + deviceId + `">` + device.GetFriendlyName() + `</a>
 <h2>What is Canopy?</h2>
 <b>Canopy</b> is a secure platform for monitoring and controlling physical
 devices.  Learn more at <a href=http://canopy.link>http://canopy.link</a>

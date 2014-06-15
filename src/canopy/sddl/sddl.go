@@ -46,6 +46,7 @@ type Document struct {
 
 type Property interface {
     Name() string
+    JustName() string
 }
 
 type Control struct {
@@ -145,6 +146,10 @@ func (prop *Control) Name() string {
     return prop.name
 }
 
+func (prop *Control) JustName() string {
+    return strings.Split(prop.Name(), " ")[1]
+}
+
 func (prop *Control) ControlType() ControlTypeEnum {
     return prop.controlType
 }
@@ -177,6 +182,10 @@ func (prop *Sensor) Name() string {
     return prop.name
 }
 
+func (prop *Sensor) JustName() string {
+    return strings.Split(prop.Name(), " ")[1]
+}
+
 func (prop *Sensor) Datatype() DatatypeEnum {
     return prop.datatype
 }
@@ -203,6 +212,10 @@ func (prop *Sensor) Regex() string {
 
 func (prop *Class) Name() string {
     return prop.name
+}
+
+func (prop *Class) JustName() string {
+    return strings.Split(prop.Name(), " ")[1]
 }
 
 func (prop *Class) Json() map[string]interface{} {
@@ -359,7 +372,11 @@ func ParseClassString(name string, jsonString string) (*Class, error) {
 }
 
 func ParseClass(name string, jsn map[string]interface{}) (*Class, error) {
-    class := Class{name: name, properties: []Property{}, authors: []string{}}
+    class := Class{
+        name: name,
+        properties: []Property{}, 
+        authors: []string{},
+    }
     class.jsonObj = jsn
     for k, v := range jsn {
         var ok bool

@@ -142,6 +142,27 @@ func (device *CassandraDevice) GetSensorData(propname string, startTime time.Tim
     return samples, nil
 }
 
+func (device *CassandraDevice) GetCurrentSensorData(propname string) (*SensorSample, error) {
+    var value float64
+    var timestamp time.Time
+
+    err := device.dl.session.Query(`
+        SELECT time, value
+        FROM sensor_data
+        WHERE device_id = ?
+            AND propname = ?
+        ORDER BY propname DESC
+        LIMIT 1`, device.GetId(), propname).Consistency(gocql.One).Scan(
+            &timestamp, 
+            &value)
+    if err != nil {
+        return nil, err
+    }
+
+    sample := SensorSample{timestamp, value}
+    return &sample, nil
+}
+
 func (device *CassandraDevice) SDDLClass() *sddl.Class {
     return device.class
 }

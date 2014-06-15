@@ -2,6 +2,7 @@ package main
 
 import (
     "canopy/datalayer"
+    "canopy/sddl"
     "encoding/json"
     "time"
 )
@@ -15,6 +16,7 @@ type jsonDevicesItem struct {
     FriendlyName string `json:"friendly_name"`
     Connected bool `json:"connected"`
     ClassItems map[string]interface{} `json:"sddl_class"`
+    PropValues map[string]jsonSample `json:"property_values"`
 }
 
 type jsonSample struct {
@@ -34,12 +36,29 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
         if outDeviceClass != nil {
             outDeviceClassJson := outDeviceClass.Json()
 
+            // get most recent value of each sensor/control
+            propValues := map[string]jsonSample{}
+            for _, prop := range outDeviceClass.Properties() {
+                sensor, ok := prop.(*sddl.Sensor)
+                if ok {
+                    sample, err := device.GetCurrentSensorData(prop.JustName())
+                    if err != nil {
+                        continue
+                    }
+                    propValues[sensor.Name()] = jsonSample{
+                        sample.Timestamp.Format(time.RFC3339),
+                        sample.Value,
+                    }
+                }
+            }
+
             out.Devices = append(
                 out.Devices, jsonDevicesItem{
                     device.GetId().String(), 
                     device.GetFriendlyName(),
                     IsDeviceConnected(device.GetId().String()),
-                    outDeviceClassJson})
+                    outDeviceClassJson,
+                    propValues})
         }
     }
 
@@ -55,7 +74,7 @@ func samplesToJson(samples []datalayer.SensorSample) (string, error) {
     for _, sample := range samples {
         out.Samples = append(out.Samples, jsonSample{
             sample.Timestamp.Format(time.RFC3339),
-            sample.Value});
+            sample.Value})
     }
 
     jsn, err := json.Marshal(out)
