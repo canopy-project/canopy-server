@@ -18,6 +18,7 @@ import (
 var store = sessions.NewCookieStore([]byte("my_production_secret"))
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -62,6 +63,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -77,6 +79,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAccountHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -141,6 +144,7 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func meHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -165,6 +169,7 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func devicesHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -216,6 +221,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
     deviceIdString := vars["id"]
     sensorName := vars["sensor"]
 
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -283,6 +289,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     deviceIdString := vars["id"]
     //controlName := vars["control"]
 
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -360,6 +367,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
      * TODO: Add to REST API documentation
      */
     var data map[string]interface{}
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -474,6 +482,7 @@ func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
      * TODO: Highly insecure!!!
      */
     var data map[string]interface{}
+    w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
     w.Header().Set("Access-Control-Allow-Credentials", "true")
@@ -555,7 +564,13 @@ func main() {
     http.Handle("/echo", websocket.Handler(CanopyWebsocketServer))
     http.Handle("/", r)
     //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
-    err := http.ListenAndServe(":8080", context.ClearHandler(http.DefaultServeMux))
+    srv := &http.Server{
+        Addr: ":8080",
+        Handler: context.ClearHandler(http.DefaultServeMux),
+        //ReadTimeout: 10*time.Second,
+        //WriteTimeout: 10*time.Second,
+    }
+    err := srv.ListenAndServe()
     if err != nil {
         fmt.Println(err);
     }
