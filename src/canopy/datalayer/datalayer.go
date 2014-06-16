@@ -76,6 +76,10 @@ func (dl *CassandraDatalayer) Connect(keyspace string) {
     dl.session, _ = dl.cluster.CreateSession()
 }
 
+func (dl *CassandraDatalayer) Close() {
+    dl.session.Close()
+}
+
 func (dl *CassandraDatalayer) StorePropertyValue(device_id string, propname string, value float64) {
     /* deprecated */
     if err := dl.session.Query(`

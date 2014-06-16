@@ -107,6 +107,7 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
     // connect to cassandra
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
 
     for {
         var in string

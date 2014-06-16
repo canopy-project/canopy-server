@@ -46,6 +46,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
     session, _ := store.Get(r, "canopy-login-session")
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
     _, err = dl.LookupAccountVerifyPassword(username, password)
     if err == nil {
         session.Values["logged_in_username"] = username
@@ -129,6 +130,7 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
 
     dl.CreateAccount(username, email, password);
     session, _ := store.Get(r, "canopy-login-session")
@@ -192,6 +194,7 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
     
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
     account, err := dl.LookupAccount(username_string)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
@@ -244,6 +247,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
     
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
     account, err := dl.LookupAccount(username_string)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
@@ -312,6 +316,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
     account, err := dl.LookupAccount(username_string)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
@@ -399,6 +404,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
 
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
 
     device, err := dl.LookupDeviceByStringId(deviceId)
     if err != nil {
@@ -529,6 +535,7 @@ func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
 
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
+    defer dl.Close()
     account, err := dl.LookupAccount(username_string)
     if account == nil || err != nil {
         w.WriteHeader(http.StatusInternalServerError);
