@@ -50,6 +50,18 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
                         sample.Value,
                     }
                 }
+                control, ok := prop.(*sddl.Control)
+                if ok {
+                    sample, err := device.GetCurrentSensorData(prop.JustName())
+                    if err != nil {
+                        continue
+                    }
+                    propValues[control.Name()] = jsonSample{
+                        sample.Timestamp.Format(time.RFC3339),
+                        sample.Value,
+                    }
+                }
+
             }
 
             out.Devices = append(
