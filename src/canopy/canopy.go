@@ -326,7 +326,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    _, err = account.GetDeviceById(uuid)
+    device, err := account.GetDeviceById(uuid)
     if err != nil {
         w.WriteHeader(http.StatusBadRequest);
         fmt.Fprintf(w, "{\"error\" : \"Could not find or access device\"}");
@@ -340,6 +340,17 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     if err != nil {
         fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
         return
+    }
+
+    /* Store control value.  For now, use sensor_data table */
+    for sensorName, value := range data {
+        /* TODO: Verify that control is, in fact, a control according to SDDL
+         * class */
+        floatVal, ok := value.(float64)
+        if !ok {
+            continue;
+        }
+        device.InsertSensorSample(sensorName, time.Now(), floatVal);
     }
 
     msg := &pigeon.PigeonMessage { 
