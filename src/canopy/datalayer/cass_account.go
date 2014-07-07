@@ -4,7 +4,6 @@ import (
     "github.com/gocql/gocql"
     "log"
     "errors"
-    "fmt"
     "code.google.com/p/go.crypto/bcrypt"
 )
 
@@ -18,11 +17,7 @@ type CassandraAccount struct {
     password_hash []byte
 }
 
-type InvalidPasswordError struct{}
-
-func (err InvalidPasswordError) Error() string {
-    return fmt.Sprintf("Incorrect password")
-}
+var InvalidPasswordError = errors.New("Incorrect password")
 
 func (dl *CassandraDatalayer) CreateAccount(username string, email string, password string) (*CassandraAccount, error) {
     password_hash, _ := bcrypt.GenerateFromPassword([]byte(password + salt), hashCost)
@@ -88,7 +83,7 @@ func (dl *CassandraDatalayer)LookupAccountVerifyPassword(usernameOrEmail string,
 
     verified := account.VerifyPassword(password)
     if (!verified) {
-        return nil, &InvalidPasswordError{}
+        return nil, InvalidPasswordError
     }
 
     return account, nil

@@ -1,6 +1,7 @@
 package main
 
 import (
+    "errors"
     "fmt"
     "net/http"
     "code.google.com/p/go.net/websocket"
@@ -12,8 +13,34 @@ import (
     "canopy/mail"
     "canopy/pigeon"
     "encoding/json"
+    "encoding/base64"
+    "strings"
     "time"
 )
+
+func basicAuthFromRequest(r *http.Request) (username string, password string, err error) {
+    h, ok := r.Header["Authorization"]
+    if !ok || len(h) == 0 {
+        return "", "", errors.New("Authorization header not set")
+    }
+    parts := strings.SplitN(h[0], " ", 2)
+    if len(parts) != 2 {
+        return "", "", errors.New("Authentication header malformed")
+    }
+    if parts[0] != "Basic" {
+        return "", "", errors.New("Expected basic authentication")
+    }
+    encodedVal := parts[1]
+    decodedVal, err := base64.StdEncoding.DecodeString(encodedVal)
+    if err != nil {
+        return "", "", errors.New("Authentication header malformed")
+    }
+    parts = strings.Split(string(decodedVal), ":")
+    if len(parts) != 2 {
+        return "", "", errors.New("Authentication header malformed")
+    }
+    return parts[0], parts[1], nil
+}
 
 var store = sessions.NewCookieStore([]byte("my_production_secret"))
 
@@ -142,6 +169,55 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     fmt.Fprintf(w, "{\"success\" : true}")
+    return
+}
+
+func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
+    w.Header().Set("Connection", "close")
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
+
+    username, password, err := basicAuthFromRequest(r)
+    if err != nil {
+        w.WriteHeader(http.StatusUnauthorized)
+        fmt.Fprintf(w, "{\"error\" : \"bad_credentials\"}")
+        return
+    }
+
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+    defer dl.Close()
+
+    acct, err := dl.LookupAccountVerifyPassword(username, password)
+    if err != nil {
+        if err == datalayer.InvalidPasswordError {
+            w.WriteHeader(http.StatusUnauthorized)
+            fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
+            return;
+        } else {
+            w.WriteHeader(http.StatusInternalServerError);
+            fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+            return
+        }
+    }
+    
+    device, err := dl.CreateDevice("Pending Device");
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"device_creation_failed\"}");
+        return
+    }
+
+    //err = device.SetAccountAccess(acct, datalayer.ReadWriteShareAccess);
+    err = device.SetAccountAccess(acct, 4);
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"could_not_grant_access\"}");
+        return
+    }
+
+    fmt.Fprintf(w, "{\"success\" : true, \"device_id\" : \"%s\"}", device.GetId().String())
     return
 }
 
@@ -569,6 +645,7 @@ func main() {
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)
+    r.HandleFunc("/create_device", createDeviceHandler)
     /*r.HandleFunc("/device/{id}", getDeviceInfoHandler).Methods("GET");*/
     r.HandleFunc("/device/{id}", controlHandler).Methods("POST");
     r.HandleFunc("/device/{id}/{sensor}", sensorDataHandler).Methods("GET");
@@ -593,3 +670,7 @@ func main() {
         fmt.Println(err);
     }
 }
+
+/*
+ * NOTES: Check out https://leanpub.com/gocrypto/read for good intro to crypto.
+ */
