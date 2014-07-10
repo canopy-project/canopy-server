@@ -42,7 +42,7 @@ func (dl *CassandraDatalayer) CreateAccount(username string, email string, passw
 
 func (dl *CassandraDatalayer) DeleteAccount(username string) {
     account, _ := dl.LookupAccount(username)
-    email := account.GetEmail()
+    email := account.Email()
 
     if err := dl.session.Query(`
             DELETE FROM accounts
@@ -89,11 +89,11 @@ func (dl *CassandraDatalayer)LookupAccountVerifyPassword(usernameOrEmail string,
     return account, nil
 }
 
-func (account* CassandraAccount)GetUsername() string {
+func (account* CassandraAccount)Username() string {
     return account.username
 }
 
-func (account* CassandraAccount)GetEmail() string {
+func (account* CassandraAccount)Email() string {
     return account.email
 }
 
@@ -113,7 +113,7 @@ func (account *CassandraAccount)GetDevices() ([]*CassandraDevice, error) {
     query := account.dl.session.Query(`
             SELECT device_id, access_level FROM device_permissions 
             WHERE username = ?
-    `, account.GetUsername()).Consistency(gocql.One)
+    `, account.Username()).Consistency(gocql.One)
     iter := query.Iter()
     for iter.Scan(&deviceId, &accessLevel) {
         if accessLevel > 0 {
@@ -143,7 +143,7 @@ func (account *CassandraAccount)GetDeviceById(deviceId gocql.UUID) (*CassandraDe
         SELECT access_level FROM device_permissions
         WHERE username = ? AND device_id = ?
         LIMIT 1
-    `, account.GetUsername(), deviceId).Consistency(gocql.One).Scan(
+    `, account.Username(), deviceId).Consistency(gocql.One).Scan(
         &accessLevel); err != nil {
             return nil, err
     }

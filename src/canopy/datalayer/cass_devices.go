@@ -86,7 +86,7 @@ func (device *CassandraDevice) SetAccountAccess(account *CassandraAccount, level
     err := device.dl.session.Query(`
             INSERT INTO device_permissions (username, device_id, access_level)
             VALUES (?, ?, ?)
-    `, account.GetUsername(), device.GetId(), level).Exec()
+    `, account.Username(), device.GetId(), level).Exec()
 
     return err
 }

@@ -18,6 +18,16 @@ import (
     "time"
 )
 
+func writeNotLoggedInError(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusUnauthorized);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "not_logged_in"}`);
+}
+
+func writeAccountLookupFailedError(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusInternalServerError);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "account_lookup_failed"}`);
+}
+
 func basicAuthFromRequest(r *http.Request) (username string, password string, err error) {
     h, ok := r.Header["Authorization"]
     if !ok || len(h) == 0 {
@@ -74,7 +84,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
     defer dl.Close()
-    _, err = dl.LookupAccountVerifyPassword(username, password)
+    account, err := dl.LookupAccountVerifyPassword(username, password)
     if err == nil {
         session.Values["logged_in_username"] = username
         err := session.Save(r, w)
@@ -82,7 +92,9 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
             fmt.Fprintf(w, "{\"error\" : \"saving_session\"}")
             return
         }
-        fmt.Fprintf(w, "{\"success\" : true}")
+        fmt.Fprintf(w, "{\"result\" : \"ok\", \"username\" : \"%s\", \"email\" : \"%s\"}",
+            account.Username(),
+            account.Email())
         return
     } else {
         fmt.Fprintf(w, "{\"error\" : \"incorrect_password\"}")
@@ -228,22 +240,32 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
     w.Header().Set("Access-Control-Allow-Credentials", "true")
     session, _ := store.Get(r, "canopy-login-session")
     
+    var username_string string
     username, ok := session.Values["logged_in_username"]
     if ok {
-        username_string, ok := username.(string)
-        if ok && username_string != "" {
-            fmt.Fprintf(w, "{\"username\" : \"%s\"}", username_string);
-            return
-        } else {
-            w.WriteHeader(http.StatusUnauthorized);
-            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"}");
+        username_string, ok = username.(string)
+        if !(ok && username_string != "") {
+            writeNotLoggedInError(w);
             return
         }
     } else {
-        w.WriteHeader(http.StatusUnauthorized);
-        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"}");
+        writeNotLoggedInError(w);
         return
     }
+    
+    dl := datalayer.NewCassandraDatalayer()
+    dl.Connect("canopy")
+    defer dl.Close()
+
+    account, err := dl.LookupAccount(username_string)
+    if err != nil {
+        return
+    }
+
+    fmt.Fprintf(w, "{\"result\" : \"ok\", \"username\" : \"%s\", \"email\" : \"%s\"}",
+        account.Username(),
+        account.Email())
+    return
 }
 
 func devicesHandler(w http.ResponseWriter, r *http.Request) {
@@ -258,19 +280,18 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
     if ok {
         username_string, ok = username.(string)
         if !(ok && username_string != "") {
-            w.WriteHeader(http.StatusUnauthorized);
-            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+            writeNotLoggedInError(w);
             return
         }
     } else {
-        w.WriteHeader(http.StatusUnauthorized);
-        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+        writeNotLoggedInError(w);
         return
     }
     
     dl := datalayer.NewCassandraDatalayer()
     dl.Connect("canopy")
     defer dl.Close()
+
     account, err := dl.LookupAccount(username_string)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
@@ -311,13 +332,11 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
     if ok {
         username_string, ok = username.(string)
         if !(ok && username_string != "") {
-            w.WriteHeader(http.StatusUnauthorized);
-            fmt.Fprintf(w, "{\"error\" : \"not_logged_in1\"}");
+            writeNotLoggedInError(w);
             return
         }
     } else {
-        w.WriteHeader(http.StatusUnauthorized);
-        fmt.Fprintf(w, "{\"error\" : \"not_logged_in2\"}");
+        writeNotLoggedInError(w);
         return
     }
     
@@ -380,8 +399,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     if ok {
         username_string, ok = username.(string)
         if !(ok && username_string != "") {
-            w.WriteHeader(http.StatusUnauthorized);
-            fmt.Fprintf(w, "{\"error\" : \"not_logged_in1\"}");
+            writeNotLoggedInError(w);
             return
         }
     } else {
@@ -513,13 +531,11 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
     if ok {
         username_string, ok = username.(string)
         if !(ok && username_string != "") {
-            w.WriteHeader(http.StatusUnauthorized);
-            fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+            writeNotLoggedInError(w);
             return
         }
     } else {
-        w.WriteHeader(http.StatusUnauthorized);
-        fmt.Fprintf(w, "{\"error\" : \"not_logged_in\"");
+        writeNotLoggedInError(w);
         return
     }
 
