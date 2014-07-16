@@ -28,6 +28,11 @@ func writeAccountLookupFailedError(w http.ResponseWriter) {
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "account_lookup_failed"}`);
 }
 
+func writeIncorrectUsernameOrPasswordError(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusUnauthorized);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "incorrect_username_or_password"}`);
+}
+
 func basicAuthFromRequest(r *http.Request) (username string, password string, err error) {
     h, ok := r.Header["Authorization"]
     if !ok || len(h) == 0 {
@@ -97,7 +102,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
             account.Email())
         return
     } else {
-        fmt.Fprintf(w, "{\"error\" : \"incorrect_password\"}")
+        writeIncorrectUsernameOrPasswordError(w);
         return
     }
 }
