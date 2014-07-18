@@ -29,7 +29,8 @@ type jsonSamples struct {
 }
 
 func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
-    var out jsonDevices
+
+    out := jsonDevices{[]jsonDevicesItem{}};
 
     for _, device := range devices {
         outDeviceClass := device.SDDLClass()
