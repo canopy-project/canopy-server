@@ -10,6 +10,7 @@ import (
 type DatatypeEnum int
 const (
     DATATYPE_INVALID DatatypeEnum = iota
+    DATATYPE_VOID
     DATATYPE_STRING
     DATATYPE_BOOL
     DATATYPE_INT8
@@ -90,7 +91,9 @@ func ControlTypeStringToEnum(in string) ControlTypeEnum {
 }
 
 func DatatypeStringToEnum(in string) DatatypeEnum {
-    if in == "string" {
+    if in == "void" {
+        return DATATYPE_VOID
+    } else if in == "string" {
         return DATATYPE_STRING
     } else if in == "boolean" {
         return DATATYPE_BOOL
