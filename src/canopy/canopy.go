@@ -14,6 +14,7 @@ import (
     "canopy/pigeon"
     "encoding/json"
     "encoding/base64"
+    "os"
     "strings"
     "time"
 )
@@ -31,6 +32,13 @@ func writeAccountLookupFailedError(w http.ResponseWriter) {
 func writeIncorrectUsernameOrPasswordError(w http.ResponseWriter) {
     w.WriteHeader(http.StatusUnauthorized);
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "incorrect_username_or_password"}`);
+}
+
+func writeStandardHeaders(w http.ResponseWriter) {
+    w.Header().Set("Connection", "close")
+    w.Header().Set("Content-Type", "application/json")
+    w.Header().Set("Access-Control-Allow-Origin", gConfAllowOrigin)
+    w.Header().Set("Access-Control-Allow-Credentials", "true")
 }
 
 func basicAuthFromRequest(r *http.Request) (username string, password string, err error) {
@@ -60,10 +68,7 @@ func basicAuthFromRequest(r *http.Request) (username string, password string, er
 var store = sessions.NewCookieStore([]byte("my_production_secret"))
 
 func loginHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
 
     var data map[string]interface{}
     decoder := json.NewDecoder(r.Body)
@@ -108,10 +113,7 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func logoutHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
     session, _ := store.Get(r, "canopy-login-session")
     session.Values["logged_in_username"] = ""
     err := session.Save(r, w)
@@ -124,10 +126,7 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createAccountHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
 
     var data map[string]interface{}
     decoder := json.NewDecoder(r.Body)
@@ -190,10 +189,7 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
 
     username, password, err := basicAuthFromRequest(r)
     if err != nil {
@@ -239,10 +235,7 @@ func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func meHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
     session, _ := store.Get(r, "canopy-login-session")
     
     var username_string string
@@ -274,10 +267,7 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func devicesHandler(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
     session, _ := store.Get(r, "canopy-login-session")
     
     var username_string string
@@ -326,10 +316,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
     deviceIdString := vars["id"]
     sensorName := vars["sensor"]
 
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
     session, _ := store.Get(r, "canopy-login-session")
     
     var username_string string
@@ -393,10 +380,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     deviceIdString := vars["id"]
     //controlName := vars["control"]
 
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
     session, _ := store.Get(r, "canopy-login-session")
     
     var username_string string
@@ -450,11 +434,25 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     for sensorName, value := range data {
         /* TODO: Verify that control is, in fact, a control according to SDDL
          * class */
-        floatVal, ok := value.(float64)
-        if !ok {
-            continue;
+        if (sensorName == "__friendly_name") {
+            friendlyName, ok := value.(string)
+            if !ok {
+                continue;
+            }
+            device.SetFriendlyName(friendlyName);
+        } else if (sensorName == "__location_note") {
+            locationNote, ok := value.(string)
+            if !ok {
+                continue;
+            }
+            device.SetLocationNote(locationNote);
+        } else {
+            floatVal, ok := value.(float64)
+            if !ok {
+                continue;
+            }
+            device.InsertSensorSample(sensorName, time.Now(), floatVal);
         }
-        device.InsertSensorSample(sensorName, time.Now(), floatVal);
     }
 
     msg := &pigeon.PigeonMessage { 
@@ -482,10 +480,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
      * TODO: Add to REST API documentation
      */
     var data map[string]interface{}
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
     session, _ := store.Get(r, "canopy-login-session")
 
     decoder := json.NewDecoder(r.Body)
@@ -566,12 +561,12 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
     }
     mail.SetSubject(device.GetFriendlyName())
     mail.SetHTML(`
-<img src="http://canopy.link/canopy_logo.jpg"></img>
+<img src="http://devel.canopy.link/canopy_logo.jpg"></img>
 <h2>I've shared a device with you.</h2>
-<a href="http://canopy.link/go.php?share_device=` + deviceId + `">` + device.GetFriendlyName() + `</a>
+<a href="http://devel.canopy.link/go.php?share_device=` + deviceId + `">` + device.GetFriendlyName() + `</a>
 <h2>What is Canopy?</h2>
 <b>Canopy</b> is a secure platform for monitoring and controlling physical
-devices.  Learn more at <a href=http://canopy.link>http://canopy.link</a>
+devices.  Learn more at <a href=http://devel.canopy.link>http://canopy.link</a>
 `)
     mail.SetFrom("greg@canopy.link", "greg (via Canopy)")
     err = mailer.Send(mail)
@@ -596,10 +591,7 @@ func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
      * TODO: Highly insecure!!!
      */
     var data map[string]interface{}
-    w.Header().Set("Connection", "close")
-    w.Header().Set("Content-Type", "application/json")
-    w.Header().Set("Access-Control-Allow-Origin", "http://canopy.link")
-    w.Header().Set("Access-Control-Allow-Credentials", "true")
+    writeStandardHeaders(w);
     session, _ := store.Get(r, "canopy-login-session")
 
     decoder := json.NewDecoder(r.Body)
@@ -661,8 +653,16 @@ func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
 
 var gPigeon = pigeon.InitPigeonSystem()
 
+var gConfAllowOrigin = ""
+
 func main() {
     fmt.Println("starting server");
+
+    gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
+    if (gConfAllowOrigin == "") {
+        fmt.Println("You must set environment variable CCS_ALLOW_ORIGIN");
+        return
+    }
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)

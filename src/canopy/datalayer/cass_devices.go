@@ -91,6 +91,32 @@ func (device *CassandraDevice) SetAccountAccess(account *CassandraAccount, level
     return err
 }
 
+func (device *CassandraDevice) SetFriendlyName(friendlyName string) error {
+    err := device.dl.session.Query(`
+            UPDATE devices
+            SET friendly_name = ?
+            WHERE device_id = ?
+    `, friendlyName, device.GetId()).Exec()
+    if err != nil {
+        return err;
+    }
+    device.friendlyName = friendlyName;
+    return nil;
+}
+
+func (device *CassandraDevice) SetLocationNote(locationNote string) error {
+    /*err = device.dl.session.Query(`
+            UPDATE devices
+            SET location_note = ?
+            WHERE device_id = ?
+    `, locationNote, device.GetId()).Exec()
+    if err != nil {
+        return err;
+    }
+    device.locationNote = locationNote;*/
+    return nil;
+}
+
 func (device *CassandraDevice) InsertSensorSample(propname string, t time.Time, value float64) error {
     err := device.dl.session.Query(`
             INSERT INTO sensor_data (device_id, propname, time, value)
