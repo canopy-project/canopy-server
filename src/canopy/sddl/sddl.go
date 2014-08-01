@@ -278,8 +278,12 @@ func (prop *Class) LookupClass(propName string) (Property, error) {
     return nil, fmt.Errorf("Not implement");
 }
 
-func parseControl(name string, json map[string]interface{}) (*Control, error) {
-    prop := Control{name: name}
+func parseControl(decl string, json map[string]interface{}) (*Control, error) {
+    splitDecl := strings.Split(decl, " ");
+    if !(len(splitDecl) == 2 && splitDecl[0] == "control") {
+        return nil, errors.New("Expected declaration of form: \"control <NAME>\"")
+    }
+    prop := Control{name: splitDecl[1]}
     for k, v := range json {
         var ok bool
         if k == "control-type" {
@@ -339,8 +343,12 @@ func parseControl(name string, json map[string]interface{}) (*Control, error) {
     return &prop, nil
 }
 
-func parseSensor(name string, json map[string]interface{}) (*Sensor, error) {
-    prop := Sensor{name: name}
+func parseSensor(decl string, json map[string]interface{}) (*Sensor, error) {
+    splitDecl := strings.Split(decl, " ");
+    if !(len(splitDecl) == 2 && splitDecl[0] == "sensor") {
+        return nil, errors.New("Expected declaration of form: \"sensor <NAME>\"")
+    }
+    prop := Sensor{name: splitDecl[1]}
     for k, v := range json {
         var ok bool
         if k == "datatype" {

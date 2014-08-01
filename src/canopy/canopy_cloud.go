@@ -32,7 +32,7 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32)
     var payloadObj map[string]interface{}
     var device *datalayer.CassandraDevice
     var deviceIdString string
-    var sddlClass sddl.Class
+    var sddlClass *sddl.Class
 
     err := json.Unmarshal([]byte(payload), &payloadObj)
     if err != nil{
@@ -67,7 +67,7 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32)
             fmt.Println("Expected object for SDDL")
             return "";
         }
-        sddlClass, err := sddl.ParseClass("anonymous", sddlJson)
+        sddlClass, err = sddl.ParseClass("anonymous", sddlJson)
         if err != nil {
             fmt.Println("Failed parsing sddl class definition: ", err)
             return "";
