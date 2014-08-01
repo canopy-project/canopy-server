@@ -15,12 +15,207 @@
  */
 package datalayer
 
+/*
+ * Cassandra stores data in column families (aka tables).  Each column family
+ * (table) has multiple rows.  Each row has a row key.  Each row also has an
+ * internal table of key-value pairs (aka "internal rows" or "cells").
+ * 
+ *  COLUMN FAMILY
+ *
+ *      +--------------------------------+
+ *      | [ROW_KEY0]                     |
+ *      |      KEY0: VALUE0              |
+ *      |      KEY1: VALUE1              |
+ *      |      ...                       |
+ *      +--------------------------------+
+ *      | [ROW_KEY1]                     |
+ *      |      KEY0: VALUE0              |
+ *      |      KEY1: VALUE1              |
+ *      |      ...                       |
+ *      +--------------------------------+
+ *      |                                |
+ *
+ * The internal keys are stored in sorted order within a row.  A row's contents
+ * is never split across nodes.
+ *
+ * For storing simple data, we could use:
+ *
+ *      CREATE TABLE propval_<datatype> (
+ *          device_id uuid,
+ *          propname text,
+ *          time timestamp,
+ *          value <datatype>,
+ *          PRIMARY KEY (device_id, propname, time)
+ *      ) WITH COMPACT STORAGE
+ *
+ *  Which maps to (for example):
+ *
+ *      propval_int
+ *
+ *      +---------------------------------+
+ *      | device_id (row key)             |
+ *      |      propname|timestamp : value |
+ *      |      propname|timestamp : value |
+ *      |      propname|timestamp : value |
+ *      +---------------------------------+
+ *      |                                 |
+ *
+ * Instead we use:
+ *
+ *      CREATE TABLE propval_<datatype> (
+ *          device_id uuid,
+ *          propname text,
+ *          time timestamp,
+ *          value <datatype>,
+ *          PRIMARY KEY ((device_id, propname), time)
+ *      ) WITH COMPACT STORAGE
+ *
+ *  Which maps to (for example):
+ *
+ *      propval_int
+ *
+ *      +---------------------------------+
+ *      | device_id|propname (row key)    |
+ *      |      timestamp : value          |
+ *      |      timestamp : value          |
+ *      |      timestamp : value          |
+ *      +---------------------------------+
+ *      |                                 |
+ *
+ *      Note that the concatenation of property name and timestamp is used as
+ *      the internal keys.
+ *
+ *
+ *  In theory we could put this all in a single column family (rather than
+ *  having a separate one for each datatype).  However, CQL does not appear to
+ *  have the flexibility to do this efficiently.  If we tried, for example:
+ *
+ *      CREATE TABLE propval_<datatype> (
+ *          device_id uuid,
+ *          propname text,
+ *          time timestamp,
+ *          value_int int,
+ *          value_bigint bigint,
+ *          value_string text,
+ *          PRIMARY KEY (device_id, propname, time)
+ *      ) WITH COMPACT STORAGE
+ *
+ *
+ *  The result would be:
+ *
+ *      +------------------------------------------------+
+ *      | device_id (row key)                            |
+ *      |      propname|timestamp|"value_int" : value    |
+ *      |      propname|timestamp|"value_int" : value    |
+ *      |      propname|timestamp|"value_int" : value    |
+ *      |                                                |
+ *      |      propname|timestamp|"value_string" : value |
+ *      |      propname|timestamp|"value_string" : value |
+ *      +------------------------------------------------+
+ *      |                                                |
+ *
+ *  Which is not nearly as efficient, because it would store, literaly, the
+ *  word "value_int" alongside each 32-bit integer data sample.
+ *
+ *  So instead, we create a separate table for each datatype.
+ *
+ *
+ *  You can gain insight into the actual structure of a CF by running:
+ *
+ *      > cassandra-cli
+ *      > use canopy;
+ *      > list propval_float;
+ *
+ */
+
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 import (
     "github.com/gocql/gocql"
     "log"
 )
 var creationQueries []string = []string{
+    /* used for:
+     *  uint8
+     *  int8
+     *  int16
+     *  uint16
+     *  int32
+     *  uint32
+     */
+    `CREATE TABLE propval_int (
+        device_id uuid,
+        propname text,
+        time timestamp,
+        value int,
+        PRIMARY KEY((device_id, propname), time)
+    ) WITH COMPACT STORAGE`,
+
+    /* used for:
+     *  float32
+     */
+    `CREATE TABLE propval_float (
+        device_id uuid,
+        propname text,
+        time timestamp,
+        value float,
+        PRIMARY KEY((device_id, propname), time)
+    ) WITH COMPACT STORAGE`,
+
+    /* used for:
+     *  float64
+     */
+    `CREATE TABLE propval_double (
+        device_id uuid,
+        propname text,
+        time timestamp,
+        value double,
+        PRIMARY KEY((device_id, propname), time)
+    ) WITH COMPACT STORAGE`,
+
+    /* used for:
+     *  datetime
+     */
+    `CREATE TABLE propval_timestamp (
+        device_id uuid,
+        propname text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname), time)
+    ) WITH COMPACT STORAGE`,
+
+    /* used for:
+     *  bool
+     */
+    `CREATE TABLE propval_boolean (
+        device_id uuid,
+        propname text,
+        time timestamp,
+        value boolean,
+        PRIMARY KEY((device_id, propname), time)
+    ) WITH COMPACT STORAGE`,
+
+    /* used for:
+     *  void
+     */
+    `CREATE TABLE propval_void (
+        device_id uuid,
+        propname text,
+        time timestamp,
+        PRIMARY KEY((device_id, propname), time)
+    ) WITH COMPACT STORAGE`,
+
+    /* used for:
+     *  string
+     */
+    `CREATE TABLE propval_string (
+        device_id uuid,
+        propname text,
+        time timestamp,
+        value text
+        PRIMARY KEY((device_id, propname), time)
+    ) WITH COMPACT STORAGE`,
+
+
     `CREATE TABLE sensor_data (
         device_id uuid,
         propname text,

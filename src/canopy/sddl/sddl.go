@@ -110,7 +110,7 @@ func DatatypeStringToEnum(in string) DatatypeEnum {
         return DATATYPE_VOID
     } else if in == "string" {
         return DATATYPE_STRING
-    } else if in == "boolean" {
+    } else if in == "bool" {
         return DATATYPE_BOOL
     } else if in == "int8" {
         return DATATYPE_INT8
@@ -128,6 +128,8 @@ func DatatypeStringToEnum(in string) DatatypeEnum {
         return DATATYPE_FLOAT32
     } else if in == "float64" {
         return DATATYPE_FLOAT64
+    } else if in == "datetime" {
+        return DATATYPE_DATETIME
     }
     return DATATYPE_INVALID
 }

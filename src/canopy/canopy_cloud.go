@@ -67,7 +67,7 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32)
             return "";
         }
         sddlClass, err := sddl.ParseClass("anonymous", sddlJson)
-        if !ok {
+        if err != nil {
             fmt.Println("Failed parsing sddl class definition: ", err)
             return "";
         }
