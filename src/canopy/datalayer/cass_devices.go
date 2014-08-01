@@ -132,15 +132,118 @@ func (device *CassandraDevice) SetLocationNote(locationNote string) error {
     return nil;
 }
 
-func (device *CassandraDevice) InsertSensorSample(propname string, t time.Time, value float64) error {
+func (device *CassandraDevice) insertSensorSample_int(propname string, t time.Time, value int32) error {
     err := device.dl.session.Query(`
-            INSERT INTO sensor_data (device_id, propname, time, value)
+            INSERT INTO propval_int (device_id, propname, time, value)
             VALUES (?, ?, ?, ?)
     `, device.GetId(), propname, t, value).Exec()
     if err != nil {
         return err;
     }
     return nil;
+}
+
+func (device *CassandraDevice) insertSensorSample_float(propname string, t time.Time, value float32) error {
+    err := device.dl.session.Query(`
+            INSERT INTO propval_float (device_id, propname, time, value)
+            VALUES (?, ?, ?, ?)
+    `, device.GetId(), propname, t, value).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil;
+}
+
+func (device *CassandraDevice) insertSensorSample_double(propname string, t time.Time, value float64) error {
+    err := device.dl.session.Query(`
+            INSERT INTO propval_double (device_id, propname, time, value)
+            VALUES (?, ?, ?, ?)
+    `, device.GetId(), propname, t, value).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil;
+}
+
+func (device *CassandraDevice) insertSensorSample_timestamp(propname string, t time.Time, value time.Time) error {
+    err := device.dl.session.Query(`
+            INSERT INTO propval_timestamp (device_id, propname, time, value)
+            VALUES (?, ?, ?, ?)
+    `, device.GetId(), propname, t, value).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil;
+}
+
+func (device *CassandraDevice) insertSensorSample_boolean(propname string, t time.Time, value bool) error {
+    err := device.dl.session.Query(`
+            INSERT INTO propval_boolean (device_id, propname, time, value)
+            VALUES (?, ?, ?, ?)
+    `, device.GetId(), propname, t, value).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil;
+}
+
+func (device *CassandraDevice) insertSensorSample_void(propname string, t time.Time) error {
+    err := device.dl.session.Query(`
+            INSERT INTO propval_void (device_id, propname, time)
+            VALUES (?, ?, ?)
+    `, device.GetId(), propname, t).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil;
+}
+
+func (device *CassandraDevice) insertSensorSample_string(propname string, t time.Time, value string) error {
+    err := device.dl.session.Query(`
+            INSERT INTO propval_string (device_id, propname, time, value)
+            VALUES (?, ?, ?, ?)
+    `, device.GetId(), propname, t, value).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil;
+}
+
+func (device *CassandraDevice) InsertSensorSample_void(propname string, t time.Time) error {
+    return device.insertSensorSample_void(propname, t);
+}
+func (device *CassandraDevice) InsertSensorSample_string(propname string, t time.Time, value string) error {
+    return device.insertSensorSample_string(propname, t, value);
+}
+func (device *CassandraDevice) InsertSensorSample_bool(propname string, t time.Time, value bool) error {
+    return device.insertSensorSample_boolean(propname, t, value);
+}
+func (device *CassandraDevice) InsertSensorSample_int8(propname string, t time.Time, value int8) error {
+    return device.insertSensorSample_int(propname, t, int32(value));
+}
+func (device *CassandraDevice) InsertSensorSample_uint8(propname string, t time.Time, value uint8) error {
+    return device.insertSensorSample_int(propname, t, int32(value));
+}
+func (device *CassandraDevice) InsertSensorSample_int16(propname string, t time.Time, value int16) error {
+    return device.insertSensorSample_int(propname, t, int32(value));
+}
+func (device *CassandraDevice) InsertSensorSample_uint16(propname string, t time.Time, value uint16) error {
+    return device.insertSensorSample_int(propname, t, int32(value));
+}
+func (device *CassandraDevice) InsertSensorSample_int32(propname string, t time.Time, value int32) error {
+    return device.insertSensorSample_int(propname, t, int32(value));
+}
+func (device *CassandraDevice) InsertSensorSample_uint32(propname string, t time.Time, value uint32) error {
+    return device.insertSensorSample_int(propname, t, int32(value)); /* TODO: verify this works  as expected */
+}
+func (device *CassandraDevice) InsertSensorSample_float32(propname string, t time.Time, value float32) error {
+    return device.insertSensorSample_float(propname, t, value);
+}
+func (device *CassandraDevice) InsertSensorSample_float64(propname string, t time.Time, value float64) error {
+    return device.insertSensorSample_double(propname, t, value);
+}
+func (device *CassandraDevice) InsertSensorSample_datetime(propname string, t time.Time, value time.Time) error {
+    return device.insertSensorSample_timestamp(propname, t, value);
 }
 
 func (device *CassandraDevice) SetSDDLClass(class *sddl.Class) error {

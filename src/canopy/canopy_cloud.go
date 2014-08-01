@@ -32,6 +32,7 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32)
     var payloadObj map[string]interface{}
     var device *datalayer.CassandraDevice
     var deviceIdString string
+    var sddlClass sddl.Class
 
     err := json.Unmarshal([]byte(payload), &payloadObj)
     if err != nil{
@@ -84,21 +85,102 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32)
 
 
     /* Store sensor data */
-    if cnt % 10 == 0 {
+    if cnt % 100 != 0 {
         for k, v := range payloadObj {
             /* hack */
             if k == "device_id" || k == "sddl" {
                 continue
             }
-            switch vv := v.(type) {
-                case float64:
-                    err = device.InsertSensorSample(k, time.Now(), vv);
-                    if err != nil {
-                        fmt.Println("Error saving sample", err)
+            sensor, _ := sddlClass.LookupSensor(k)
+            if sensor != nil {
+                err = nil
+                t := time.Now();
+                switch sensor.Datatype() {
+                case sddl.DATATYPE_VOID:
+                    err = device.InsertSensorSample_void(k, t)
+                case sddl.DATATYPE_STRING:
+                    value, ok := v.(string)
+                    if (!ok) {
+                        fmt.Println("Expected string value for ", k)
                         return ""
                     }
-                default:
-                    fmt.Println(k, "is of a type I don't know how to handle");
+                    err = device.InsertSensorSample_string(k, t, value)
+                case sddl.DATATYPE_BOOL:
+                    value, ok := v.(bool)
+                    if (!ok) {
+                        fmt.Println("Expected boolean value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_bool(k, t, value)
+                case sddl.DATATYPE_INT8:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_int8(k, t, int8(value))
+                case sddl.DATATYPE_UINT8:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_uint8(k, t, uint8(value))
+                case sddl.DATATYPE_INT16:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_int16(k, t, int16(value))
+                case sddl.DATATYPE_UINT16:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_uint16(k, t, uint16(value))
+                case sddl.DATATYPE_INT32:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_int32(k, t, int32(value))
+                case sddl.DATATYPE_UINT32:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_uint32(k, t, uint32(value))
+                case sddl.DATATYPE_FLOAT32:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_float32(k, t, float32(value))
+                case sddl.DATATYPE_FLOAT64:
+                    value, ok := v.(float64)
+                    if (!ok) {
+                        fmt.Println("Expected numeric value for ", k)
+                        return ""
+                    }
+                    err = device.InsertSensorSample_float64(k, t, value)
+                case sddl.DATATYPE_DATETIME:
+                    /*value, ok := v.(string)
+                    if (!ok) {
+                        fmt.Println("Expected string datatime value for ", k)
+                        return ""
+                    }
+                    value_t : time.Time(value)
+                    err = device.InsertSensorSample_datetime(k, t, value_t)*/
+                    fmt.Println("Datetime properties not yet supported")
+                }
+            } else {
+                /* sensor not found */
+                fmt.Println("Unexpected key: ", k)
             }
         }
     }

@@ -155,11 +155,11 @@ func (doc *Document) Properties() []Property {
 }
 
 func (doc *Document) LookupProperty(propName string) (Property, error) {
-    return nil, nil
+    return nil, fmt.Errorf("Not implement");
 }
 
 func (doc *Document) LookupClass(propName string) (Property, error) {
-    return nil, nil
+    return nil, fmt.Errorf("Not implement");
 }
 
 func (prop *Control) Name() string {
@@ -259,12 +259,23 @@ func (prop *Class) Properties() []Property {
     return prop.properties
 }
 
+func (prop *Class) LookupSensor(sensorName string) (*Sensor, error) {
+    /* TODO: improve implementation */
+    for _, child := range prop.properties {
+        sensor, ok := child.(*Sensor)
+        if (ok && sensor.Name() == sensorName) {
+            return sensor, nil
+        }
+    }
+    return nil, fmt.Errorf("Sensor %s not found in class %s", sensorName, prop.Name())
+}
+
 func (prop *Class) LookupProperty(propName string) (Property, error) {
-    return nil, nil
+    return nil, fmt.Errorf("Not implement");
 }
 
 func (prop *Class) LookupClass(propName string) (Property, error) {
-    return nil, nil
+    return nil, fmt.Errorf("Not implement");
 }
 
 func parseControl(name string, json map[string]interface{}) (*Control, error) {

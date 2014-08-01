@@ -126,6 +126,8 @@ package datalayer
  *      > use canopy;
  *      > list propval_float;
  *
+ *  Also useful:
+ *      > nodetool cfstats
  */
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
@@ -290,10 +292,10 @@ func (dl *CassandraDatalayer) Close() {
     dl.session.Close()
 }
 
-func (dl *CassandraDatalayer) StorePropertyValue(device_id string, propname string, value float64) {
+func (dl *CassandraDatalayer) StorePropertyValue_int8(device_id string, propname string, value int8) {
     /* deprecated */
     if err := dl.session.Query(`
-            INSERT INTO sensor_data (device_id, propname, time, value)
+            INSERT INTO propval_int (device_id, propname, time, value)
             VALUES (?, ?, dateof(now()), ?)
     `, device_id, propname, value).Exec(); err != nil {
         log.Print(err)

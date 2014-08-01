@@ -466,7 +466,8 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
             if !ok {
                 continue;
             }
-            device.InsertSensorSample(sensorName, time.Now(), floatVal);
+            /* TODO: fix this! */
+            device.InsertSensorSample_float64(sensorName, time.Now(), floatVal);
         }
     }
 
