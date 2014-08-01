@@ -57,7 +57,7 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
             for _, prop := range outDeviceClass.Properties() {
                 sensor, ok := prop.(*sddl.Sensor)
                 if ok {
-                    sample, err := device.GetCurrentSensorData(prop.JustName())
+                    sample, err := device.GetCurrentSensorData(prop.Name())
                     if err != nil {
                         continue
                     }
@@ -68,7 +68,7 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
                 }
                 control, ok := prop.(*sddl.Control)
                 if ok {
-                    sample, err := device.GetCurrentSensorData(prop.JustName())
+                    sample, err := device.GetCurrentSensorData(prop.Name())
                     if err != nil {
                         continue
                     }

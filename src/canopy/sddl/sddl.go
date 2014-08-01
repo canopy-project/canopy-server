@@ -61,12 +61,13 @@ type Document struct {
 }
 
 type Property interface {
+    Declaration() string
     Name() string
-    JustName() string
 }
 
 type Control struct {
     name string
+    decl string
     description string
     datatype DatatypeEnum
     controlType ControlTypeEnum
@@ -79,6 +80,7 @@ type Control struct {
 
 type Sensor struct {
     name string
+    decl string
     description string
     datatype DatatypeEnum
     maxValue float64
@@ -90,6 +92,7 @@ type Sensor struct {
 
 type Class struct {
     name string
+    decl string
     description string
     properties []Property
     authors []string
@@ -166,8 +169,8 @@ func (prop *Control) Name() string {
     return prop.name
 }
 
-func (prop *Control) JustName() string {
-    return strings.Split(prop.Name(), " ")[1]
+func (prop *Control) Declaration() string {
+    return prop.decl
 }
 
 func (prop *Control) ControlType() ControlTypeEnum {
@@ -202,8 +205,8 @@ func (prop *Sensor) Name() string {
     return prop.name
 }
 
-func (prop *Sensor) JustName() string {
-    return strings.Split(prop.Name(), " ")[1]
+func (prop *Sensor) Declaration() string {
+    return prop.decl
 }
 
 func (prop *Sensor) Datatype() DatatypeEnum {
@@ -234,8 +237,8 @@ func (prop *Class) Name() string {
     return prop.name
 }
 
-func (prop *Class) JustName() string {
-    return strings.Split(prop.Name(), " ")[1]
+func (prop *Class) Declaration() string {
+    return prop.decl
 }
 
 func (prop *Class) Json() map[string]interface{} {
@@ -283,7 +286,7 @@ func parseControl(decl string, json map[string]interface{}) (*Control, error) {
     if !(len(splitDecl) == 2 && splitDecl[0] == "control") {
         return nil, errors.New("Expected declaration of form: \"control <NAME>\"")
     }
-    prop := Control{name: splitDecl[1]}
+    prop := Control{decl: decl, name: splitDecl[1]}
     for k, v := range json {
         var ok bool
         if k == "control-type" {
@@ -348,7 +351,7 @@ func parseSensor(decl string, json map[string]interface{}) (*Sensor, error) {
     if !(len(splitDecl) == 2 && splitDecl[0] == "sensor") {
         return nil, errors.New("Expected declaration of form: \"sensor <NAME>\"")
     }
-    prop := Sensor{name: splitDecl[1]}
+    prop := Sensor{decl: decl, name: splitDecl[1]}
     for k, v := range json {
         var ok bool
         if k == "datatype" {
@@ -413,6 +416,7 @@ func ParseClassString(name string, jsonString string) (*Class, error) {
 func ParseClass(name string, jsn map[string]interface{}) (*Class, error) {
     class := Class{
         name: name,
+        decl: name,
         properties: []Property{}, 
         authors: []string{},
     }
