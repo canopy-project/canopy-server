@@ -21,7 +21,7 @@ import (
     "canopy/mail"
     "flag"
     "fmt"
-    "time"
+//    "time"
 )
 
 func main() {
@@ -94,18 +94,18 @@ func main() {
             fmt.Println("Error parsing UUID: ", flag.Arg(1), ":", err)
             return;
         }
-        device, err := dl.LookupDevice(deviceId)
+        _, err = dl.LookupDevice(deviceId)
         if err != nil {
             fmt.Println("Device not found: ", flag.Arg(1), ":", err)
             return;
         }
         for i := 0; i < 100; i++ {
-            val := float64(i % 16);
-            t := time.Now().Add(time.Duration(-i)*time.Second)
-            err = device.InsertSensorSample(flag.Arg(2), t, val)
-            if err != nil {
+            //val := float64(i % 16);
+            //t := time.Now().Add(time.Duration(-i)*time.Second)
+            //err = device.InsertSensorSample(flag.Arg(2), t, val)
+            //if err != nil {
                 fmt.Println("Error inserting sample: ", err)
-            }
+            //}
         }
 
     } else if flag.Arg(0) == "test-email" {

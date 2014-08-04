@@ -19,6 +19,7 @@ import (
     "github.com/gocql/gocql"
     "time"
     "canopy/sddl"
+    "fmt"
 )
 
 type AccessLevel int
@@ -284,6 +285,160 @@ func (device *CassandraDevice) GetSensorData(propname string, startTime time.Tim
     }
 
     return samples, nil
+}
+
+func tableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
+    switch datatype {
+    case sddl.DATATYPE_VOID:
+        return "propval_void", nil
+    case sddl.DATATYPE_STRING:
+        return "propval_string", nil
+    case sddl.DATATYPE_BOOL:
+        return "propval_boolean", nil
+    case sddl.DATATYPE_INT8:
+        return "propval_int", nil
+    case sddl.DATATYPE_UINT8:
+        return "propval_int", nil
+    case sddl.DATATYPE_INT16:
+        return "propval_int", nil
+    case sddl.DATATYPE_UINT16:
+        return "propval_int", nil
+    case sddl.DATATYPE_INT32:
+        return "propval_int", nil
+    case sddl.DATATYPE_UINT32:
+        return "propval_int", nil
+    case sddl.DATATYPE_FLOAT32:
+        return "propval_float", nil
+    case sddl.DATATYPE_FLOAT64:
+        return "propval_double", nil
+    case sddl.DATATYPE_DATETIME:
+        return "propval_timestamp", nil
+    case sddl.DATATYPE_INVALID:
+        return "", fmt.Errorf("DATATYPE_INVALID not allowed in tableNameByDatatype");
+    default: 
+        return "", fmt.Errorf("Unexpected datatype in tableNameByDatatype: %d", datatype);
+    }
+}
+
+func (device *CassandraDevice) getSensorData_generic(propname string, datatype sddl.DatatypeEnum, startTime time.Time, endTime time.Time) ([]sddl.PropertySample, error) {
+    var timestamp time.Time
+
+    tableName, err := tableNameByDatatype(datatype)
+    if err != nil {
+        return []sddl.PropertySample{}, err
+    }
+
+    query := device.dl.session.Query(`
+            SELECT time, value
+            FROM ` + tableName + `
+            WHERE device_id = ?
+                AND propname = ?
+    `, device.GetId(), propname).Consistency(gocql.One)
+
+    iter := query.Iter()
+    samples := []sddl.PropertySample{}
+
+    switch datatype {
+    case sddl.DATATYPE_VOID:
+        var value interface{}
+        for iter.Scan(&timestamp) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_STRING:
+        var value string
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_BOOL:
+        var value bool
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_INT8:
+        var value int8
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_UINT8:
+        var value uint8
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_INT16:
+        var value int16
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_UINT16:
+        var value uint16
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_INT32:
+        var value int32
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_UINT32:
+        var value uint32
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_FLOAT32:
+        var value float32
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_FLOAT64:
+        var value float64
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_DATETIME:
+        var value time.Time
+        for iter.Scan(&timestamp, &value) {
+            samples = append(samples, sddl.PropertySample{timestamp, value})
+        }
+    case sddl.DATATYPE_INVALID:
+        return []sddl.PropertySample{}, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
+    default:
+        return []sddl.PropertySample{}, fmt.Errorf("Cannot get property values for datatype %d", datatype);
+    }
+
+    if err := iter.Close(); err != nil {
+        return []sddl.PropertySample{}, err
+    }
+
+    return samples, nil
+}
+
+func (device *CassandraDevice) GetPropertyData(property sddl.Property, startTime time.Time, endTime time.Time) ([]sddl.PropertySample, error) {
+    switch prop := property.(type) {
+    case *sddl.Control:
+        return device.getSensorData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
+    case *sddl.Sensor:
+        return device.getSensorData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
+    default:
+        return []sddl.PropertySample{}, fmt.Errorf("GetPropertyData expects Sensor or Control")
+    }
+}
+
+
+func (device *CassandraDevice) GetPropertyDataByName(propName string, startTime time.Time, endTime time.Time) ([]sddl.PropertySample, error) {
+    prop, err := device.LookupProperty(propName)
+    if err != nil {
+        return []sddl.PropertySample{}, err
+    }
+    return device.GetPropertyData(prop, startTime, endTime)
+}
+
+func (device *CassandraDevice) LookupProperty(propName string) (sddl.Property, error) {
+    sddlClass := device.SDDLClass()
+    if sddlClass == nil {
+        return nil, fmt.Errorf("Cannot lookup property %s, device %s has unknown SDDL", propName, device.GetFriendlyName())
+    }
+
+    return sddlClass.LookupProperty(propName)
 }
 
 func (device *CassandraDevice) GetCurrentSensorData(propname string) (*SensorSample, error) {

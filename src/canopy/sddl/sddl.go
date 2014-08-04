@@ -274,7 +274,13 @@ func (prop *Class) LookupSensor(sensorName string) (*Sensor, error) {
 }
 
 func (prop *Class) LookupProperty(propName string) (Property, error) {
-    return nil, fmt.Errorf("Not implement");
+    /* TODO: improve implementation */
+    for _, child := range prop.properties {
+        if (child.Name() == propName) {
+            return child, nil
+        }
+    }
+    return nil, fmt.Errorf("Property %s not found in class %s", propName, prop.Name())
 }
 
 func (prop *Class) LookupClass(propName string) (Property, error) {

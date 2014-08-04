@@ -371,7 +371,21 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    samples, err := device.GetSensorData(sensorName, time.Now(), time.Now())
+    sddlClass := device.SDDLClass()
+    if sddlClass == nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"Device doesn't have any sensors\"}");
+        return
+    }
+
+    property, err := sddlClass.LookupProperty(sensorName)
+    if err != nil{
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"Device does not have property %s\"}", sensorName);
+        return
+    }
+
+    samples, err := device.GetPropertyData(property, time.Now(), time.Now())
     if err != nil {
         fmt.Println(err)
         w.WriteHeader(http.StatusInternalServerError);
