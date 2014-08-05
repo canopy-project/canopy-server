@@ -1,2 +1,2 @@
 #/bin/bash
-export GOPATH=$(cd ../..; pwd)
+export GOPATH=$(cd ~/golang; pwd):$(cd ../..; pwd)
