@@ -15,321 +15,148 @@
  */
 package datalayer
 
-/*
- * Cassandra stores data in column families (aka tables).  Each column family
- * (table) has multiple rows.  Each row has a row key.  Each row also has an
- * internal table of key-value pairs (aka "internal rows" or "cells").
- * 
- *  COLUMN FAMILY
- *
- *      +--------------------------------+
- *      | [ROW_KEY0]                     |
- *      |      KEY0: VALUE0              |
- *      |      KEY1: VALUE1              |
- *      |      ...                       |
- *      +--------------------------------+
- *      | [ROW_KEY1]                     |
- *      |      KEY0: VALUE0              |
- *      |      KEY1: VALUE1              |
- *      |      ...                       |
- *      +--------------------------------+
- *      |                                |
- *
- * The internal keys are stored in sorted order within a row.  A row's contents
- * is never split across nodes.
- *
- * For storing simple data, we could use:
- *
- *      CREATE TABLE propval_<datatype> (
- *          device_id uuid,
- *          propname text,
- *          time timestamp,
- *          value <datatype>,
- *          PRIMARY KEY (device_id, propname, time)
- *      ) WITH COMPACT STORAGE
- *
- *  Which maps to (for example):
- *
- *      propval_int
- *
- *      +---------------------------------+
- *      | device_id (row key)             |
- *      |      propname|timestamp : value |
- *      |      propname|timestamp : value |
- *      |      propname|timestamp : value |
- *      +---------------------------------+
- *      |                                 |
- *
- * Instead we use:
- *
- *      CREATE TABLE propval_<datatype> (
- *          device_id uuid,
- *          propname text,
- *          time timestamp,
- *          value <datatype>,
- *          PRIMARY KEY ((device_id, propname), time)
- *      ) WITH COMPACT STORAGE
- *
- *  Which maps to (for example):
- *
- *      propval_int
- *
- *      +---------------------------------+
- *      | device_id|propname (row key)    |
- *      |      timestamp : value          |
- *      |      timestamp : value          |
- *      |      timestamp : value          |
- *      +---------------------------------+
- *      |                                 |
- *
- *      Note that the concatenation of property name and timestamp is used as
- *      the internal keys.
- *
- *
- *  In theory we could put this all in a single column family (rather than
- *  having a separate one for each datatype).  However, CQL does not appear to
- *  have the flexibility to do this efficiently.  If we tried, for example:
- *
- *      CREATE TABLE propval_<datatype> (
- *          device_id uuid,
- *          propname text,
- *          time timestamp,
- *          value_int int,
- *          value_bigint bigint,
- *          value_string text,
- *          PRIMARY KEY (device_id, propname, time)
- *      ) WITH COMPACT STORAGE
- *
- *
- *  The result would be:
- *
- *      +------------------------------------------------+
- *      | device_id (row key)                            |
- *      |      propname|timestamp|"value_int" : value    |
- *      |      propname|timestamp|"value_int" : value    |
- *      |      propname|timestamp|"value_int" : value    |
- *      |                                                |
- *      |      propname|timestamp|"value_string" : value |
- *      |      propname|timestamp|"value_string" : value |
- *      +------------------------------------------------+
- *      |                                                |
- *
- *  Which is not nearly as efficient, because it would store, literaly, the
- *  word "value_int" alongside each 32-bit integer data sample.
- *
- *  So instead, we create a separate table for each datatype.
- *
- *
- *  You can gain insight into the actual structure of a CF by running:
- *
- *      > cassandra-cli
- *      > use canopy;
- *      > list propval_float;
- *
- *  Also useful:
- *      > nodetool cfstats
- */
+var InvalidPasswordError = errors.New("Incorrect password")
 
-/* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
-import (
-    "github.com/gocql/gocql"
-    "log"
+// AccessLevel is the access permissions an account has for a device.
+type AccessLevel int
+const (
+    NoAccess = iota
+    ReadOnlyAccess
+    ReadWriteAccess
 )
-var creationQueries []string = []string{
-    /* used for:
-     *  uint8
-     *  int8
-     *  int16
-     *  uint16
-     *  int32
-     *  uint32
-     */
-    `CREATE TABLE propval_int (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value int,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
 
-    /* used for:
-     *  float32
-     */
-    `CREATE TABLE propval_float (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value float,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
+// ShareLevel is the sharing permissions an account has for a device.
+type ShareLevel int
+const (
+    NoSharing = iota
+    SharingAllowed
+    ShareRevokeAllowed
+)
 
-    /* used for:
-     *  float64
-     */
-    `CREATE TABLE propval_double (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value double,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
+// Datalayer provides an abstracted interface for interacting with Canopy's
+// backend perstistant datastore.
+type Datalayer interface {
+    // Connect to the database named <keyspace>.
+    func Connect(keyspace string) Connection, error
 
-    /* used for:
-     *  datetime
-     */
-    `CREATE TABLE propval_timestamp (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value timestamp,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
+    // Completely erase the database named <keyspace>.  Handle with care!
+    func EraseDb(keyspace string) error
 
-    /* used for:
-     *  bool
-     */
-    `CREATE TABLE propval_boolean (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value boolean,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    /* used for:
-     *  void
-     */
-    `CREATE TABLE propval_void (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    /* used for:
-     *  string
-     */
-    `CREATE TABLE propval_string (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value text
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-
-    `CREATE TABLE sensor_data (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value double,
-        PRIMARY KEY(device_id, propname, time)
-    ) WITH COMPACT STORAGE`,
-
-    `CREATE TABLE devices (
-        device_id uuid,
-        friendly_name text,
-        sddl text,
-        PRIMARY KEY(device_id)
-    ) WITH COMPACT STORAGE`,
-
-    `CREATE TABLE device_group (
-        username text,
-        group_name text,
-        group_order int,
-        device_id uuid,
-        device_friendly_name text,
-        PRIMARY KEY(username, group_name, group_order)
-    )`,
-
-    `CREATE TABLE control_event (
-        device_id uuid,
-        time_issued timestamp,
-        control_name text,
-        value double,
-        PRIMARY KEY(device_id, time_issued)
-    )`,
-
-    `CREATE TABLE device_permissions (
-        username text,
-        device_id uuid,
-        access_level int,
-        PRIMARY KEY(username, device_id)
-    ) WITH COMPACT STORAGE`,
-
-    `CREATE TABLE accounts (
-        username text,
-        email text,
-        password_hash blob,
-        PRIMARY KEY(username)
-    ) WITH COMPACT STORAGE`,
-
-    `CREATE TABLE account_emails (
-        email text,
-        username text,
-        PRIMARY KEY(email)
-    ) WITH COMPACT STORAGE`,
+    // Prepare (i.e., create) a new database named <keyspace>.
+    func PrepDb(keyspace string) error
 }
 
-type CassandraDatalayer struct {
-    
-    cluster *gocql.ClusterConfig
-    session *gocql.Session
+// Connection is a connection to the database.
+type Connection interface {
+    // Close this database connection.  Any subsequent calls using this
+    // interface will return an error.
+    func Close()
+
+    // Create a new user account in the database.
+    func CreateAccount(username, email, password string) (*Account, error)
+
+    // Create a new device in the database.
+    func CreateDevice(name string) (*Device, error)
+
+    // Remove a user account from the database.
+    func DeleteAccount(username string)
+
+    // Lookup a user account from the database (without password verification).
+    func LookupAccount(usernameOrEmail string) (*Account, error)
+
+    // Lookup a user account from the database (with password verification).
+    // Returns an error if the account is not found, or if the password is
+    // correct.
+    func LookupAccountVerifyPassword(usernameOrEmail, password string) (*Account, error)
+
+    // Lookup a device from the database.
+    func LookupDevice(deviceId gocql.UUID) (*Device, error)
+
+    // Lookup a device from the database, using string representation of its
+    // UUID.
+    func LookupDeviceByStringID(id string) (*Device, error)
 }
 
-func NewCassandraDatalayer() *CassandraDatalayer {
-    return &CassandraDatalayer{cluster: nil, session: nil}
+// Account is a user account
+type Account interface {
+
+    // Get all devices that user has access to.
+    func Devices() ([]*Device, error)
+
+    // Get device by ID, but only if this account has access to it.
+    func Device(id gocql.UUID) (*Device, error)
+
+    // Get user's email address.
+    func Email() string
+
+    // Get user's username.
+    func Username() string
+
+    // Verify user's password.  Returns true if password is correct.
+    func VerifyPassword(password string) bool
 }
 
-func (dl *CassandraDatalayer) Connect(keyspace string) {
-    dl.cluster = gocql.NewCluster("127.0.0.1")
-    dl.cluster.Keyspace = keyspace
-    dl.cluster.Consistency = gocql.Any
-    dl.session, _ = dl.cluster.CreateSession()
+// Device is a Canopy-enabled device
+type Device interface {
+
+    // Get historic sample data for a property.
+    // <property> must be an sddl.Control or an sddl.Sensor.
+    func HistoricData(property sddl.Property, startTime, endTime time.Time) ([]sddl.PropertySample, error)
+
+    // Get historic sample data for a property, by property name.
+    func HistoricDataByPropertyName(propertyName string, startTime, endTime time.Time) ([]sddl.PropertySample, error)
+
+    // Get the UUID of this device.
+    func ID() gocql.UUID
+
+    // Store a data sample from a control or sensor.
+    // <property> must be an sddl.Control (with ControlType() == "parameter") or
+    // an sddl.Sensor.
+    // <value> must have an appropriate dynamic type.  See documentation in
+    // sddl/sddl_sample.go for more details.
+    func InsertSample(property sddl.Property, t time.Time, value interface{}) error
+
+    // Get latest sample data for a property.
+    //
+    // property must be an sddl.Control or an sddl.Sensor.
+    func LatestData(property sddl.Property) ([]sddl.PropertySample, error)
+
+    // Get latest sample data for a property, by property name.
+    func LatestDataByPropertyName(propertyName string) ([]sddl.PropertySample, error)
+
+    // Lookup a property by name.  Essentially, shorthand for:
+    //      device.SDDLClass().LookupProperty(propertyName)
+    func LookupProperty(propertyName string) (sddl.Property, error)
+
+    // Get the user-assigned name for this device.
+    func Name() string
+
+    // Get the SDDL class for this device.  Returns nil if class is unknown
+    // (which may happen for newly provisioned devices that haven't sent any
+    // reports yet).
+    func SDDLClass() *sddl.Class
+
+    // Get the SDDL class for this device, as a marshalled JSON string.
+    // Returns "" if class is unknown (which may happen for newly provisioned
+    // devices that haven't sent any reports yet).
+    func SDDLClassString() string
+
+    // Set the access and sharing permissions that an account has for this
+    // device.
+    func SetAccountAccess(account *Account, access AccessLevel, sharing ShareLevel) error
+
+    // Set the user-assigned location note for this device.
+    func SetLocationNote(locationNote string) error
+
+    // Set the user-assigned name for this device.
+    func SetName(name string) error
+
+    // Set the SDDL class associated with this device.
+    func SetSDDLClass(class *sddl.Class) error
 }
 
-func (dl *CassandraDatalayer) Close() {
-    dl.session.Close()
-}
-
-func (dl *CassandraDatalayer) StorePropertyValue_int8(device_id string, propname string, value int8) {
-    /* deprecated */
-    if err := dl.session.Query(`
-            INSERT INTO propval_int (device_id, propname, time, value)
-            VALUES (?, ?, dateof(now()), ?)
-    `, device_id, propname, value).Exec(); err != nil {
-        log.Print(err)
-    }
-}
-
-func (dl *CassandraDatalayer) EraseDb(keyspace string) {
-    dl.cluster = gocql.NewCluster("127.0.0.1")
-    dl.session, _ = dl.cluster.CreateSession()
-    if err := dl.session.Query(`
-        DROP KEYSPACE ` + keyspace + `
-    `).Exec(); err != nil {
-        log.Print(err)
-    }
-}
-
-func (dl *CassandraDatalayer) PrepDb(keyspace string) {
-    dl.cluster = gocql.NewCluster("127.0.0.1")
-    dl.session, _ = dl.cluster.CreateSession()
-    if err := dl.session.Query(`
-            CREATE KEYSPACE ` + keyspace + `
-            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
-    `).Exec(); err != nil {
-        log.Print(err)
-    }
-
-    dl.cluster = gocql.NewCluster("127.0.0.1")
-    dl.cluster.Keyspace = keyspace
-    dl.cluster.Consistency = gocql.Quorum
-    dl.session, _ = dl.cluster.CreateSession()
-
-    for _, query := range creationQueries {
-        if err := dl.session.Query(query).Exec(); err != nil {
-            log.Print(query, "\n", err)
-        }
-    }
+// Obtain default Datalayer interface. (Currently, there is only one backend:
+// Cassandra).
+func NewDatalayer() Datalayer {
+    return cassandra_datalayer.NewCassDatalayer()
 }
