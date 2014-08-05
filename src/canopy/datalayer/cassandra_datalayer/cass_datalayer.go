@@ -132,6 +132,7 @@ package cassandra_datalayer
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 import (
+    "canopy/datalayer"
     "github.com/gocql/gocql"
     "log"
 )
@@ -271,7 +272,7 @@ func NewCassDatalayer() *CassDatalayer {
     return &CassDatalayer{}
 }
 
-func (dl *CassDatalayer) Connect(keyspace string) Connection, error {
+func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) {
     cluster := gocql.NewCluster("127.0.0.1")
     cluster.Keyspace = keyspace
     cluster.Consistency = gocql.Any
@@ -281,9 +282,9 @@ func (dl *CassDatalayer) Connect(keyspace string) Connection, error {
         return nil, err
     }
 
-    return CassConnection{
+    return &CassConnection{
         dl: dl,
-        session: session
+        session: session,
     }, nil
 }
 
@@ -299,7 +300,7 @@ func (dl *CassDatalayer) EraseDb(keyspace string) error {
     return err
 }
 
-func (dl *CassDatalayer) PrepDb(keyspace string) error
+func (dl *CassDatalayer) PrepDb(keyspace string) error {
     cluster := gocql.NewCluster("127.0.0.1")
 
     session, err := cluster.CreateSession()
@@ -308,7 +309,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error
     }
 
     // Create keyspace.
-    err = dl.session.Query(`
+    err = session.Query(`
             CREATE KEYSPACE ` + keyspace + `
             WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
     `).Exec()
@@ -320,14 +321,14 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error
     cluster = gocql.NewCluster("127.0.0.1")
     cluster.Keyspace = keyspace
     cluster.Consistency = gocql.Quorum
-    session, err = dl.cluster.CreateSession()
+    session, err = cluster.CreateSession()
     if err != nil {
         return err
     }
 
     // Perform all creation queries.
     for _, query := range creationQueries {
-        if err := dl.session.Query(query).Exec(); err != nil {
+        if err := session.Query(query).Exec(); err != nil {
             // Ignore errors (just print them).
             // This allows PrepDB to be used to add new tables.  Eventually, we
             // should come up with a proper migration strategy.
@@ -335,4 +336,9 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error
         }
     }
     return nil
+}
+
+
+func NewDatalayer() datalayer.Datalayer {
+    return NewCassDatalayer()
 }

@@ -18,6 +18,7 @@ package main
 import (
     "github.com/gocql/gocql"
     "canopy/datalayer"
+    "canopy/datalayer/cassandra_datalayer"
     "canopy/mail"
     "flag"
     "fmt"
@@ -29,72 +30,72 @@ func main() {
     if flag.Arg(0) == "help" {
         fmt.Println("Usage:");
     } else if flag.Arg(0) == "erase-db" {
-        dl := datalayer.NewCassandraDatalayer()
+        dl := cassandra_datalayer.NewDatalayer()
         dl.EraseDb("canopy")
     } else if flag.Arg(0) == "create-db" {
-        dl := datalayer.NewCassandraDatalayer()
+        dl := cassandra_datalayer.NewDatalayer()
         dl.PrepDb("canopy")
     } else if flag.Arg(0) == "create-account" {
-        dl := datalayer.NewCassandraDatalayer()
-        dl.Connect("canopy")
-        dl.CreateAccount(flag.Arg(1), flag.Arg(2), flag.Arg(3))
+        dl := cassandra_datalayer.NewDatalayer()
+        conn, _ := dl.Connect("canopy")
+        conn.CreateAccount(flag.Arg(1), flag.Arg(2), flag.Arg(3))
     } else if flag.Arg(0) == "delete-account" {
-        dl := datalayer.NewCassandraDatalayer()
-        dl.Connect("canopy")
-        dl.DeleteAccount(flag.Arg(1))
+        dl := cassandra_datalayer.NewDatalayer()
+        conn, _ := dl.Connect("canopy")
+        conn.DeleteAccount(flag.Arg(1))
     } else if flag.Arg(0) == "reset-db" {
-        dl := datalayer.NewCassandraDatalayer()
+        dl := cassandra_datalayer.NewDatalayer()
         dl.EraseDb("canopy")
         dl.PrepDb("canopy")
     } else if flag.Arg(0) == "create-device" {
-        dl := datalayer.NewCassandraDatalayer()
-        dl.Connect("canopy")
+        dl := cassandra_datalayer.NewDatalayer()
+        conn, _ := dl.Connect("canopy")
 
-        account, err := dl.LookupAccount(flag.Arg(1))
+        account, err := conn.LookupAccount(flag.Arg(1))
         if err != nil {
             fmt.Println("Unable to lookup account ", flag.Arg(1), ":", err)
             return
         }
 
-        device, err := dl.CreateDevice(flag.Arg(2))
+        device, err := conn.CreateDevice(flag.Arg(2))
         if err != nil {
             fmt.Println("Unable to create device: ", err)
             return
         }
 
-        err = device.SetAccountAccess(account, 4)
+        err = device.SetAccountAccess(account, datalayer.ReadWriteAccess, datalayer.ShareRevokeAllowed)
         if err != nil {
             fmt.Println("Unable to grant account access to device: ", err)
             return
         }
     } else if flag.Arg(0) == "list-devices" {
-        dl := datalayer.NewCassandraDatalayer()
-        dl.Connect("canopy")
+        dl := cassandra_datalayer.NewDatalayer()
+        conn, _ := dl.Connect("canopy")
 
-        account, err := dl.LookupAccount(flag.Arg(1))
+        account, err := conn.LookupAccount(flag.Arg(1))
         if err != nil {
             fmt.Println("Unable to lookup account ", flag.Arg(1), ":", err)
             return
         }
 
-        devices, err := account.GetDevices()
+        devices, err := account.Devices()
         if err != nil {
             fmt.Println("Error reading devices: ", err)
             return
         }
         for _, device := range devices {
-            fmt.Printf("%s %s\n", device.GetId(), device.GetFriendlyName())
+            fmt.Printf("%s %s\n", device.ID(), device.Name())
         }
         
     } else if flag.Arg(0) == "gen-fake-sensor-data" {
-        dl := datalayer.NewCassandraDatalayer()
-        dl.Connect("canopy")
+        dl := cassandra_datalayer.NewDatalayer()
+        conn, _ := dl.Connect("canopy")
         deviceId, err := gocql.ParseUUID(flag.Arg(1))
         if err != nil {
             fmt.Println("Error parsing UUID: ", flag.Arg(1), ":", err)
             return;
         }
-        _, err = dl.LookupDevice(deviceId)
+        _, err = conn.LookupDevice(deviceId)
         if err != nil {
             fmt.Println("Device not found: ", flag.Arg(1), ":", err)
             return;

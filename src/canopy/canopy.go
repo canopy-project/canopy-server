@@ -25,7 +25,9 @@ import (
     "github.com/gorilla/context"
     "github.com/gorilla/mux"
     "canopy/datalayer"
+    "canopy/datalayer/cassandra_datalayer"
     "canopy/mail"
+    "canopy/sddl"
     "canopy/pigeon"
     "encoding/json"
     "encoding/base64"
@@ -34,6 +36,10 @@ import (
     "time"
 )
 
+func writeDatabaseConnectionError(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusInternalServerError);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "could_not_connect_to_database"}`);
+}
 func writeNotLoggedInError(w http.ResponseWriter) {
     w.WriteHeader(http.StatusUnauthorized);
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "not_logged_in"}`);
@@ -106,10 +112,14 @@ func loginHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     session, _ := store.Get(r, "canopy-login-session")
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
-    account, err := dl.LookupAccountVerifyPassword(username, password)
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
+    account, err := conn.LookupAccountVerifyPassword(username, password)
     if err == nil {
         session.Values["logged_in_username"] = username
         err := session.Save(r, w)
@@ -186,11 +196,15 @@ func createAccountHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
 
-    dl.CreateAccount(username, email, password);
+    conn.CreateAccount(username, email, password);
     session, _ := store.Get(r, "canopy-login-session")
     session.Values["logged_in_username"] = username
     err = session.Save(r, w)
@@ -213,11 +227,15 @@ func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
 
-    acct, err := dl.LookupAccountVerifyPassword(username, password)
+    acct, err := conn.LookupAccountVerifyPassword(username, password)
     if err != nil {
         if err == datalayer.InvalidPasswordError {
             w.WriteHeader(http.StatusUnauthorized)
@@ -230,22 +248,21 @@ func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
         }
     }
     
-    device, err := dl.CreateDevice("Pending Device");
+    device, err := conn.CreateDevice("Pending Device");
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"device_creation_failed\"}");
         return
     }
 
-    //err = device.SetAccountAccess(acct, datalayer.ReadWriteShareAccess);
-    err = device.SetAccountAccess(acct, 4);
+    err = device.SetAccountAccess(acct, datalayer.ReadWriteAccess, datalayer.ShareRevokeAllowed);
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"could_not_grant_access\"}");
         return
     }
 
-    fmt.Fprintf(w, "{\"success\" : true, \"device_id\" : \"%s\"}", device.GetId().String())
+    fmt.Fprintf(w, "{\"success\" : true, \"device_id\" : \"%s\"}", device.ID().String())
     return
 }
 
@@ -266,11 +283,15 @@ func meHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
 
-    account, err := dl.LookupAccount(username_string)
+    account, err := conn.LookupAccount(username_string)
     if err != nil {
         return
     }
@@ -298,18 +319,22 @@ func devicesHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
 
-    account, err := dl.LookupAccount(username_string)
+    account, err := conn.LookupAccount(username_string)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
         return
     }
 
-    devices, err := account.GetDevices()
+    devices, err := account.Devices()
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
@@ -347,10 +372,14 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
-    account, err := dl.LookupAccount(username_string)
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
+    account, err := conn.LookupAccount(username_string)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
@@ -364,7 +393,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    device, err := account.GetDeviceById(uuid)
+    device, err := account.Device(uuid)
     if err != nil {
         w.WriteHeader(http.StatusBadRequest);
         fmt.Fprintf(w, "{\"error\" : \"Could not find or access device\"}");
@@ -385,7 +414,7 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    samples, err := device.GetPropertyData(property, time.Now(), time.Now())
+    samples, err := device.HistoricData(property, time.Now(), time.Now())
     if err != nil {
         fmt.Println(err)
         w.WriteHeader(http.StatusInternalServerError);
@@ -402,6 +431,110 @@ func sensorDataHandler(w http.ResponseWriter, r *http.Request) {
 
     fmt.Fprintf(w, out);
     return 
+}
+
+// converts based on SDDL property datatype:
+// SDDL dataype        JSON type(in)   Go type (out)
+// ----------------------------------------------
+// void                  nil     -->    nil
+// string                string  -->    string
+// bool                  bool    -->    bool
+// int8                  float64 -->    int8
+// uint8                 float64 -->    uint8
+// int16                 float64 -->    int16
+// uint16                float64 -->    uint16
+// int32                 float64 -->    int32
+// uint32                float64 -->    uint32
+// float32               float64 -->    float32
+// float64               float64 -->    float64
+// datetime              string  -->    time.Time
+//
+func jsonToPropertyValue(property sddl.Property, value interface{}) (interface{}, error) {
+    var datatype sddl.DatatypeEnum
+    switch prop := property.(type) {
+    case *sddl.Control:
+        datatype = prop.Datatype()
+    case *sddl.Sensor:
+        datatype = prop.Datatype()
+    default:
+        return nil, fmt.Errorf("jsonToPropertyValue expects control or sensor property")
+    }
+    switch datatype {
+    case sddl.DATATYPE_VOID:
+        return nil, nil
+    case sddl.DATATYPE_STRING:
+        v, ok := value.(string)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects string value for %s", property.Name())
+        }
+        return v, nil
+    case sddl.DATATYPE_BOOL:
+        v, ok := value.(bool)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects bool value for %s", property.Name())
+        }
+        return v, nil
+    case sddl.DATATYPE_INT8:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return int8(v), nil
+    case sddl.DATATYPE_UINT8:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return uint16(v), nil
+    case sddl.DATATYPE_INT16:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return int16(v), nil
+    case sddl.DATATYPE_UINT16:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return uint16(v), nil
+    case sddl.DATATYPE_INT32:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return int32(v), nil
+    case sddl.DATATYPE_UINT32:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return uint32(v), nil
+    case sddl.DATATYPE_FLOAT32:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return float32(v), nil
+    case sddl.DATATYPE_FLOAT64:
+        v, ok := value.(float64)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+        }
+        return v, nil
+    case sddl.DATATYPE_DATETIME:
+        v, ok := value.(string)
+        if !ok {
+            return nil, fmt.Errorf("jsonToPropertyValue expects string value for %s", property.Name())
+        }
+        tval, err := time.Parse(time.RFC3339, v)
+        if err != nil {
+            return nil, fmt.Errorf("jsonToPropertyValue expects RFC3339 formatted time value for %s", property.Name())
+        }
+        return tval, nil
+    default:
+        return nil, fmt.Errorf("InsertSample unsupported datatype ", datatype)
+    }
 }
 
 func controlHandler(w http.ResponseWriter, r *http.Request) {
@@ -426,10 +559,14 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
     
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
-    account, err := dl.LookupAccount(username_string)
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
+    account, err := conn.LookupAccount(username_string)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
@@ -443,7 +580,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    device, err := account.GetDeviceById(uuid)
+    device, err := account.Device(uuid)
     if err != nil {
         w.WriteHeader(http.StatusBadRequest);
         fmt.Fprintf(w, "{\"error\" : \"Could not find or access device\"}");
@@ -468,7 +605,7 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
             if !ok {
                 continue;
             }
-            device.SetFriendlyName(friendlyName);
+            device.SetName(friendlyName);
         } else if (sensorName == "__location_note") {
             locationNote, ok := value.(string)
             if !ok {
@@ -476,12 +613,16 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
             }
             device.SetLocationNote(locationNote);
         } else {
-            floatVal, ok := value.(float64)
-            if !ok {
+            /* TODO: fix this! */
+            prop, err := device.LookupProperty(sensorName)
+            if err != nil {
+                /* TODO: Report warning in response*/
                 continue;
             }
-            /* TODO: fix this! */
-            device.InsertSensorSample_float64(sensorName, time.Now(), floatVal);
+            switch val := value.(type) {
+            case float32:
+                device.InsertSample(prop, time.Now(), val);
+            }
         }
     }
 
@@ -526,11 +667,15 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
 
-    device, err := dl.LookupDeviceByStringId(deviceId)
+    device, err := conn.LookupDeviceByStringID(deviceId)
     if err != nil {
         w.WriteHeader(http.StatusBadRequest);
         fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
@@ -569,7 +714,7 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    account, err := dl.LookupAccount(username_string)
+    account, err := conn.LookupAccount(username_string)
     if account == nil || err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
@@ -589,11 +734,11 @@ func shareHandler(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w, "{\"error\" : \"Invalid email recipient\"}")
         return
     }
-    mail.SetSubject(device.GetFriendlyName())
+    mail.SetSubject(device.Name())
     mail.SetHTML(`
 <img src="http://devel.canopy.link/canopy_logo.jpg"></img>
 <h2>I've shared a device with you.</h2>
-<a href="http://devel.canopy.link/go.php?share_device=` + deviceId + `">` + device.GetFriendlyName() + `</a>
+<a href="http://devel.canopy.link/go.php?share_device=` + deviceId + `">` + device.Name() + `</a>
 <h2>What is Canopy?</h2>
 <b>Canopy</b> is a secure platform for monitoring and controlling physical
 devices.  Learn more at <a href=http://devel.canopy.link>http://canopy.link</a>
@@ -652,17 +797,21 @@ func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
-    account, err := dl.LookupAccount(username_string)
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
+    account, err := conn.LookupAccount(username_string)
     if account == nil || err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
         return
     }
 
-    device, err := dl.LookupDeviceByStringId(deviceId)
+    device, err := conn.LookupDeviceByStringID(deviceId)
     if err != nil {
         w.WriteHeader(http.StatusBadRequest);
         fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
@@ -670,14 +819,14 @@ func finishShareTransactionHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     /* Grant permissions to the user to access the device */
-    err = device.SetAccountAccess(account, datalayer.ReadWriteShareAccess)
+    err = device.SetAccountAccess(account, datalayer.ReadWriteAccess, datalayer.ShareRevokeAllowed)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"could_not_grant_access\"}");
         return
     }
 
-    fmt.Fprintf(w, "{\"result\" : \"ok\", \"device_friendly_name\" : \"%s\" }", device.GetFriendlyName());
+    fmt.Fprintf(w, "{\"result\" : \"ok\", \"device_friendly_name\" : \"%s\" }", device.Name());
     return 
 }
 

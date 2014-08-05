@@ -23,14 +23,15 @@ import (
     "io"
     "net"
     "canopy/datalayer"
+    "canopy/datalayer/cassandra_datalayer"
     "canopy/pigeon"
     "canopy/sddl"
 )
 
 // Process JSON message from the client
-func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32) string{
+func processPayload(conn datalayer.Connection, payload string, cnt int32) string{
     var payloadObj map[string]interface{}
-    var device *datalayer.CassandraDevice
+    var device datalayer.Device
     var deviceIdString string
     var sddlClass *sddl.Class
 
@@ -49,7 +50,7 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32)
             return "";
         }
 
-        device, err = dl.LookupDeviceByStringId(deviceIdString)
+        device, err = conn.LookupDeviceByStringID(deviceIdString)
         if err != nil {
             fmt.Println("Device not found: ", deviceIdString, err)
             return "";
@@ -91,96 +92,24 @@ func processPayload(dl *datalayer.CassandraDatalayer, payload string, cnt int32)
             if k == "device_id" || k == "sddl" {
                 continue
             }
-            sensor, _ := sddlClass.LookupSensor(k)
-            if sensor != nil {
-                err = nil
-                t := time.Now();
-                switch sensor.Datatype() {
-                case sddl.DATATYPE_VOID:
-                    err = device.InsertSensorSample_void(k, t)
-                case sddl.DATATYPE_STRING:
-                    value, ok := v.(string)
-                    if (!ok) {
-                        fmt.Println("Expected string value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_string(k, t, value)
-                case sddl.DATATYPE_BOOL:
-                    value, ok := v.(bool)
-                    if (!ok) {
-                        fmt.Println("Expected boolean value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_bool(k, t, value)
-                case sddl.DATATYPE_INT8:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_int8(k, t, int8(value))
-                case sddl.DATATYPE_UINT8:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_uint8(k, t, uint8(value))
-                case sddl.DATATYPE_INT16:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_int16(k, t, int16(value))
-                case sddl.DATATYPE_UINT16:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_uint16(k, t, uint16(value))
-                case sddl.DATATYPE_INT32:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_int32(k, t, int32(value))
-                case sddl.DATATYPE_UINT32:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_uint32(k, t, uint32(value))
-                case sddl.DATATYPE_FLOAT32:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_float32(k, t, float32(value))
-                case sddl.DATATYPE_FLOAT64:
-                    value, ok := v.(float64)
-                    if (!ok) {
-                        fmt.Println("Expected numeric value for ", k)
-                        return ""
-                    }
-                    err = device.InsertSensorSample_float64(k, t, value)
-                case sddl.DATATYPE_DATETIME:
-                    /*value, ok := v.(string)
-                    if (!ok) {
-                        fmt.Println("Expected string datatime value for ", k)
-                        return ""
-                    }
-                    value_t : time.Time(value)
-                    err = device.InsertSensorSample_datetime(k, t, value_t)*/
-                    fmt.Println("Datetime properties not yet supported")
-                }
-            } else {
+            sensor, err := sddlClass.LookupSensor(k)
+            if err != nil {
                 /* sensor not found */
                 fmt.Println("Unexpected key: ", k)
+                continue
+            }
+            t := time.Now()
+            // convert from JSON to Go
+            v2, err := jsonToPropertyValue(sensor, v)
+            if err != nil {
+                fmt.Println("Warning: ", err)
+                continue
+            }
+            // Insert converts from Go to Cassandra
+            err = device.InsertSample(sensor, t, v2)
+            if err != nil {
+                fmt.Println("Warning: ", err)
+                continue
             }
         }
     }
@@ -202,9 +131,13 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
     cnt = 0
 
     // connect to cassandra
-    dl := datalayer.NewCassandraDatalayer()
-    dl.Connect("canopy")
-    defer dl.Close()
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        fmt.Println("Could not connect to database")
+        return
+    }
+    defer conn.Close()
 
     for {
         var in string
@@ -215,7 +148,7 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
         if err == nil {
             // success, payload received
             cnt++;
-            deviceId := processPayload(dl, in, cnt)
+            deviceId := processPayload(conn, in, cnt)
             if deviceId != "" && mailbox == nil {
                 mailbox = gPigeon.CreateMailbox(deviceId)
             }

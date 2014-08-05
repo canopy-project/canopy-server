@@ -1,13 +1,38 @@
+/*
+ * Copyright 2014 Gregory Prisament
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package cassandra_datalayer
+
+import(
+    "canopy/datalayer"
+    "canopy/sddl"
+    "github.com/gocql/gocql"
+    "code.google.com/p/go.crypto/bcrypt"
+    "log"
+)
+
 type CassConnection struct {
-    dl *CasssandraDatalayer
+    dl *CassDatalayer
     session *gocql.Session
 }
 
 func (conn *CassConnection) Close() {
-    dl.session.Close()
+    conn.session.Close()
 }
 
-func (conn *CassConnection) CreateAccount(username, email, password string) (*CassAccount, error) {
+func (conn *CassConnection) CreateAccount(username, email, password string) (datalayer.Account, error) {
     password_hash, _ := bcrypt.GenerateFromPassword([]byte(password + salt), hashCost)
 
     // TODO: transactionize
@@ -28,7 +53,7 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (*Ca
     return &CassAccount{conn, username, email, password_hash}, nil
 }
 
-func (conn *CassConnection) CreateDevice(name string) (*CassDevice, error) {
+func (conn *CassConnection) CreateDevice(name string) (datalayer.Device, error) {
     id := gocql.TimeUUID()
     
     err := conn.session.Query(`
@@ -41,10 +66,10 @@ func (conn *CassConnection) CreateDevice(name string) (*CassDevice, error) {
     return &CassDevice{
         conn: conn,
         deviceId: id,
-        friendlyName: name,
+        name: name,
         class: nil,         // class gets initialized during first report
-        classString: ""
-    }
+        classString: "",
+    }, nil
 }
 
 func (conn *CassConnection) DeleteAccount(username string) {
@@ -66,7 +91,7 @@ func (conn *CassConnection) DeleteAccount(username string) {
     }
 }
 
-func (conn *CassDatalayer)LookupAccount(usernameOrEmail string) (*CassAccount, error) {
+func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Account, error) {
     var account CassAccount
 
     if err := conn.session.Query(`
@@ -82,32 +107,32 @@ func (conn *CassDatalayer)LookupAccount(usernameOrEmail string) (*CassAccount, e
     return &account, nil
 }
 
-func (dl *CassDatalayer)LookupAccountVerifyPassword(usernameOrEmail string, password string) (*CassAccount, error) {
-    account, err := dl.LookupAccount(usernameOrEmail)
+func (conn *CassConnection)LookupAccountVerifyPassword(usernameOrEmail string, password string) (datalayer.Account, error) {
+    account, err := conn.LookupAccount(usernameOrEmail)
     if err != nil {
         return nil, err
     }
 
     verified := account.VerifyPassword(password)
     if (!verified) {
-        return nil, InvalidPasswordError
+        return nil, datalayer.InvalidPasswordError
     }
 
     return account, nil
 }
 
-func (dl *CassDatalayer) LookupDevice(deviceId gocql.UUID) (*CassDevice, error) {
+func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device, error) {
     var device CassDevice
 
     device.deviceId = deviceId
-    device.dl = dl
+    device.conn = conn
 
-    err := dl.session.Query(`
+    err := conn.session.Query(`
         SELECT friendly_name, sddl
         FROM devices
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
-            &device.friendlyName,
+            &device.name,
             &device.classString)
     if err != nil {
         return nil, err
@@ -123,11 +148,11 @@ func (dl *CassDatalayer) LookupDevice(deviceId gocql.UUID) (*CassDevice, error) 
     return &device, nil
 }
 
-func (dl *CassDatalayer) LookupDeviceByStringId(id string) (*CassDevice, error) {
+func (conn *CassConnection) LookupDeviceByStringID(id string) (datalayer.Device, error) {
     deviceId, err := gocql.ParseUUID(id)
     if err != nil {
         return nil, err
     }
-    return dl.LookupDevice(deviceId)
+    return conn.LookupDevice(deviceId)
 }
 

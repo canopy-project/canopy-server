@@ -36,14 +36,14 @@ type jsonDevicesItem struct {
 
 type jsonSample struct {
     Time string `json:"t"`
-    Value float64 `json:"v"`
+    Value interface{} `json:"v"`
 }
 
 type jsonSamples struct {
     Samples []jsonSample `json:"samples"`
 }
 
-func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
+func devicesToJson(devices []datalayer.Device) (string, error) {
 
     out := jsonDevices{[]jsonDevicesItem{}};
 
@@ -57,7 +57,7 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
             for _, prop := range outDeviceClass.Properties() {
                 sensor, ok := prop.(*sddl.Sensor)
                 if ok {
-                    sample, err := device.GetCurrentSensorData(prop.Name())
+                    sample, err := device.LatestDataByPropertyName(prop.Name())
                     if err != nil {
                         continue
                     }
@@ -68,7 +68,7 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
                 }
                 control, ok := prop.(*sddl.Control)
                 if ok {
-                    sample, err := device.GetCurrentSensorData(prop.Name())
+                    sample, err := device.LatestDataByPropertyName(prop.Name())
                     if err != nil {
                         continue
                     }
@@ -82,9 +82,9 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
 
             out.Devices = append(
                 out.Devices, jsonDevicesItem{
-                    device.GetId().String(), 
-                    device.GetFriendlyName(),
-                    IsDeviceConnected(device.GetId().String()),
+                    device.ID().String(), 
+                    device.Name(),
+                    IsDeviceConnected(device.ID().String()),
                     outDeviceClassJson,
                     propValues})
         }
@@ -97,7 +97,7 @@ func devicesToJson(devices []*datalayer.CassandraDevice) (string, error) {
     return string(jsn), nil
 }
 
-func samplesToJson(samples []datalayer.SensorSample) (string, error) {
+func samplesToJson(samples []sddl.PropertySample) (string, error) {
     out := jsonSamples{[]jsonSample{}}
     for _, sample := range samples {
         out.Samples = append(out.Samples, jsonSample{

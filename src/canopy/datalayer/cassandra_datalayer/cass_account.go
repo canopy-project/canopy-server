@@ -16,8 +16,8 @@
 package cassandra_datalayer
 
 import (
+    "canopy/datalayer"
     "github.com/gocql/gocql"
-    "log"
     "errors"
     "code.google.com/p/go.crypto/bcrypt"
 )
@@ -36,8 +36,8 @@ type CassAccount struct {
 }
 
 // Obtain list of devices I have access to.
-func (account *CassAccount) Devices() ([]*CassDevice, error) {
-    devices := []*CassDevice{}
+func (account *CassAccount) Devices() ([]datalayer.Device, error) {
+    devices := []datalayer.Device{}
     var deviceId gocql.UUID
     var accessLevel int
 
@@ -51,32 +51,32 @@ func (account *CassAccount) Devices() ([]*CassDevice, error) {
             device, err := account.conn.LookupDevice(deviceId)
             if err != nil {
                 iter.Close()
-                return []*CassDevice{}, err
+                return []datalayer.Device{}, err
             }
             devices = append(devices, device)
         }
     }
     if err := iter.Close(); err != nil {
-        return []*CassDevice{}, err
+        return []datalayer.Device{}, err
     }
 
     return devices, nil
 }
 
 // Obtain specific device, if I have permission.
-func (account *CassAccount) Device(id gocql.UUID) (*CassDevice, error) {
+func (account *CassAccount) Device(id gocql.UUID) (datalayer.Device, error) {
     var accessLevel int
 
     if err := account.conn.session.Query(`
         SELECT access_level FROM device_permissions
         WHERE username = ? AND device_id = ?
         LIMIT 1
-    `, account.Username(), deviceId).Consistency(gocql.One).Scan(
+    `, account.Username(), id).Consistency(gocql.One).Scan(
         &accessLevel); err != nil {
             return nil, err
     }
 
-    if (accessLevel == NoAccess) {
+    if (accessLevel == datalayer.NoAccess) {
         return nil, errors.New("insufficient permissions ");
     }
 

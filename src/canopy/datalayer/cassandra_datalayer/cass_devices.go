@@ -16,6 +16,7 @@
 package cassandra_datalayer
 
 import (
+    "canopy/datalayer"
     "github.com/gocql/gocql"
     "time"
     "canopy/sddl"
@@ -26,7 +27,8 @@ import (
 type CassDevice struct {
     conn *CassConnection
     deviceId gocql.UUID
-    friendlyName string
+    name string
+    locationNote string
     class *sddl.Class
     classString string
 }
@@ -77,7 +79,7 @@ func (device *CassDevice) getSensorData_generic(propname string, datatype sddl.D
             FROM ` + tableName + `
             WHERE device_id = ?
                 AND propname = ?
-    `, device.GetId(), propname).Consistency(gocql.One)
+    `, device.ID(), propname).Consistency(gocql.One)
 
     iter := query.Iter()
     samples := []sddl.PropertySample{}
@@ -167,11 +169,11 @@ func (device *CassDevice) HistoricData(property sddl.Property, startTime, endTim
 }
 
 func (device *CassDevice) HistoricDataByPropertyName(propertyName string, startTime, endTime time.Time) ([]sddl.PropertySample, error) {
-    prop, err := device.LookupProperty(propName)
+    prop, err := device.LookupProperty(propertyName)
     if err != nil {
         return []sddl.PropertySample{}, err
     }
-    return device.GetPropertyData(prop, startTime, endTime)
+    return device.HistoricData(prop, startTime, endTime)
 }
 
 func (device *CassDevice) ID() gocql.UUID {
@@ -183,7 +185,7 @@ func (device *CassDevice) insertSensorSample_int(propname string, t time.Time, v
     err := device.conn.session.Query(`
             INSERT INTO propval_int (device_id, propname, time, value)
             VALUES (?, ?, ?, ?)
-    `, device.GetId(), propname, t, value).Exec()
+    `, device.ID(), propname, t, value).Exec()
     if err != nil {
         return err;
     }
@@ -194,7 +196,7 @@ func (device *CassDevice) insertSensorSample_float(propname string, t time.Time,
     err := device.conn.session.Query(`
             INSERT INTO propval_float (device_id, propname, time, value)
             VALUES (?, ?, ?, ?)
-    `, device.GetId(), propname, t, value).Exec()
+    `, device.ID(), propname, t, value).Exec()
     if err != nil {
         return err;
     }
@@ -205,7 +207,7 @@ func (device *CassDevice) insertSensorSample_double(propname string, t time.Time
     err := device.conn.session.Query(`
             INSERT INTO propval_double (device_id, propname, time, value)
             VALUES (?, ?, ?, ?)
-    `, device.GetId(), propname, t, value).Exec()
+    `, device.ID(), propname, t, value).Exec()
     if err != nil {
         return err;
     }
@@ -216,7 +218,7 @@ func (device *CassDevice) insertSensorSample_timestamp(propname string, t time.T
     err := device.conn.session.Query(`
             INSERT INTO propval_timestamp (device_id, propname, time, value)
             VALUES (?, ?, ?, ?)
-    `, device.GetId(), propname, t, value).Exec()
+    `, device.ID(), propname, t, value).Exec()
     if err != nil {
         return err;
     }
@@ -227,7 +229,7 @@ func (device *CassDevice) insertSensorSample_boolean(propname string, t time.Tim
     err := device.conn.session.Query(`
             INSERT INTO propval_boolean (device_id, propname, time, value)
             VALUES (?, ?, ?, ?)
-    `, device.GetId(), propname, t, value).Exec()
+    `, device.ID(), propname, t, value).Exec()
     if err != nil {
         return err;
     }
@@ -238,7 +240,7 @@ func (device *CassDevice) insertSensorSample_void(propname string, t time.Time) 
     err := device.conn.session.Query(`
             INSERT INTO propval_void (device_id, propname, time)
             VALUES (?, ?, ?)
-    `, device.GetId(), propname, t).Exec()
+    `, device.ID(), propname, t).Exec()
     if err != nil {
         return err;
     }
@@ -249,7 +251,7 @@ func (device *CassDevice) insertSensorSample_string(propname string, t time.Time
     err := device.conn.session.Query(`
             INSERT INTO propval_string (device_id, propname, time, value)
             VALUES (?, ?, ?, ?)
-    `, device.GetId(), propname, t, value).Exec()
+    `, device.ID(), propname, t, value).Exec()
     if err != nil {
         return err;
     }
@@ -258,7 +260,17 @@ func (device *CassDevice) insertSensorSample_string(propname string, t time.Time
 
 
 func (device *CassDevice) InsertSample(property sddl.Property, t time.Time, value interface{}) error {
-    switch property.Datatype() {
+    var datatype sddl.DatatypeEnum
+    switch prop := property.(type) {
+    case *sddl.Control:
+        datatype = prop.Datatype()
+    case *sddl.Sensor:
+        datatype = prop.Datatype()
+    default:
+        return fmt.Errorf("InsertSample expects control or sensor property")
+    }
+    propname := property.Name()
+    switch datatype {
     case sddl.DATATYPE_VOID:
         return device.insertSensorSample_void(propname, t);
     case sddl.DATATYPE_STRING:
@@ -291,7 +303,7 @@ func (device *CassDevice) InsertSample(property sddl.Property, t time.Time, valu
             return fmt.Errorf("InsertSample expects int16 value for %s", property.Name())
         }
         return device.insertSensorSample_int(propname, t, int32(v));
-    case sddl.DATATYPE_UINT8:
+    case sddl.DATATYPE_UINT16:
         v, ok := value.(uint16)
         if !ok {
             return fmt.Errorf("InsertSample expects uint16 value for %s", property.Name())
@@ -308,7 +320,7 @@ func (device *CassDevice) InsertSample(property sddl.Property, t time.Time, valu
         if !ok {
             return fmt.Errorf("InsertSample expects uint32 value for %s", property.Name())
         }
-        return device.insertSensorSample_uint32(propname, t, int32(v)); // TODO: verify this works as expected
+        return device.insertSensorSample_int(propname, t, int32(v)) // TODO: verify this works as expected
     case sddl.DATATYPE_FLOAT32:
         v, ok := value.(float32)
         if !ok {
@@ -328,12 +340,12 @@ func (device *CassDevice) InsertSample(property sddl.Property, t time.Time, valu
         }
         return device.insertSensorSample_timestamp(propname, t, v);
     default:
-        return fmt.Errorf("InsertSample unsupported datatype ", property.Datatype())
+        return fmt.Errorf("InsertSample unsupported datatype ", datatype)
     }
 }
 
 
-func (device *CassDevice) LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error)
+func (device *CassDevice) LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error) {
     /*var value float64
     var timestamp time.Time
 
@@ -363,14 +375,14 @@ func (device *CassDevice) LatestData(property sddl.Property) ([]sddl.PropertySam
 func (device *CassDevice) LookupProperty(propName string) (sddl.Property, error) {
     sddlClass := device.SDDLClass()
     if sddlClass == nil {
-        return nil, fmt.Errorf("Cannot lookup property %s, device %s has unknown SDDL", propName, device.GetFriendlyName())
+        return nil, fmt.Errorf("Cannot lookup property %s, device %s has unknown SDDL", propName, device.Name())
     }
 
     return sddlClass.LookupProperty(propName)
 }
 
 func (device *CassDevice) Name() string {
-    return device.friendlyName
+    return device.name
 }
 
 func (device *CassDevice) SDDLClass() *sddl.Class {
@@ -381,26 +393,26 @@ func (device *CassDevice) SDDLClassString() string{
     return device.classString
 }
 
-func (device *CassDevice) SetAccountAccess(account *Account, access AccessLevel, sharing ShareLevel) error {
+func (device *CassDevice) SetAccountAccess(account datalayer.Account, access datalayer.AccessLevel, sharing datalayer.ShareLevel) error {
     /* TODO: Incorporate sharing level */
     err := device.conn.session.Query(`
             INSERT INTO device_permissions (username, device_id, access_level)
             VALUES (?, ?, ?)
-    `, account.Username(), device.GetId(), access).Exec()
+    `, account.Username(), device.ID(), access).Exec()
 
     return err
 }
 
 func (device *CassDevice) SetLocationNote(locationNote string) error {
-    err = device.conn.session.Query(`
+    err := device.conn.session.Query(`
             UPDATE devices
             SET location_note = ?
             WHERE device_id = ?
-    `, locationNote, device.GetId()).Exec()
+    `, locationNote, device.ID()).Exec()
     if err != nil {
         return err;
     }
-    device.locationNote = locationNote;
+    device.locationNote = locationNote
     return nil;
 }
 
@@ -409,7 +421,7 @@ func (device *CassDevice) SetName(name string) error {
             UPDATE devices
             SET friendly_name = ?
             WHERE device_id = ?
-    `, name, device.GetId()).Exec()
+    `, name, device.ID()).Exec()
     if err != nil {
         return err;
     }
@@ -428,7 +440,7 @@ func (device *CassDevice) SetSDDLClass(class *sddl.Class) error {
             UPDATE devices
             SET sddl = ?
             WHERE device_id = ?
-    `, sddlText, device.GetId()).Exec()
+    `, sddlText, device.ID()).Exec()
     if err != nil {
         return err;
     }
