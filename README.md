@@ -6,7 +6,7 @@ executable is `canopy-cloud-service`, which is written in golang.  Some
 of its responsibilities include:
 
  - Talking over websockets to each device.
- - Stores data in a Cassandra database.
+ - Storing data in a Cassandra database.
  - Serving the Canopy REST API.
 
 
