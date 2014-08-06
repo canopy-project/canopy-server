@@ -24,6 +24,12 @@ default.  To updgrade:
     $ sudo apt-get update
     $ sudo apt-get install golang
 
+BUILDING, INSTALLING, RUNNING
+
+    $ make
+    $ sudo make install
+    $ /etc/init.d/canopy-cloud-service start
+
 CERT GENERATION
 
     $ openssl genrsa -out key.pem 1024
