@@ -31,7 +31,8 @@ import (
     "canopy/pigeon"
     "encoding/json"
     "encoding/base64"
-    "os"
+    //"os"
+    "flag"
     "strings"
     "time"
 )
@@ -837,9 +838,13 @@ var gConfAllowOrigin = ""
 func main() {
     fmt.Println("starting server");
 
-    gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
+
+    //gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
+    allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
+    flag.Parse()
+    gConfAllowOrigin := *allowOrigin
     if (gConfAllowOrigin == "") {
-        fmt.Println("You must set environment variable CCS_ALLOW_ORIGIN");
+        fmt.Println("Expected parameter -allow-origin");
         return
     }
 

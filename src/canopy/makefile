@@ -23,15 +23,19 @@ all: $(TARGETS)
 .PHONY: $(TARGETS)
 
 build/canopy-cloud-service:
-	go build canopy-cloud-service.go canopy_cloud.go canopy_json.go
+	GOPATH=$$(cd ~/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go canopy_cloud.go canopy_json.go
 	mkdir -p build/
 	mv canopy-cloud-service build/
 
 build/canodevtool:
-	go build canopy_cmd.go
+	GOPATH=$$(cd ~/golang; pwd):$$(cd ../../; pwd) go build canopy_cmd.go
 	mkdir -p build/
 	mv canopy_cmd build/canodevtool
 
 .PHONY: install
 install:
 	cp $(TARGETS) /usr/local/bin
+
+.PHONY: clean
+clean:
+	rm -rf build/

@@ -25,7 +25,7 @@
 
 DESC="Canopy Cloud Service"
 NAME=canopy-cloud-service
-PIDFILE=/var/run/$NAME/$NAME.pid
+PIDFILE=/var/run/canopy/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 CONFDIR=/etc/canopy
 
@@ -34,6 +34,7 @@ test -x $CCS_BIN || echo "$CCS_BIN not installed" || exit 0
 
 CCS_CONFIG=/etc/canopy/ccs-env.sh
 test -r $CCS_CONFIG || echo "$CCS_CONFIG not found" || exit 0
+. $CCS_CONFIG
 
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
@@ -41,6 +42,24 @@ test -r $CCS_CONFIG || echo "$CCS_CONFIG not found" || exit 0
 # Define LSB log_* functions.
 # Depend on lsb-base (>= 3.0-6) to ensure that this file is present.
 . /lib/lsb/init-functions
+
+#
+# Function that returns 0 if process is running, or nonzero if not.
+#
+# The nonzero value is 3 if the process is simply not running, and 1 if the
+# process is not running but the pidfile exists (to match the exit codes for
+# the "status" command; see LSB core spec 3.1, section 20.2)
+#
+CMD_PATT="canopy-cloud-service"
+is_running()
+{
+    if [ -f $PIDFILE ]; then
+        pid=`cat $PIDFILE`
+        grep -Eq "$CMD_PATT" "/proc/$pid/cmdline" 2>/dev/null && return 0
+        return 1
+    fi
+    return 3
+}
 
 #
 # Function that starts the daemon/service
@@ -55,8 +74,7 @@ do_start()
         install -d -ocanopy -gcanopy -m750 `dirname $PIDFILE`
 
     start-stop-daemon -S -c canopy -a /usr/local/bin/canopy-cloud-service -q -p "$PIDFILE" -t >/dev/null || return 1
-
-    start-stop-daemon -S -c canopy -a /usr/local/bin/canopy-cloud-service -b -p "$PIDFILE" > /dev/null || return 2
+    start-stop-daemon -S -c canopy -a /usr/local/bin/canopy-cloud-service -b -m -p "$PIDFILE" -- --allow-origin="$CCS_ALLOW_ORIGIN" > /dev/null || return 2
 }
 
 #
