@@ -12,25 +12,32 @@ of its responsibilities include:
 
 Building and Installing (Quick-and-easy method, Ubuntu 14.04)
 ------------------------------------------------------------------------------
-Install Cassandra:
+Install Cassandra and GoLang:
 
-    sudo apt-get install apache
+    sudo apt-get install cassandra
+    sudo apt-get install golang
+
+Clone Canopy Cloud Service:
+
+    git clone http://github.com/canopy-project/canopy-cloud
 
 Build Canopy Cloud Service:
 
+    cd canopy-cloud
     make
 
-Install Canopy Cloud Service:
+Install it:
 
     sudo make install
+
+Initialize database:
+
+    canodevtool create-db
 
 Start it running:
 
     sudo /etc/init.d/canopy-cloud-service start
 
-Stop it:
-
-    sudo /etc/init.d/canopy-cloud-service stop 
 
 Notes for older systems (specifically: Ubuntu 12.04 LTS):
 ------------------------------------------------------------------------------
