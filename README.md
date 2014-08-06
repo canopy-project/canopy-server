@@ -1,5 +1,39 @@
-canopy CLOUD
------------------
+Canopy Cloud Service
+------------------------------------------------------------------------------
+
+Canopy Cloud Service is the server-side component of Canopy.  The main
+executable is `canopy-cloud-service`, which is written in golang.  Some
+of its responsibilities include:
+
+ - Talking over websockets to each device.
+ - Stores data in a Cassandra database.
+ - Serving the Canopy REST API.
+
+
+Building and Installing (Quick-and-easy method, Ubuntu 14.04)
+------------------------------------------------------------------------------
+Install Cassandra:
+
+    sudo apt-get install apache
+
+Build Canopy Cloud Service:
+
+    make
+
+Install Canopy Cloud Service:
+
+    sudo make install
+
+Start it running:
+
+    sudo /etc/init.d/canopy-cloud-service start
+
+Stop it:
+
+    sudo /etc/init.d/canopy-cloud-service stop 
+
+Notes for older systems (specifically: Ubuntu 12.04 LTS):
+------------------------------------------------------------------------------
 
 Installing cassandra 2.07 on Ubuntu 12.04LTS:
 
@@ -23,13 +57,3 @@ default.  To updgrade:
     $ sudo add-apt-repository ppa:duh/golang
     $ sudo apt-get update
     $ sudo apt-get install golang
-
-BUILDING, INSTALLING, RUNNING
-
-    $ make
-    $ sudo make install
-    $ /etc/init.d/canopy-cloud-service start
-
-CERT GENERATION
-
-    $ openssl genrsa -out key.pem 1024
