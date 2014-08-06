@@ -842,7 +842,7 @@ func main() {
     //gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
     allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
     flag.Parse()
-    gConfAllowOrigin := *allowOrigin
+    gConfAllowOrigin = *allowOrigin
     if (gConfAllowOrigin == "") {
         fmt.Println("Expected parameter -allow-origin");
         return
