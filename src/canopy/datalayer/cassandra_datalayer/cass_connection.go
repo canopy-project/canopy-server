@@ -58,7 +58,7 @@ func (conn *CassConnection) CreateDevice(name string) (datalayer.Device, error) 
     
     err := conn.session.Query(`
             INSERT INTO devices (device_id, friendly_name)
-            VALUE (?, ?)
+            VALUES (?, ?)
     `, id, name).Exec()
     if err != nil {
         return nil, err

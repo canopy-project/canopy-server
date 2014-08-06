@@ -314,7 +314,8 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
             WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
     `).Exec()
     if err != nil {
-        return err
+        // Ignore errors (just print them).
+        log.Print(err, "\n")
     }
 
     // Create a new session connecting to that keyspace.

@@ -124,7 +124,7 @@ type Device interface {
     // Get latest sample data for a property.
     //
     // property must be an sddl.Control or an sddl.Sensor.
-    LatestData(property sddl.Property) ([]sddl.PropertySample, error)
+    LatestData(property sddl.Property) (*sddl.PropertySample, error)
 
     // Get latest sample data for a property, by property name.
     LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error)

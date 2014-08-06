@@ -252,6 +252,7 @@ func createDeviceHandler(w http.ResponseWriter, r *http.Request) {
     device, err := conn.CreateDevice("Pending Device");
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
+        fmt.Println(err)
         fmt.Fprintf(w, "{\"error\" : \"device_creation_failed\"}");
         return
     }
@@ -598,32 +599,33 @@ func controlHandler(w http.ResponseWriter, r *http.Request) {
     }
 
     /* Store control value.  For now, use sensor_data table */
-    for sensorName, value := range data {
+    for propName, value := range data {
         /* TODO: Verify that control is, in fact, a control according to SDDL
          * class */
-        if (sensorName == "__friendly_name") {
+        if (propName == "__friendly_name") {
             friendlyName, ok := value.(string)
             if !ok {
                 continue;
             }
             device.SetName(friendlyName);
-        } else if (sensorName == "__location_note") {
+        } else if (propName == "__location_note") {
             locationNote, ok := value.(string)
             if !ok {
                 continue;
             }
             device.SetLocationNote(locationNote);
         } else {
-            /* TODO: fix this! */
-            prop, err := device.LookupProperty(sensorName)
+            prop, err := device.LookupProperty(propName)
             if err != nil {
                 /* TODO: Report warning in response*/
                 continue;
             }
-            switch val := value.(type) {
-            case float32:
-                device.InsertSample(prop, time.Now(), val);
+            propVal, err := jsonToPropertyValue(prop, value)
+            if err != nil {
+                /* TODO: Report warning in response*/
+                continue;
             }
+            device.InsertSample(prop, time.Now(), propVal);
         }
     }
 

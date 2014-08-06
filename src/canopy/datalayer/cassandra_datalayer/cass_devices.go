@@ -66,7 +66,7 @@ func tableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
     }
 }
 
-func (device *CassDevice) getSensorData_generic(propname string, datatype sddl.DatatypeEnum, startTime time.Time, endTime time.Time) ([]sddl.PropertySample, error) {
+func (device *CassDevice) getHistoricData_generic(propname string, datatype sddl.DatatypeEnum, startTime time.Time, endTime time.Time) ([]sddl.PropertySample, error) {
     var timestamp time.Time
 
     tableName, err := tableNameByDatatype(datatype)
@@ -157,14 +157,15 @@ func (device *CassDevice) getSensorData_generic(propname string, datatype sddl.D
 
     return samples, nil
 }
+
 func (device *CassDevice) HistoricData(property sddl.Property, startTime, endTime time.Time) ([]sddl.PropertySample, error) {
     switch prop := property.(type) {
     case *sddl.Control:
-        return device.getSensorData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
+        return device.getHistoricData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
     case *sddl.Sensor:
-        return device.getSensorData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
+        return device.getHistoricData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
     default:
-        return []sddl.PropertySample{}, fmt.Errorf("GetPropertyData expects Sensor or Control")
+        return []sddl.PropertySample{}, fmt.Errorf("HistoricData expects Sensor or Control")
     }
 }
 
@@ -344,32 +345,102 @@ func (device *CassDevice) InsertSample(property sddl.Property, t time.Time, valu
     }
 }
 
-
-func (device *CassDevice) LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error) {
-    /*var value float64
+func (device *CassDevice) getLatestData_generic(propname string, datatype sddl.DatatypeEnum) (*sddl.PropertySample, error) {
     var timestamp time.Time
+    var sample *sddl.PropertySample
 
-    err := device.conn.session.Query(`
-        SELECT time, value
-        FROM sensor_data
-        WHERE device_id = ?
-            AND propname = ?
-        ORDER BY propname DESC
-        LIMIT 1`, device.GetId(), propname).Consistency(gocql.One).Scan(
-            &timestamp, 
-            &value)
+    tableName, err := tableNameByDatatype(datatype)
     if err != nil {
         return nil, err
     }
 
-    sample := SensorSample{timestamp, value}
-    return &sample, nil
-    */
-    return nil, fmt.Errorf("Not implemented")
+    query := device.conn.session.Query(`
+            SELECT time, value
+            FROM ` + tableName + `
+            WHERE device_id = ?
+                AND propname = ?
+            ORDER BY time DESC
+            LIMIT 1`, device.ID(), propname).Consistency(gocql.One)
+
+    switch datatype {
+    case sddl.DATATYPE_VOID:
+        err = query.Scan(&timestamp)
+        sample = &sddl.PropertySample{timestamp, nil}
+    case sddl.DATATYPE_STRING:
+        var value string
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_BOOL:
+        var value bool
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_INT8:
+        var value int8
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_UINT8:
+        var value uint8
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_INT16:
+        var value int16
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_UINT16:
+        var value uint16
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_INT32:
+        var value int32
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_UINT32:
+        var value uint32
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_FLOAT32:
+        var value float32
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_FLOAT64:
+        var value float64
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_DATETIME:
+        var value time.Time
+        err = query.Scan(&timestamp, &value)
+        sample = &sddl.PropertySample{timestamp, value}
+    case sddl.DATATYPE_INVALID:
+        return nil, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
+    default:
+        return nil, fmt.Errorf("Cannot get property values for datatype %d", datatype);
+    }
+
+    if err != nil {
+        return nil, fmt.Errorf("Error reading latest property value: ", err)
+    }
+
+    return sample, nil
 }
 
-func (device *CassDevice) LatestData(property sddl.Property) ([]sddl.PropertySample, error) {
-    return []sddl.PropertySample{}, fmt.Errorf("Not implemented")
+func (device *CassDevice) LatestData(property sddl.Property) (*sddl.PropertySample, error) {
+    switch prop := property.(type) {
+    case *sddl.Control:
+        return device.getLatestData_generic(prop.Name(), prop.Datatype())
+    case *sddl.Sensor:
+        return device.getLatestData_generic(prop.Name(), prop.Datatype())
+    default:
+        return nil, fmt.Errorf("LatestData expects Sensor or Control")
+    }
+}
+
+
+func (device *CassDevice) LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error) {
+    prop, err := device.LookupProperty(propertyName)
+    if err != nil {
+        return nil, err
+    }
+    return device.LatestData(prop)
 }
 
 func (device *CassDevice) LookupProperty(propName string) (sddl.Property, error) {

@@ -34,7 +34,10 @@ func main() {
         dl.EraseDb("canopy")
     } else if flag.Arg(0) == "create-db" {
         dl := cassandra_datalayer.NewDatalayer()
-        dl.PrepDb("canopy")
+        err := dl.PrepDb("canopy")
+        if err != nil {
+            fmt.Println(err)
+        }
     } else if flag.Arg(0) == "create-account" {
         dl := cassandra_datalayer.NewDatalayer()
         conn, _ := dl.Connect("canopy")
