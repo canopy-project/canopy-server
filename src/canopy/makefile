@@ -23,14 +23,27 @@ all: $(TARGETS)
 .PHONY: $(TARGETS)
 
 build/canopy-cloud-service:
-	GOPATH=$$(cd ~/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go canopy_cloud.go canopy_json.go
+	mkdir -p ~/.canopy/golang
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go canopy_cloud.go canopy_json.go
 	mkdir -p build/
 	mv canopy-cloud-service build/
 
 build/canodevtool:
-	GOPATH=$$(cd ~/golang; pwd):$$(cd ../../; pwd) go build canopy_cmd.go
+	mkdir -p ~/.canopy/golang
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy_cmd.go
 	mkdir -p build/
 	mv canopy_cmd build/canodevtool
+
+.PHONY: go_get_deps
+go_get_deps:
+	mkdir -p ~/.canopy/golang
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go get code.google.com/p/go.net/websocket
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go get github.com/gocql/gocql
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go get github.com/gorilla/sessions
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go get github.com/gorilla/context
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go get github.com/gorilla/mux
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go get github.com/sendgrid/sendgrid-go
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go get code.google.com/p/go.crypto/bcrypt
 
 .PHONY: install
 install:
