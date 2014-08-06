@@ -35,6 +35,8 @@ build/canodevtool:
 .PHONY: install
 install:
 	cp $(TARGETS) /usr/local/bin
+	cp ../../init_script/canopy-cloud-service /etc/init.d/
+	../../init_script/create-canopy-group-user.sh
 
 .PHONY: clean
 clean:
