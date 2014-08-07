@@ -48,7 +48,7 @@ go_get_deps:
 .PHONY: install
 install:
 	cp $(TARGETS) /usr/local/bin
-	cp ../../scripts/canopy-cloud-service /etc/init.d/
+	cp ../../scripts/canopy-cloud-service /etc/init.d
 	../../scripts/create-canopy-group-user.sh
 
 .PHONY: clean
