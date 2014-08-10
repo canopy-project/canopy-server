@@ -28,6 +28,25 @@ type CassConnection struct {
     session *gocql.Session
 }
 
+// Use with care.  Erases all sensor data.
+func (conn *CassConnection) ClearSensorData() {
+    tables := []string{
+        "propval_int",
+        "propval_float",
+        "propval_double",
+        "propval_timestamp",
+        "propval_boolean",
+        "propval_void",
+        "propval_string",
+    }
+    for _, table := range tables {
+        err := conn.session.Query(`TRUNCATE ` + table).Exec();
+        if (err != nil) {
+            log.Print("Error truncating ", table, ":", err)
+        }
+    }
+}
+
 func (conn *CassConnection) Close() {
     conn.session.Close()
 }
