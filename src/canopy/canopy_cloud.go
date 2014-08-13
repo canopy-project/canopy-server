@@ -16,12 +16,12 @@
 package main
 
 import (
-    "fmt"
     "time"
     "encoding/json"
     "code.google.com/p/go.net/websocket"
     "io"
     "net"
+    "canopy/canolog"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/pigeon"
@@ -37,7 +37,7 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
 
     err := json.Unmarshal([]byte(payload), &payloadObj)
     if err != nil{
-        fmt.Println("Error JSON decoding payload: ", payload)
+        canolog.Error("Error JSON decoding payload: ", payload, err);
         return "";
     }
 
@@ -46,17 +46,17 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
     if ok {
         deviceIdString, ok = payloadObj["device_id"].(string)
         if !ok {
-            fmt.Println("Expected string for device_id")
+            canolog.Error("Expected string for device_id: ", payload);
             return "";
         }
 
         device, err = conn.LookupDeviceByStringID(deviceIdString)
         if err != nil {
-            fmt.Println("Device not found: ", deviceIdString, err)
+            canolog.Error("Device not found: ", deviceIdString, err);
             return "";
         }
     } else {
-            fmt.Println("device-id field mandatory")
+            canolog.Error("device_id field mandatory: ", payload);
             return "";
     }
 
@@ -65,22 +65,22 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
     if ok {
         sddlJson, ok := payloadObj["sddl"].(map[string]interface{})
         if !ok {
-            fmt.Println("Expected object for SDDL")
+            canolog.Error("Expected object for SDDL");
             return "";
         }
         sddlClass, err = sddl.ParseClass("anonymous", sddlJson)
         if err != nil {
-            fmt.Println("Failed parsing sddl class definition: ", err)
+            canolog.Error("Failed parsing sddl class definition: ", err);
             return "";
         }
 
         err = device.SetSDDLClass(sddlClass)
         if err != nil {
-            fmt.Println("Error storing SDDL class during processPayload")
+            canolog.Error("Error storing SDDL class during processPayload")
             return "";
         }
     } else {
-            fmt.Println("sddl field mandatory")
+            canolog.Error("sddl field mandatory:", payload)
             return "";
     }
 
@@ -95,20 +95,20 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
             sensor, err := sddlClass.LookupSensor(k)
             if err != nil {
                 /* sensor not found */
-                fmt.Println("Unexpected key: ", k)
+                canolog.Warn("Unexpected key: ", k)
                 continue
             }
             t := time.Now()
             // convert from JSON to Go
             v2, err := jsonToPropertyValue(sensor, v)
             if err != nil {
-                fmt.Println("Warning: ", err)
+                canolog.Warn(err)
                 continue
             }
             // Insert converts from Go to Cassandra
             err = device.InsertSample(sensor, t, v2)
             if err != nil {
-                fmt.Println("Warning: ", err)
+                canolog.Warn(err)
                 continue
             }
         }
@@ -125,6 +125,8 @@ func IsDeviceConnected(deviceIdString string) bool {
 // This event loop runs until the websocket connection is broken.
 func CanopyWebsocketServer(ws *websocket.Conn) {
 
+    canolog.Websocket("Websocket connection established")
+
     var mailbox *pigeon.PigeonMailbox
     var cnt int32
     
@@ -134,7 +136,7 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
     dl := cassandra_datalayer.NewDatalayer()
     conn, err := dl.Connect("canopy")
     if err != nil {
-        fmt.Println("Could not connect to database")
+        canolog.Error("Could not connect to database: ", err)
         return
     }
     defer conn.Close()
@@ -153,6 +155,7 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
                 mailbox = gPigeon.CreateMailbox(deviceId)
             }
         } else if err == io.EOF {
+            canolog.Websocket("Websocket connection closed")
             // connection closed
             if mailbox != nil {
                 mailbox.Close()
@@ -161,7 +164,7 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
         } else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
             // timeout reached, no data for me this time
         } else {
-            fmt.Println("Unexpected error:", err);
+            canolog.Error("Unexpected error: ", err)
         }
 
         if mailbox != nil {
@@ -169,9 +172,10 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
             if msg != nil {
                 msgString, err := json.Marshal(msg)
                 if err != nil {
-                    fmt.Println("Unexpected error:", err);
+                    canolog.Error("Unexpected error: ", err)
                 }
                 
+                canolog.Websocket("Websocket sending: ", msgString)
                 websocket.Message.Send(ws, msgString)
             }
         }

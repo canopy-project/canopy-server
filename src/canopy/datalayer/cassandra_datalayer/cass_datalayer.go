@@ -132,9 +132,9 @@ package cassandra_datalayer
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 import (
+    "canopy/canolog"
     "canopy/datalayer"
     "github.com/gocql/gocql"
-    "log"
 )
 var creationQueries []string = []string{
     // used for:
@@ -279,6 +279,7 @@ func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) 
 
     session, err := cluster.CreateSession()
     if err != nil {
+        canolog.Error("Error creating DB session: ", err)
         return nil, err
     }
 
@@ -293,6 +294,7 @@ func (dl *CassDatalayer) EraseDb(keyspace string) error {
 
     session, err := cluster.CreateSession()
     if err != nil {
+        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
@@ -305,6 +307,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
 
     session, err := cluster.CreateSession()
     if err != nil {
+        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
@@ -314,8 +317,8 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
             WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
     `).Exec()
     if err != nil {
-        // Ignore errors (just print them).
-        log.Print(err, "\n")
+        // Ignore errors (just log them).
+        canolog.Warn("(IGNORED) ", err)
     }
 
     // Create a new session connecting to that keyspace.
@@ -324,6 +327,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
     cluster.Consistency = gocql.Quorum
     session, err = cluster.CreateSession()
     if err != nil {
+        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
@@ -333,7 +337,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
             // Ignore errors (just print them).
             // This allows PrepDB to be used to add new tables.  Eventually, we
             // should come up with a proper migration strategy.
-            log.Print(query, "\n", err)
+            canolog.Warn("(IGNORED) ", err)
         }
     }
     return nil

@@ -16,11 +16,11 @@
 package cassandra_datalayer
 
 import(
+    "canopy/canolog"
     "canopy/datalayer"
     "canopy/sddl"
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
-    "log"
 )
 
 type CassConnection struct {
@@ -42,7 +42,7 @@ func (conn *CassConnection) ClearSensorData() {
     for _, table := range tables {
         err := conn.session.Query(`TRUNCATE ` + table).Exec();
         if (err != nil) {
-            log.Print("Error truncating ", table, ":", err)
+            canolog.Error("Error truncating ", table, ":", err)
         }
     }
 }
@@ -59,6 +59,7 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
             INSERT INTO accounts (username, email, password_hash)
             VALUES (?, ?, ?)
     `, username, email, password_hash).Exec(); err != nil {
+        canolog.Error("Error creating account:", err)
         return nil, err
     }
 
@@ -66,6 +67,7 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
             INSERT INTO account_emails (email, username)
             VALUES (?, ?)
     `, email, username).Exec(); err != nil {
+        canolog.Error("Error setting account email:", err)
         return nil, err
     }
 
@@ -80,6 +82,7 @@ func (conn *CassConnection) CreateDevice(name string) (datalayer.Device, error) 
             VALUES (?, ?)
     `, id, name).Exec()
     if err != nil {
+        canolog.Error("Error creating device:", err)
         return nil, err
     }
     return &CassDevice{
@@ -99,14 +102,14 @@ func (conn *CassConnection) DeleteAccount(username string) {
             DELETE FROM accounts
             WHERE username = ?
     `, username).Exec(); err != nil {
-        log.Print(err)
+        canolog.Error("Error deleting account", err)
     }
 
     if err := conn.session.Query(`
             DELETE FROM account_emails
             WHERE email = ?
     `, email).Exec(); err != nil {
-        log.Print(err)
+        canolog.Error("Error deleting account email", err)
     }
 }
 
@@ -119,6 +122,7 @@ func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Acc
             LIMIT 1
     `, usernameOrEmail).Consistency(gocql.One).Scan(
          &account.username, &account.email, &account.password_hash); err != nil {
+            canolog.Error("Error looking up account", err)
             return nil, err
     }
     /* TODO: try email if username not found */
@@ -134,6 +138,7 @@ func (conn *CassConnection)LookupAccountVerifyPassword(usernameOrEmail string, p
 
     verified := account.VerifyPassword(password)
     if (!verified) {
+        canolog.Info("Incorrect password for ", usernameOrEmail)
         return nil, datalayer.InvalidPasswordError
     }
 
@@ -160,6 +165,7 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
     if device.classString != "" {
         device.class, err = sddl.ParseClassString("anonymous", device.classString)
         if err != nil {
+            canolog.Error("Error parsing class string for device: ", device.classString, err)
             return nil, err
         }
     }
@@ -170,6 +176,7 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
 func (conn *CassConnection) LookupDeviceByStringID(id string) (datalayer.Device, error) {
     deviceId, err := gocql.ParseUUID(id)
     if err != nil {
+        canolog.Error(err)
         return nil, err
     }
     return conn.LookupDevice(deviceId)

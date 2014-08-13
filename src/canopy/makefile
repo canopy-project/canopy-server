@@ -51,6 +51,15 @@ install:
 	cp ../../scripts/canopy-cloud-service /etc/init.d
 	cp ../../scripts/ccs-env.sh /etc/canopy
 	../../scripts/create-canopy-group-user.sh
+	mkdir -p /var/log/canopy
+	touch /var/log/canopy/ccs.log
+	touch /var/log/canopy/ccs-errors.log
+	chown canopy /var/log/canopy
+	chgrp canopy /var/log/canopy
+	chown canopy /var/log/canopy/ccs.log
+	chgrp canopy /var/log/canopy/ccs.log
+	chown canopy /var/log/canopy/ccs-errors.log
+	chgrp canopy /var/log/canopy/ccs-errors.log
 
 .PHONY: clean
 clean:

@@ -35,7 +35,9 @@ import (
     "flag"
     "strings"
     "time"
-    "log"
+    "os"
+    "os/signal"
+    "syscall"
 )
 
 func writeDatabaseConnectionError(w http.ResponseWriter) {
@@ -838,6 +840,10 @@ var gPigeon = pigeon.InitPigeonSystem()
 
 var gConfAllowOrigin = ""
 
+func shutdown() {
+    canolog.Shutdown()
+}
+
 func main() {
     err := canolog.Init()
     if err != nil {
@@ -846,14 +852,31 @@ func main() {
     }
     canolog.Info("Starting Canopy Cloud Service")
 
-    defer canolog.Shutdown()
+    // handle SIGINT & SIGTERM
+    defer shutdown()
+    c := make (chan os.Signal, 1)
+    c2 := make (chan os.Signal, 1)
+    signal.Notify(c, os.Interrupt)
+    signal.Notify(c2, syscall.SIGTERM)
+    go func() {
+        <-c
+        canolog.Info("SIGINT recieved")
+        shutdown()
+        os.Exit(1)
+    }()
+    go func() {
+        <-c2
+        canolog.Info("SIGTERM recieved")
+        shutdown()
+        os.Exit(1)
+    }()
 
     //gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
     allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
     flag.Parse()
     gConfAllowOrigin = *allowOrigin
     if (gConfAllowOrigin == "") {
-        log.Println("Expected parameter -allow-origin");
+        canolog.Error("Expected parameter -allow-origin");
         return
     }
 
@@ -881,7 +904,7 @@ func main() {
     }
     err = srv.ListenAndServe()
     if err != nil {
-        log.Println(err);
+        canolog.Error(err);
     }
 }
 

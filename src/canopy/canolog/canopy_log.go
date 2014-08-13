@@ -19,43 +19,72 @@
 // Warnings and errors are always logged to /var/log/canopy/ccs-error.log
 // Additional trace and debug info is logged to /var/log/canopy/ccs.log
 //
-// ENV VAR                  cmd-line arg                  Result                    Default
-// ----------------------------------------------------------------------------------------
-// CANOPY_LOG_HTTP_ACCESS   --canopy-(no)-log-access      HTTP access is logged     ENABLED
-// CANOPY_LOG_REQUESTS      --canopy-(no)-log-requests    HTTP access is logged     ENABLED
+// If the files above cannot be written to, then falls back to logging to
+// STDOUT.
 package canolog
 
 import (
     "log"
     "os"
+    "io"
     "fmt"
 )
 
 type CanopyLogger struct {
     logger *log.Logger
     logFile *os.File
+    errorLogger *log.Logger
     errorLogFile *os.File
+    warnLogger *log.Logger
     logRequests bool
     logTraces bool
 }
 
 var std = CanopyLogger{}
 
+//var noopLogger = log.New(io.MultiWriter(), "", log.LstdFlags | log.Lshortfile)
+
+// If /var/log/canopy files cannot be opened, then fallback to just logging to STDOUT
+func InitFallback() error {
+    std.logger = log.New(os.Stdout, "", log.LstdFlags | log.Lshortfile)
+    std.errorLogger = log.New(os.Stdout, "ERROR ", log.LstdFlags | log.Lshortfile)
+    std.warnLogger = log.New(os.Stdout, "WARN ", log.LstdFlags | log.Lshortfile)
+
+    return nil
+}
+
 // Initialize Canopy logger
 func Init() error {
     var err error
     std.logFile, err = os.OpenFile("/var/log/canopy/ccs.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666);
     if err != nil {
-        return fmt.Errorf("Error opening file /var/log/canopy/ccs.log: ", err)
+        fmt.Println("Error opening file /var/log/canopy/ccs.log: ", err)
+        fmt.Println("Falling back to STDOUT for logging")
+        return InitFallback()
     }
     std.logger = log.New(std.logFile, "", log.LstdFlags | log.Lshortfile)
+
+    std.errorLogFile, err = os.OpenFile("/var/log/canopy/ccs-errors.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666);
+    if err != nil {
+        fmt.Println("Error opening file /var/log/canopy/ccs-errors.log: ", err)
+        fmt.Println("Falling back to STDOUT for logging")
+        return InitFallback()
+    }
+    std.errorLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "ERROR ", log.LstdFlags | log.Lshortfile)
+    std.warnLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "WARN ", log.LstdFlags | log.Lshortfile)
+
     return nil
 }
 
 // Close Canopy log file
 func Shutdown() {
-    std.logger.Println("Terminating Canopy Cloud Service");
-    std.logFile.Close()
+    std.logger.Output(2, fmt.Sprintln("Goodbye"));
+    if (std.logFile != nil) {
+        std.logFile.Close()
+    }
+    if (std.errorLogFile != nil) {
+        std.errorLogFile.Close()
+    }
 }
 
 // Log a request or response body
@@ -67,12 +96,12 @@ func Request(v ...interface{}) {
 
 // Log an error
 func Error(v ...interface{}) {
-    std.logger.Output(2, fmt.Sprintln(v...))
+    std.errorLogger.Output(2, fmt.Sprintln(v...))
 }
 
 // Log a warning
 func Warn(v ...interface{}) {
-    std.logger.Output(2, fmt.Sprintln(v...))
+    std.warnLogger.Output(2, fmt.Sprintln(v...))
 }
 
 // Log an information statement
@@ -82,5 +111,10 @@ func Info(v ...interface{}) {
 
 // Log a debug trace message
 func Trace(v ...interface{}) {
+    std.logger.Output(2, fmt.Sprintln(v...))
+}
+
+// Log a debug trace message
+func Websocket(v ...interface{}) {
     std.logger.Output(2, fmt.Sprintln(v...))
 }
