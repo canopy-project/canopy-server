@@ -27,14 +27,15 @@ import (
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/mail"
+    "canopy/canolog"
     "canopy/sddl"
     "canopy/pigeon"
     "encoding/json"
     "encoding/base64"
-    //"os"
     "flag"
     "strings"
     "time"
+    "log"
 )
 
 func writeDatabaseConnectionError(w http.ResponseWriter) {
@@ -838,15 +839,21 @@ var gPigeon = pigeon.InitPigeonSystem()
 var gConfAllowOrigin = ""
 
 func main() {
-    fmt.Println("starting server");
+    err := canolog.Init()
+    if err != nil {
+        fmt.Println(err)
+        return
+    }
+    canolog.Info("Starting Canopy Cloud Service")
 
+    defer canolog.Shutdown()
 
     //gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
     allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
     flag.Parse()
     gConfAllowOrigin = *allowOrigin
     if (gConfAllowOrigin == "") {
-        fmt.Println("Expected parameter -allow-origin");
+        log.Println("Expected parameter -allow-origin");
         return
     }
 
@@ -872,9 +879,9 @@ func main() {
         //ReadTimeout: 10*time.Second,
         //WriteTimeout: 10*time.Second,
     }
-    err := srv.ListenAndServe()
+    err = srv.ListenAndServe()
     if err != nil {
-        fmt.Println(err);
+        log.Println(err);
     }
 }
 
