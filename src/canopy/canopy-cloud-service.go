@@ -879,6 +879,8 @@ func main() {
         canolog.Error("Expected parameter -allow-origin");
         return
     }
+    canolog.Info(`SETTNIGS:
+AllowOrigin: `, gConfAllowOrigin)
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)

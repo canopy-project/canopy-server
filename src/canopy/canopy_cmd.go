@@ -17,6 +17,7 @@ package main
 
 import (
     "github.com/gocql/gocql"
+    "canopy/canolog"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/mail"
@@ -26,6 +27,11 @@ import (
 )
 
 func main() {
+    err := canolog.Init()
+    if (err != nil) {
+        fmt.Println(err)
+        return
+    }
     flag.Parse()
     if flag.Arg(0) == "help" {
         fmt.Println("Usage:");
