@@ -1,2 +1,2 @@
 #/bin/bash
-export GOPATH=$(cd ~/golang; pwd):$(cd ../..; pwd)
+export GOPATH=$(cd ~/.canopy/golang; pwd):$(cd ../..; pwd)
