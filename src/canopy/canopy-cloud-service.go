@@ -32,6 +32,7 @@ import (
     "canopy/canolog"
     "canopy/sddl"
     "canopy/pigeon"
+    "canopy/rest"
     "encoding/json"
     "encoding/base64"
     "flag"
@@ -915,6 +916,7 @@ default-proxy-target: `, *defaultProxyTarget)
     }
 
     http.Handle(*hostname + "/echo", websocket.Handler(CanopyWebsocketServer))
+    http.Handle(*hostname + "/new", rest.GetRestHandler())
     http.Handle(*hostname + "/", r)
 
     //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
