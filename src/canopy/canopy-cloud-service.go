@@ -19,6 +19,8 @@ import (
     "errors"
     "fmt"
     "net/http"
+    "net/http/httputil"
+    "net/url"
     "code.google.com/p/go.net/websocket"
     "github.com/gocql/gocql"
     "github.com/gorilla/sessions"
@@ -873,14 +875,22 @@ func main() {
 
     //gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
     allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
+    hostname := flag.String("hostname", "", "Hostname of server")
+    defaultProxyTarget := flag.String("default-proxy-target", "", "Proxy destination for all requests to other hosts")
     flag.Parse()
     gConfAllowOrigin = *allowOrigin
     if (gConfAllowOrigin == "") {
         canolog.Error("Expected parameter -allow-origin");
         return
     }
-    canolog.Info(`SETTNIGS:
-AllowOrigin: `, gConfAllowOrigin)
+    if (hostname == nil || *hostname == "") {
+        canolog.Error("Expected parameter -hostname");
+        return
+    }
+    canolog.Info(`SETTINGS:
+allow-origin: `, gConfAllowOrigin, `
+hostname: `, *hostname, `
+default-proxy-target: `, *defaultProxyTarget)
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)
@@ -895,11 +905,21 @@ AllowOrigin: `, gConfAllowOrigin)
     r.HandleFunc("/logout", logoutHandler);
     r.HandleFunc("/me", meHandler);
 
-    http.Handle("/echo", websocket.Handler(CanopyWebsocketServer))
-    http.Handle("/", r)
+    if (*defaultProxyTarget != "") {
+        canolog.Info("Requests to hosts other than ", *hostname, " will be forwarded to ", *defaultProxyTarget)
+        targetUrl, _ := url.Parse(*defaultProxyTarget)
+        reverseProxy := httputil.NewSingleHostReverseProxy(targetUrl)
+        http.Handle("/", reverseProxy)
+    } else {
+        canolog.Info("No reverse proxy for other hosts consfigured.")
+    }
+
+    http.Handle(*hostname + "/echo", websocket.Handler(CanopyWebsocketServer))
+    http.Handle(*hostname + "/", r)
+
     //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
     srv := &http.Server{
-        Addr: ":8080",
+        Addr: ":80",
         Handler: context.ClearHandler(http.DefaultServeMux),
         //ReadTimeout: 10*time.Second,
         //WriteTimeout: 10*time.Second,
