@@ -73,8 +73,8 @@ do_start()
     [ -e `dirname "$PIDFILE"` ] || \
         install -d -ocanopy -gcanopy -m750 `dirname $PIDFILE`
 
-    start-stop-daemon -S -c canopy -a /usr/local/bin/canopy-cloud-service -q -p "$PIDFILE" -t >/dev/null || return 1
-    start-stop-daemon -S -c canopy -a /usr/local/bin/canopy-cloud-service -b -m -p "$PIDFILE" -- --allow-origin="$CCS_ALLOW_ORIGIN" --hostname="$CCS_HOSTNAME" --default-proxy-target="$CCS_DEFAULT_PROXY_TARGET" > /dev/null || return 2
+    start-stop-daemon -S -c root -a /usr/local/bin/canopy-cloud-service -q -p "$PIDFILE" -t >/dev/null || return 1
+    start-stop-daemon -S -c root -a /usr/local/bin/canopy-cloud-service -b -m -p "$PIDFILE" -- --allow-origin="$CCS_ALLOW_ORIGIN" --hostname="$CCS_HOSTNAME" --default-proxy-target="$CCS_DEFAULT_PROXY_TARGET" > /dev/null || return 2
 }
 
 #
