@@ -25,6 +25,7 @@ import (
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/pigeon"
+    "canopy/rest/endpoints"
     "canopy/sddl"
 )
 
@@ -100,7 +101,7 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
             }
             t := time.Now()
             // convert from JSON to Go
-            v2, err := jsonToPropertyValue(sensor, v)
+            v2, err := endpoints.JsonToPropertyValue(sensor, v)
             if err != nil {
                 canolog.Warn(err)
                 continue

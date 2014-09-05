@@ -96,7 +96,7 @@ func basicAuthFromRequest(r *http.Request) (username string, password string, er
 // float64               float64 -->    float64
 // datetime              string  -->    time.Time
 //
-func jsonToPropertyValue(property sddl.Property, value interface{}) (interface{}, error) {
+func JsonToPropertyValue(property sddl.Property, value interface{}) (interface{}, error) {
     var datatype sddl.DatatypeEnum
     switch prop := property.(type) {
     case *sddl.Control:
@@ -104,7 +104,7 @@ func jsonToPropertyValue(property sddl.Property, value interface{}) (interface{}
     case *sddl.Sensor:
         datatype = prop.Datatype()
     default:
-        return nil, fmt.Errorf("jsonToPropertyValue expects control or sensor property")
+        return nil, fmt.Errorf("JsonToPropertyValue expects control or sensor property")
     }
     switch datatype {
     case sddl.DATATYPE_VOID:
@@ -112,71 +112,71 @@ func jsonToPropertyValue(property sddl.Property, value interface{}) (interface{}
     case sddl.DATATYPE_STRING:
         v, ok := value.(string)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects string value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects string value for %s", property.Name())
         }
         return v, nil
     case sddl.DATATYPE_BOOL:
         v, ok := value.(bool)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects bool value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects bool value for %s", property.Name())
         }
         return v, nil
     case sddl.DATATYPE_INT8:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return int8(v), nil
     case sddl.DATATYPE_UINT8:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return uint16(v), nil
     case sddl.DATATYPE_INT16:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return int16(v), nil
     case sddl.DATATYPE_UINT16:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return uint16(v), nil
     case sddl.DATATYPE_INT32:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return int32(v), nil
     case sddl.DATATYPE_UINT32:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return uint32(v), nil
     case sddl.DATATYPE_FLOAT32:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return float32(v), nil
     case sddl.DATATYPE_FLOAT64:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
         }
         return v, nil
     case sddl.DATATYPE_DATETIME:
         v, ok := value.(string)
         if !ok {
-            return nil, fmt.Errorf("jsonToPropertyValue expects string value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects string value for %s", property.Name())
         }
         tval, err := time.Parse(time.RFC3339, v)
         if err != nil {
-            return nil, fmt.Errorf("jsonToPropertyValue expects RFC3339 formatted time value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToPropertyValue expects RFC3339 formatted time value for %s", property.Name())
         }
         return tval, nil
     default:

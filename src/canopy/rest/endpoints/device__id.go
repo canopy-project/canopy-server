@@ -107,7 +107,7 @@ func POST_device__id(w http.ResponseWriter, r *http.Request) {
                 /* TODO: Report warning in response*/
                 continue;
             }
-            propVal, err := jsonToPropertyValue(prop, value)
+            propVal, err := JsonToPropertyValue(prop, value)
             if err != nil {
                 /* TODO: Report warning in response*/
                 continue;
