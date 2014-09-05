@@ -28,6 +28,7 @@ func GetRestHandler() http.Handler {
      * 
      * Doing this will minimize collisions when we start to allow /USERNAME/DEVICE
      */
+    r.HandleFunc("/api/info", endpoints.GET_info).Methods("GET")
     r.HandleFunc("/create_account", endpoints.POST_create_account).Methods("POST")
     r.HandleFunc("/create_device", endpoints.POST_create_device).Methods("POST")
     r.HandleFunc("/device/{id}", endpoints.POST_device__id).Methods("POST")
