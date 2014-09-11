@@ -907,10 +907,6 @@ web-manager-path: `, *webManagerPath)
     r.HandleFunc("/logout", logoutHandler);
     r.HandleFunc("/me", meHandler);
 
-    if (*webManagerPath != "") {
-        http.Handle("/mgr/", http.StripPrefix("/mgr/", http.FileServer(http.Dir(*webManagerPath))))
-    }
-
     if (*defaultProxyTarget != "") {
         canolog.Info("Requests to hosts other than ", *hostname, " will be forwarded to ", *defaultProxyTarget)
         targetUrl, _ := url.Parse(*defaultProxyTarget)
@@ -922,6 +918,10 @@ web-manager-path: `, *webManagerPath)
 
     http.Handle(*hostname + "/echo", websocket.Handler(CanopyWebsocketServer))
     http.Handle(*hostname + "/", r)
+
+    if (*webManagerPath != "") {
+        http.Handle(*hostname + "/mgr/", http.StripPrefix("/mgr/", http.FileServer(http.Dir(*webManagerPath))))
+    }
 
     //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
     srv := &http.Server{
