@@ -877,6 +877,7 @@ func main() {
     allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
     hostname := flag.String("hostname", "", "Hostname of server")
     defaultProxyTarget := flag.String("default-proxy-target", "", "Proxy destination for all requests to other hosts")
+    webManagerPath := flag.String("web-manager-path", "", "Path to web manager")
     flag.Parse()
     gConfAllowOrigin = *allowOrigin
     if (gConfAllowOrigin == "") {
@@ -890,7 +891,8 @@ func main() {
     canolog.Info(`SETTINGS:
 allow-origin: `, gConfAllowOrigin, `
 hostname: `, *hostname, `
-default-proxy-target: `, *defaultProxyTarget)
+default-proxy-target: `, *defaultProxyTarget, `
+web-manager-path: `, *webManagerPath)
 
     r := mux.NewRouter()
     r.HandleFunc("/create_account", createAccountHandler)
@@ -904,6 +906,10 @@ default-proxy-target: `, *defaultProxyTarget)
     r.HandleFunc("/login", loginHandler);
     r.HandleFunc("/logout", logoutHandler);
     r.HandleFunc("/me", meHandler);
+
+    if (*webManagerPath != "") {
+        http.Handle("/mgr", http.FileServer(http.Dir(*webManagerPath)))
+    }
 
     if (*defaultProxyTarget != "") {
         canolog.Info("Requests to hosts other than ", *hostname, " will be forwarded to ", *defaultProxyTarget)
