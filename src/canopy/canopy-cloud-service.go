@@ -908,7 +908,7 @@ web-manager-path: `, *webManagerPath)
     r.HandleFunc("/me", meHandler);
 
     if (*webManagerPath != "") {
-        http.Handle("/mgr", http.FileServer(http.Dir(*webManagerPath)))
+        http.Handle("/mgr/", http.StripPrefix("/mgr/", http.FileServer(http.Dir(*webManagerPath))))
     }
 
     if (*defaultProxyTarget != "") {
