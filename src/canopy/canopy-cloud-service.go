@@ -70,20 +70,24 @@ func main() {
     allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
     hostname := flag.String("hostname", "", "Hostname of server")
     defaultProxyTarget := flag.String("default-proxy-target", "", "Proxy destination for all requests to other hosts")
+    webManagerPath := flag.String("web-manager-path", "", "Path to web manager")
+    jsClientPath := flag.String("js-client-path", "", "Path to JS client")
     flag.Parse()
     gConfAllowOrigin = *allowOrigin
     if (gConfAllowOrigin == "") {
-        canolog.Error("Expected parameter -allow-origin");
+        canolog.Error("Expected parameter -allow-origin")
         return
     }
     if (hostname == nil || *hostname == "") {
-        canolog.Error("Expected parameter -hostname");
+        canolog.Error("Expected parameter -hostname")
         return
     }
     canolog.Info(`SETTINGS:
 allow-origin: `, gConfAllowOrigin, `
 hostname: `, *hostname, `
-default-proxy-target: `, *defaultProxyTarget)
+default-proxy-target: `, *defaultProxyTarget, `
+web-manager-path: `, *webManagerPath, `
+js-client-path: `, *jsClientPath)
 
     if (*defaultProxyTarget != "") {
         canolog.Info("Requests to hosts other than ", *hostname, " will be forwarded to ", *defaultProxyTarget)
@@ -96,6 +100,14 @@ default-proxy-target: `, *defaultProxyTarget)
 
     http.Handle(*hostname + "/echo", websocket.Handler(CanopyWebsocketServer))
     http.Handle(*hostname + "/", rest.GetRestHandler())
+
+    if (*webManagerPath != "") {
+        http.Handle(*hostname + "/mgr/", http.StripPrefix("/mgr/", http.FileServer(http.Dir(*webManagerPath))))
+    }
+
+    if (*jsClientPath != "") {
+        http.Handle(*hostname + "/canopy-js-client/", http.StripPrefix("/canopy-js-client/", http.FileServer(http.Dir(*jsClientPath))))
+    }
 
     //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
     srv := &http.Server{
