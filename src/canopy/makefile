@@ -62,6 +62,12 @@ install:
 	chown canopy /var/log/canopy/ccs-errors.log
 	chgrp canopy /var/log/canopy/ccs-errors.log
 
+.PHONY: update
+update:
+	-/etc/init.d/canopy-cloud-service stop
+	cp $(TARGETS) /usr/local/bin
+	-/etc/init.d/canopy-cloud-service start
+
 .PHONY: clean
 clean:
 	rm -rf build/
