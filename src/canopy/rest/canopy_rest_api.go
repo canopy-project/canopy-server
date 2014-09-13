@@ -18,11 +18,9 @@ package rest
 import (
     "canopy/rest/endpoints"
     "github.com/gorilla/mux"
-    "net/http"
 )
 
-func GetRestHandler() http.Handler {
-    r := mux.NewRouter()
+func AddRoutes(r *mux.Router) {
     r.HandleFunc("/api/info", endpoints.GET_info).Methods("GET")
     r.HandleFunc("/api/create_account", endpoints.POST_create_account).Methods("POST")
     r.HandleFunc("/api/create_device", endpoints.POST_create_device).Methods("POST")
@@ -35,6 +33,5 @@ func GetRestHandler() http.Handler {
     r.HandleFunc("/api/logout", endpoints.GET_POST_logout)
     r.HandleFunc("/api/me", endpoints.GET_me)
     r.HandleFunc("/di/device/{id}", endpoints.POST_di__device__id).Methods("POST")
-    return r
 }
 

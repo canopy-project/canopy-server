@@ -22,9 +22,11 @@ import (
     "net/url"
     "code.google.com/p/go.net/websocket"
     "github.com/gorilla/context"
+    "github.com/gorilla/mux"
     "canopy/canolog"
     "canopy/pigeon"
     "canopy/rest"
+    "canopy/webapp"
     "flag"
     "os"
     "os/signal"
@@ -40,6 +42,8 @@ func shutdown() {
 }
 
 func main() {
+    r := mux.NewRouter()
+
     err := canolog.Init()
     if err != nil {
         fmt.Println(err)
@@ -99,7 +103,11 @@ js-client-path: `, *jsClientPath)
     }
 
     http.Handle(*hostname + "/echo", websocket.Handler(CanopyWebsocketServer))
-    http.Handle(*hostname + "/", rest.GetRestHandler())
+
+    webapp.AddRoutes(r)
+    rest.AddRoutes(r)
+
+    http.Handle(*hostname + "/", r)
 
     if (*webManagerPath != "") {
         http.Handle(*hostname + "/mgr/", http.StripPrefix("/mgr/", http.FileServer(http.Dir(*webManagerPath))))
