@@ -34,6 +34,7 @@ func GetRestHandler() http.Handler {
     r.HandleFunc("/api/login", endpoints.POST_login).Methods("POST")
     r.HandleFunc("/api/logout", endpoints.GET_POST_logout)
     r.HandleFunc("/api/me", endpoints.GET_me)
+    r.HandleFunc("/di/device/{id]", endpoints.POST_di__device__id)
     return r
 }
 

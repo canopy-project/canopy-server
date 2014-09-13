@@ -66,7 +66,7 @@ func main() {
             return
         }
 
-        device, err := conn.CreateDevice(flag.Arg(2))
+        device, err := conn.CreateDevice(flag.Arg(2), nil)
         if err != nil {
             fmt.Println("Unable to create device: ", err)
             return

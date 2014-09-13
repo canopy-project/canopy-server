@@ -283,6 +283,18 @@ func (prop *Class) LookupProperty(propName string) (Property, error) {
     return nil, fmt.Errorf("Property %s not found in class %s", propName, prop.Name())
 }
 
+func (prop *Class) LookupPropertyOrNil(propName string) (Property) {
+    /* TODO: improve implementation */
+    /* TODO: We could combine with LookupProperty.. just don't return error
+     * when property not found. */
+    for _, child := range prop.properties {
+        if (child.Name() == propName) {
+            return child
+        }
+    }
+    return nil
+}
+
 func (prop *Class) LookupClass(propName string) (Property, error) {
     return nil, fmt.Errorf("Not implement");
 }

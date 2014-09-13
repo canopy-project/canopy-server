@@ -65,8 +65,9 @@ type Connection interface {
     // Create a new user account in the database.
     CreateAccount(username, email, password string) (Account, error)
 
-    // Create a new device in the database.
-    CreateDevice(name string) (Device, error)
+    // Create a new device in the database.  If <uuid> is nil, then the
+    // implementation will assign a newly created UUID.
+    CreateDevice(name string, uuid *gocql.UUID) (Device, error)
 
     // Remove a user account from the database.
     DeleteAccount(username string)
@@ -76,7 +77,7 @@ type Connection interface {
 
     // Lookup a user account from the database (with password verification).
     // Returns an error if the account is not found, or if the password is
-    // correct.
+    // incorrect.
     LookupAccountVerifyPassword(usernameOrEmail, password string) (Account, error)
 
     // Lookup a device from the database.
@@ -85,6 +86,10 @@ type Connection interface {
     // Lookup a device from the database, using string representation of its
     // UUID.
     LookupDeviceByStringID(id string) (Device, error)
+
+    // Lookup a device from the database by UUID, creating a new device with
+    // that UUID if none already exists.
+    LookupOrCreateDevice(deviceId gocql.UUID) (Device, error)
 }
 
 // Account is a user account

@@ -74,8 +74,13 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
     return &CassAccount{conn, username, email, password_hash}, nil
 }
 
-func (conn *CassConnection) CreateDevice(name string) (datalayer.Device, error) {
-    id := gocql.TimeUUID()
+func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID) (datalayer.Device, error) {
+    var id gocql.UUID
+    if uuid == nil {
+        id = gocql.TimeUUID()
+    } else {
+        id = *uuid
+    }
     
     err := conn.session.Query(`
             INSERT INTO devices (device_id, friendly_name)
@@ -92,6 +97,20 @@ func (conn *CassConnection) CreateDevice(name string) (datalayer.Device, error) 
         class: nil,         // class gets initialized during first report
         classString: "",
     }, nil
+}
+
+func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID) (datalayer.Device, error) {
+    // TODO: improve this implementation.
+    // Fix race conditions?
+    // Fix error paths?
+    
+    device, err := conn.LookupDevice(deviceId)
+    if device != nil {
+        return device, nil
+    }
+
+    device, err = conn.CreateDevice("AnonDevice", &deviceId)
+    return device, err
 }
 
 func (conn *CassConnection) DeleteAccount(username string) {
