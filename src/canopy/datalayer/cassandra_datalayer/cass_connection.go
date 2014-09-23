@@ -106,10 +106,15 @@ func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID) (datalayer
     
     device, err := conn.LookupDevice(deviceId)
     if device != nil {
+        canolog.Info("LookupOrCreateDevice - device ", deviceId, " found")
         return device, nil
     }
 
     device, err = conn.CreateDevice("AnonDevice", &deviceId)
+    if err != nil {
+        canolog.Info("LookupOrCreateDevice - device ", deviceId, "error")
+    }
+    canolog.Info("LookupOrCreateDevice - device ", deviceId, " created")
     return device, err
 }
 

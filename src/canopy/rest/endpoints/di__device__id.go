@@ -52,6 +52,7 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
     vars := mux.Vars(r)
 
     deviceIdString := vars["id"]
+    canolog.Info("/di/device/", deviceIdString, " requested.")
 
     // Parse input as json
     var data map[string]interface{}
