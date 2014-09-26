@@ -48,31 +48,7 @@ func GET_device__id(w http.ResponseWriter, r *http.Request) {
     <script>
         document.write('<script src="../mgr/' + gCanopyWebAppConfiguration.javascriptClientURL + '" type="text/javascript"><\/script>');
     </script>
-    <script src="../mgr/nodes/cano.js"></script>
-    <script src="../mgr/nodes/cano_account_dropdown.js"></script>
-    <script src="../mgr/nodes/cano_button.js"></script>
-    <script src="../mgr/nodes/cano_control_small.js"></script>
-    <script src="../mgr/nodes/cano_device_control_widget.js"></script>
-    <script src="../mgr/nodes/cano_device_settings_popup.js"></script>
-    <script src="../mgr/nodes/cano_devices_list_item.js"></script>
-    <script src="../mgr/nodes/cano_devices_list.js"></script>
-    <script src="../mgr/nodes/cano_devices_menu.js"></script>
-    <script src="../mgr/nodes/cano_devices_screen.js"></script>
-    <script src="../mgr/nodes/cano_event_panel.js"></script>
-    <script src="../mgr/nodes/cano_hover_plot.js"></script>
-    <script src="../mgr/nodes/cano_login_dialog.js"></script>
-    <script src="../mgr/nodes/cano_login_page.js"></script>
-    <script src="../mgr/nodes/cano_main_page.js"></script>
-    <script src="../mgr/nodes/cano_option.js"></script>
-    <script src="../mgr/nodes/cano_popup.js"></script>
-    <script src="../mgr/nodes/cano_plot.js"></script>
-    <script src="../mgr/nodes/cano_sharing_popup.js"></script>
-    <script src="../mgr/nodes/cano_sensor_small.js"></script>
-    <script src="../mgr/nodes/cano_signup_dialog.js"></script>
-    <script src="../mgr/nodes/cano_topbar.js"></script>
-    <script src="../mgr/nodes/demo/dizon.js"></script>
-    <script src="../mgr/canoweb_dispatcher.js"></script>
-    <script src="../mgr/canopy_app_util.js"></script>
+    <script src="../mgr/nodes/cano_include_scripts.js"></script>
 
     <link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:200,300,400,700|ABeeZee|Titillium+Web:200,300,400,700' rel='stylesheet' type='text/css'>
     <link href='../mgr/canoweb.css' rel='stylesheet' type='text/css'>
@@ -88,16 +64,7 @@ var gCanopy = new CanopyClient(gCanopyWebAppConfiguration);
 $(function() {
     dispatcher = new CanowebDispatcher(gCanopy);
     gCanopy.onReady(function() {
-        if (gCanopy.account) {
-            dispatcher.showPage("main")
-        }
-        else {
-            dispatcher.showPage("login");
-        }
-
-        gCanopy.onLogout(function() {
-            dispatcher.showPage("login");
-        });
+        dispatcher.showPage("anon_device");
     });
 });
 

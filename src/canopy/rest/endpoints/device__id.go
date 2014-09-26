@@ -26,6 +26,45 @@ import (
     "time"
 )
 
+func GET_device__id(w http.ResponseWriter, r *http.Request) {
+    // Used for anonymous devices
+    vars := mux.Vars(r)
+    writeStandardHeaders(w);
+
+    deviceIdString := vars["id"]
+
+    uuid, err := gocql.ParseUUID(deviceIdString)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"Device UUID expected\"}");
+        return
+    }
+
+    dl := cassandra_datalayer.NewDatalayer()
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        writeDatabaseConnectionError(w)
+        return
+    }
+    defer conn.Close()
+
+    device, err := conn.LookupDevice(uuid)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
+        return
+    }
+    out, err := deviceToJson(device)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"generating_json\"}");
+        return
+    }
+    fmt.Fprintf(w, out);
+
+    return
+}
+
 func POST_device__id(w http.ResponseWriter, r *http.Request) {
     vars := mux.Vars(r)
     deviceIdString := vars["id"]

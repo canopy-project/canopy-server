@@ -205,6 +205,56 @@ type jsonSamples struct {
     Samples []jsonSample `json:"samples"`
 }
 
+func deviceToJson(device datalayer.Device) (string, error) {
+    // TODO: Unify this and devicesToJson
+    out := jsonDevicesItem{}
+
+    outDeviceClass := device.SDDLClass()
+    if outDeviceClass != nil {
+        outDeviceClassJson := outDeviceClass.Json()
+
+        // get most recent value of each sensor/control
+        propValues := map[string]jsonSample{}
+        for _, prop := range outDeviceClass.Properties() {
+            sensor, ok := prop.(*sddl.Sensor)
+            if ok {
+                sample, err := device.LatestDataByPropertyName(prop.Name())
+                if err != nil {
+                    continue
+                }
+                propValues[sensor.Declaration()] = jsonSample{
+                    sample.Timestamp.Format(time.RFC3339),
+                    sample.Value,
+                }
+            }
+            control, ok := prop.(*sddl.Control)
+            if ok {
+                sample, err := device.LatestDataByPropertyName(prop.Name())
+                if err != nil {
+                    continue
+                }
+                propValues[control.Name()] = jsonSample{
+                    sample.Timestamp.Format(time.RFC3339),
+                    sample.Value,
+                }
+            }
+        }
+        out = jsonDevicesItem{
+                device.ID().String(), 
+                device.Name(),
+                IsDeviceConnected(device.ID().String()),
+                outDeviceClassJson,
+                propValues,
+        }
+    }
+
+    jsn, err := json.Marshal(out)
+    if err != nil {
+        return "", err
+    }
+    return string(jsn), nil
+}
+
 func devicesToJson(devices []datalayer.Device) (string, error) {
 
     out := jsonDevices{[]jsonDevicesItem{}};
