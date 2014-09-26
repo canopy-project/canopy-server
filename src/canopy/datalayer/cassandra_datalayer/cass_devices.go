@@ -20,6 +20,7 @@ import (
     "github.com/gocql/gocql"
     "time"
     "canopy/sddl"
+    "canopy/canolog"
     "fmt"
 )
 
@@ -506,6 +507,7 @@ func (device *CassDevice) SetSDDLClass(class *sddl.Class) error {
     if err != nil {
         return err
     }
+    canolog.Info("sddlText: ", sddlText)
 
     err = device.conn.session.Query(`
             UPDATE devices

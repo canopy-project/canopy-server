@@ -39,6 +39,7 @@ package endpoints
 import (
     "canopy/datalayer/cassandra_datalayer"
     "canopy/canolog"
+    "canopy/sddl"
     "encoding/json"
     "fmt"
     "github.com/gocql/gocql"
@@ -88,20 +89,66 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w, "{\"error\" : \"Error reading database\"}");
         return
     }
-    sddl := device.SDDLClass()
+    sddlClass := device.SDDLClass()
+    canolog.Info("Checking for SDDL")
+    if sddlClass == nil {
+        canolog.Info("SDDL Not found")
+        // Create SDDL for the device if it doesn't exist.
+        // TODO: should this be automatically done by device.SDDLClass()?
+        newClass := sddl.NewEmptyClass()
+        err = device.SetSDDLClass(newClass)
+        canolog.Info("Setting SDDL")
+        if (err != nil) {
+            canolog.Info("Oops -error")
+            w.WriteHeader(http.StatusInternalServerError);
+            fmt.Fprintf(w, "{\"error\" : \"Error creating SDDL for new device\"}");
+            return
+        }
+        sddlClass = newClass;
+    }
 
     // For each reported property, create SDDL property if necessary
     for propName, value := range data {
         if strings.HasPrefix(propName, "__") {
             continue;
         }
-        prop := sddl.LookupPropertyOrNil(propName)
+        prop := sddlClass.LookupPropertyOrNil(propName)
+        canolog.Info("Looking up property ", propName)
         if (prop == nil) {
             // Property doesn't exist.  Add it.
+            canolog.Info("Not found.  Add property ", propName)
+            // TODO: What datatype?
+            // TODO: What other parameters?
+            prop, err = sddlClass.AddSensorProperty(propName, sddl.DATATYPE_FLOAT32)
+            if err != nil {
+                canolog.Info("Oops error", err)
+                w.WriteHeader(http.StatusInternalServerError);
+                fmt.Fprintf(w, "{\"error\" : \"Error adding SDDL property\"}");
+                return
+            }
+
+            // save modified SDDL 
+            canolog.Info("SetSDDLClass ", sddlClass)
+            err = device.SetSDDLClass(sddlClass)
+            if err != nil {
+                canolog.Info("Oops error", err)
+                w.WriteHeader(http.StatusInternalServerError);
+                fmt.Fprintf(w, "{\"error\" : \"Error Updating SDDL\"}");
+                return
+            }
         }
 
         // Store property value.
-        err = device.InsertSample(prop, time.Now(), value)
+        // Convert value datatype
+        propVal, err := JsonToPropertyValue(prop, value)
+        if err != nil {
+                canolog.Info("Error converting JSON to property value: ", value)
+                w.WriteHeader(http.StatusInternalServerError);
+                fmt.Fprintf(w, "{\"error\" : \"Error converting JSON to property value\"}");
+                return
+        }
+        canolog.Info("InsertStample")
+        err = device.InsertSample(prop, time.Now(), propVal)
         if (err != nil) {
             canolog.Warn("Error inserting sample ", propName, ": ", err)
         }

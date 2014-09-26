@@ -99,6 +99,15 @@ type Class struct {
     jsonObj map[string]interface{}
 }
 
+func ControlTypeEnumToString(in ControlTypeEnum) (string, error) {
+    if in == CONTROL_TYPE_TRIGGER {
+        return "trigger", nil
+    } else if in == CONTROL_TYPE_PARAMETER {
+        return "parameter", nil
+    }
+    return "", fmt.Errorf("Invalid ControlTypeEnum value: ", in)
+}
+
 func ControlTypeStringToEnum(in string) ControlTypeEnum {
     if in == "trigger" {
         return CONTROL_TYPE_TRIGGER
@@ -108,6 +117,35 @@ func ControlTypeStringToEnum(in string) ControlTypeEnum {
     return CONTROL_TYPE_INVALID
 }
 
+func DatatypeEnumToString(in DatatypeEnum) (string, error) {
+    if in == DATATYPE_VOID {
+        return "void", nil
+    } else if in == DATATYPE_STRING {
+        return "string", nil
+    } else if in == DATATYPE_BOOL {
+        return "bool", nil
+    } else if in == DATATYPE_INT8 {
+        return "int8", nil
+    } else if in == DATATYPE_UINT8 {
+        return "uint8", nil
+    } else if in == DATATYPE_INT16 {
+        return "int16", nil
+    } else if in == DATATYPE_UINT16 {
+        return "uint16", nil
+    } else if in == DATATYPE_INT32 {
+        return "int32", nil
+    } else if in == DATATYPE_UINT32 {
+        return "uint32", nil
+    } else if in == DATATYPE_FLOAT32 {
+        return "float32", nil
+    } else if in == DATATYPE_FLOAT64 {
+        return "float64", nil
+    } else if in == DATATYPE_DATETIME {
+        return "datetime", nil
+    } else {
+        return "", fmt.Errorf("Invalid DatatypeEnum value: ", in)
+    }
+}
 func DatatypeStringToEnum(in string) DatatypeEnum {
     if in == "void" {
         return DATATYPE_VOID
@@ -135,6 +173,19 @@ func DatatypeStringToEnum(in string) DatatypeEnum {
         return DATATYPE_DATETIME
     }
     return DATATYPE_INVALID
+}
+
+func NumericDisplayHintEnumToString(in NumericDisplayHintEnum) (string, error) {
+    if in == NUMERIC_DISPLAY_HINT_NORMAL {
+        return "normal", nil
+    } else if in == NUMERIC_DISPLAY_HINT_PERCENTAGE {
+        return "percentage", nil
+    } else if in == NUMERIC_DISPLAY_HINT_SCIENTIFIC {
+        return "scientific", nil
+    } else if in == NUMERIC_DISPLAY_HINT_HEX {
+        return "hex", nil
+    }
+    return "", fmt.Errorf("Invalid NumericDisplayHintEnum value", in)
 }
 
 func NumericDisplayHintStringToEnum(in string) NumericDisplayHintEnum {
@@ -231,6 +282,28 @@ func (prop *Sensor) Units() string {
 
 func (prop *Sensor) Regex() string {
     return prop.units
+}
+
+func (prop *Class) AddSensorProperty(propName string, datatype DatatypeEnum) (Property, error) {
+    // TODO: What if sensor already exists?
+
+    sensor := Sensor{
+        name: propName,
+        datatype: datatype,
+        decl: "sensor " + propName, // TODO: what does this need to be?
+        numericDisplayHint: NUMERIC_DISPLAY_HINT_NORMAL,
+    }
+
+    prop.properties = append(prop.properties, &sensor)
+
+    // Re-generate JSON
+    jsonObj, err := JsonEncodeClass(prop)
+    if err != nil {
+        return nil, err
+    }
+    prop.jsonObj = jsonObj
+
+    return &sensor, nil
 }
 
 func (prop *Class) Name() string {
@@ -551,4 +624,99 @@ func ParseDocument(jsn map[string]interface{}) (*Document, error) {
     }
 
     return &doc, nil
+}
+
+func NewEmptyClass() (*Class) {
+    var class Class;
+    return &class;
+}
+
+func jsonEncodeProperty(prop Property) (map[string]interface{}, error) {
+    jsn := map[string]interface{}{}
+
+    switch p := prop.(type) {
+    case *Control:
+        jsn["description"] = p.description
+
+        datatype, err := DatatypeEnumToString(p.datatype)
+        if err != nil {
+            return nil, err
+        }
+        jsn["datatype"] = datatype
+
+        controlType, err := ControlTypeEnumToString(p.controlType)
+        if err != nil {
+            return nil, err
+        }
+        jsn["control-type"] = controlType
+
+        // TODO: Don't always have these?
+        jsn["max-value"] = p.maxValue
+        jsn["min-value"] = p.minValue
+
+        numericDisplayHint, err := NumericDisplayHintEnumToString(p.numericDisplayHint)
+        if err != nil {
+            return nil, err
+        }
+        jsn["numeric-display-hint"] = numericDisplayHint
+
+        jsn["regex"] = p.regex
+        jsn["units"] = p.units
+    case *Sensor:
+        jsn["description"] = p.description
+
+        datatype, err := DatatypeEnumToString(p.datatype)
+        if err != nil {
+            return nil, err
+        }
+        jsn["datatype"] = datatype
+
+        // TODO: Don't always have these?
+        jsn["max-value"] = p.maxValue
+        jsn["min-value"] = p.minValue
+
+        numericDisplayHint, err := NumericDisplayHintEnumToString(p.numericDisplayHint)
+        if err != nil {
+            return nil, err
+        }
+        jsn["numeric-display-hint"] = numericDisplayHint
+
+        jsn["regex"] = p.regex
+        jsn["units"] = p.units
+
+        // TODO: recursive case for encoding sub-classes
+    default:
+        return nil, fmt.Errorf("jsonEncodeProperty expects control or sensor property")
+    }
+
+    return jsn, nil
+}
+
+func JsonEncodeClass(cls *Class) (map[string]interface{}, error) {
+    jsn := map[string]interface{}{}
+
+    for _, prop := range cls.properties {
+        val, err := jsonEncodeProperty(prop)
+        if err != nil {
+            return nil, err
+        }
+        jsn[prop.Declaration()] = val
+    }
+    // TODO: authors
+    // TODO: description
+    return jsn, nil
+}
+
+func JsonStringEncodeClass(cls *Class) (string, error) {
+    jsn, err := JsonEncodeClass(cls)
+    if err != nil {
+        return "", err
+    }
+
+    bytes, err := json.Marshal(jsn)
+    if err != nil {
+        return "", err
+    }
+
+    return string(bytes), nil
 }
