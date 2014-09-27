@@ -30,6 +30,7 @@ package endpoints
 //
 
 import (
+    "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/canolog"
     "canopy/notify"
@@ -88,7 +89,7 @@ func POST_di__device__id__notify(w http.ResponseWriter, r *http.Request) {
     }
 
     // Does device exist?  If not, create an anonymous device.
-    device, err := conn.LookupOrCreateDevice(uuid)
+    device, err := conn.LookupOrCreateDevice(uuid, datalayer.ReadWriteAccess)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"Error reading database\"}");

@@ -74,7 +74,8 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
     return &CassAccount{conn, username, email, password_hash}, nil
 }
 
-func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID) (datalayer.Device, error) {
+func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
+    // TODO: validate parameters 
     var id gocql.UUID
     if uuid == nil {
         id = gocql.TimeUUID()
@@ -83,9 +84,9 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID) (datalay
     }
     
     err := conn.session.Query(`
-            INSERT INTO devices (device_id, friendly_name)
-            VALUES (?, ?)
-    `, id, name).Exec()
+            INSERT INTO devices (device_id, friendly_name, public_access_level)
+            VALUES (?, ?, ?)
+    `, id, name, publicAccessLevel).Exec()
     if err != nil {
         canolog.Error("Error creating device:", err)
         return nil, err
@@ -96,10 +97,11 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID) (datalay
         name: name,
         class: nil,         // class gets initialized during first report
         classString: "",
+        publicAccessLevel: publicAccessLevel,
     }, nil
 }
 
-func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID) (datalayer.Device, error) {
+func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
     // TODO: improve this implementation.
     // Fix race conditions?
     // Fix error paths?
@@ -110,7 +112,7 @@ func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID) (datalayer
         return device, nil
     }
 
-    device, err = conn.CreateDevice("AnonDevice", &deviceId)
+    device, err = conn.CreateDevice("AnonDevice", &deviceId, publicAccessLevel)
     if err != nil {
         canolog.Info("LookupOrCreateDevice - device ", deviceId, "error")
     }

@@ -66,7 +66,7 @@ func main() {
             return
         }
 
-        device, err := conn.CreateDevice(flag.Arg(2), nil)
+        device, err := conn.CreateDevice(flag.Arg(2), nil, datalayer.NoAccess)
         if err != nil {
             fmt.Println("Unable to create device: ", err)
             return

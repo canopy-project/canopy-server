@@ -32,6 +32,7 @@ type CassDevice struct {
     locationNote string
     class *sddl.Class
     classString string
+    publicAccessLevel datalayer.AccessLevel
 }
 
 func tableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {

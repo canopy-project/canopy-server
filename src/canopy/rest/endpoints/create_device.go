@@ -53,7 +53,7 @@ func POST_create_device(w http.ResponseWriter, r *http.Request) {
         }
     }
 
-    device, err := conn.CreateDevice("Pending Device", nil);
+    device, err := conn.CreateDevice("Pending Device", nil, datalayer.NoAccess);
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Println(err)

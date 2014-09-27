@@ -67,7 +67,7 @@ type Connection interface {
 
     // Create a new device in the database.  If <uuid> is nil, then the
     // implementation will assign a newly created UUID.
-    CreateDevice(name string, uuid *gocql.UUID) (Device, error)
+    CreateDevice(name string, uuid *gocql.UUID, publicAccessLevel AccessLevel) (Device, error)
 
     // Remove a user account from the database.
     DeleteAccount(username string)
@@ -89,7 +89,7 @@ type Connection interface {
 
     // Lookup a device from the database by UUID, creating a new device with
     // that UUID if none already exists.
-    LookupOrCreateDevice(deviceId gocql.UUID) (Device, error)
+    LookupOrCreateDevice(deviceId gocql.UUID, publicAccessLevel AccessLevel) (Device, error)
 }
 
 // Account is a user account

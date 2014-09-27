@@ -224,6 +224,7 @@ var creationQueries []string = []string{
         device_id uuid,
         friendly_name text,
         sddl text,
+        public_access_level int,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 
