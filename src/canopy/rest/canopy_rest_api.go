@@ -34,5 +34,6 @@ func AddRoutes(r *mux.Router) {
     r.HandleFunc("/api/logout", endpoints.GET_POST_logout)
     r.HandleFunc("/api/me", endpoints.GET_me)
     r.HandleFunc("/di/device/{id}", endpoints.POST_di__device__id).Methods("POST")
+    r.HandleFunc("/di/device/{id}/notify", endpoints.POST_di__device__id__notify).Methods("POST")
 }
 
