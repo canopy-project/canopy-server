@@ -16,6 +16,7 @@
 package endpoints
 
 import (
+    "canopy/canolog"
     "canopy/datalayer"
     "canopy/pigeon"
     "canopy/sddl"
@@ -194,6 +195,7 @@ type jsonDevicesItem struct {
     Connected bool `json:"connected"`
     ClassItems map[string]interface{} `json:"sddl_class"`
     PropValues map[string]jsonSample `json:"property_values"`
+    Notifications []jsonNotification `json:"notifications"`
 }
 
 type jsonSample struct {
@@ -203,6 +205,12 @@ type jsonSample struct {
 
 type jsonSamples struct {
     Samples []jsonSample `json:"samples"`
+}
+
+type jsonNotification struct {
+    Time string `json:"t"`
+    Dismissed bool `json:"dismissed"`
+    Msg string `json:"msg"`
 }
 
 func deviceToJson(device datalayer.Device) (string, error) {
@@ -239,12 +247,35 @@ func deviceToJson(device datalayer.Device) (string, error) {
                 }
             }
         }
+
+
+        // Generate JSON for notifications
+        //
+        notifications, err := device.HistoricNotifications()
+        canolog.Info("Reading notifications")
+        if err != nil {
+            canolog.Info("Error reading notifications %s", err)
+            return "", err
+        }
+
+        outNotifications := []jsonNotification{};
+        for _, notification := range notifications {
+            outNotifications = append(
+                    outNotifications, 
+                    jsonNotification{
+                        notification.Datetime().Format(time.RFC3339),
+                        notification.IsDismissed(),
+                        notification.Msg(),
+                    })
+        }
+
         out = jsonDevicesItem{
                 device.ID().String(), 
                 device.Name(),
                 IsDeviceConnected(device.ID().String()),
                 outDeviceClassJson,
                 propValues,
+                outNotifications,
         }
     }
 
@@ -298,7 +329,8 @@ func devicesToJson(devices []datalayer.Device) (string, error) {
                     device.Name(),
                     IsDeviceConnected(device.ID().String()),
                     outDeviceClassJson,
-                    propValues})
+                    propValues,
+                    nil})
         }
     }
 

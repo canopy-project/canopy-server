@@ -191,7 +191,7 @@ func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, err
     var notifyType int
 
     query := device.conn.session.Query(`
-            SELECT uuid, time_issued, dismissed, msg, notify_type
+            SELECT device_id, time_issued, dismissed, msg, notify_type
             FROM notifications
             WHERE device_id = ?
     `, device.ID()).Consistency(gocql.One)
