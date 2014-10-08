@@ -160,6 +160,9 @@ type Device interface {
     // Get the user-assigned name for this device.
     Name() string
 
+    // Get the public access level
+    PublicAccessLevel() AccessLevel
+
     // Get the SDDL class for this device.  Returns nil if class is unknown
     // (which may happen for newly provisioned devices that haven't sent any
     // reports yet).

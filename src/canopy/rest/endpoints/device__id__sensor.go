@@ -16,6 +16,8 @@
 package endpoints
 
 import (
+    "canopy/canolog"
+    "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "fmt"
     "github.com/gocql/gocql"
@@ -28,20 +30,13 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request) {
     vars := mux.Vars(r)
     deviceIdString := vars["id"]
     sensorName := vars["sensor"]
-
+    authorized := false;
     writeStandardHeaders(w);
-    session, _ := store.Get(r, "canopy-login-session")
 
-    var username_string string
-    username, ok := session.Values["logged_in_username"]
-    if ok {
-        username_string, ok = username.(string)
-        if !(ok && username_string != "") {
-            writeNotLoggedInError(w);
-            return
-        }
-    } else {
-        writeNotLoggedInError(w);
+    uuid, err := gocql.ParseUUID(deviceIdString)
+    if err != nil {
+        w.WriteHeader(http.StatusBadRequest);
+        fmt.Fprintf(w, "{\"error\" : \"Device UUID expected\"}");
         return
     }
 
@@ -52,24 +47,53 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request) {
         return
     }
     defer conn.Close()
-    account, err := conn.LookupAccount(username_string)
+
+    device, err := conn.LookupDevice(uuid)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
         return
     }
 
-    uuid, err := gocql.ParseUUID(deviceIdString)
-    if err != nil {
-        w.WriteHeader(http.StatusBadRequest);
-        fmt.Fprintf(w, "{\"error\" : \"Device UUID expected\"}");
-        return
-    }
+    if device.PublicAccessLevel() > datalayer.NoAccess || true { // TODO FIX
+        authorized = true
+    } else {
+        session, _ := store.Get(r, "canopy-login-session")
 
-    device, err := account.Device(uuid)
-    if err != nil {
-        w.WriteHeader(http.StatusBadRequest);
-        fmt.Fprintf(w, "{\"error\" : \"Could not find or access device\"}");
+        var username_string string
+        username, ok := session.Values["logged_in_username"]
+        if ok {
+            username_string, ok = username.(string)
+            if !(ok && username_string != "") {
+                writeNotLoggedInError(w);
+                return
+            }
+        } else {
+            writeNotLoggedInError(w);
+            return
+        }
+
+        account, err := conn.LookupAccount(username_string)
+        if err != nil {
+            w.WriteHeader(http.StatusInternalServerError);
+            fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+            return
+        }
+
+        device, err = account.Device(uuid)
+        if err != nil {
+            w.WriteHeader(http.StatusBadRequest);
+            fmt.Fprintf(w, "{\"error\" : \"Could not find or access device\"}");
+            return
+        }
+
+        authorized = true
+    }
+    canolog.Info("D")
+
+    if !authorized {
+        w.WriteHeader(http.StatusUnauthorized);
+        fmt.Fprintf(w, "{\"error\" : \"Not authorized to access sensor data\"}");
         return
     }
 

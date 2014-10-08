@@ -497,11 +497,15 @@ func (device *CassDevice) Name() string {
     return device.name
 }
 
+func (device *CassDevice) PublicAccessLevel() datalayer.AccessLevel {
+    return device.publicAccessLevel
+}
+
 func (device *CassDevice) SDDLClass() *sddl.Class {
     return device.class
 }
 
-func (device *CassDevice) SDDLClassString() string{
+func (device *CassDevice) SDDLClassString() string {
     return device.classString
 }
 
