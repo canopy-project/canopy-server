@@ -35,6 +35,18 @@ package endpoints
 //  - Any posted samples that do not correspond to an existing SDDL property,
 //    that SDDL property is created.
 //
+//
+//  POST /di/device/<UUID>
+//  {
+//      "__sddl_update" : {
+//          "control foo" : {
+//              "datatype" : "float32",
+//          }
+//      }
+//  }
+//  - Adds control if it doesn't already exist.
+//
+//
 
 import (
     "canopy/datalayer"

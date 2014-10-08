@@ -183,6 +183,45 @@ func (device *CassDevice) ID() gocql.UUID {
     return device.deviceId
 }
 
+func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, error) {
+    var uuid gocql.UUID
+    var timestamp time.Time
+    var dismissed bool
+    var msg string
+    var notifyType int
+
+    query := device.conn.session.Query(`
+            SELECT uuid, time_issued, dismissed, msg, notify_type
+            FROM notifications
+            WHERE device_id = ?
+    `, device.ID()).Consistency(gocql.One)
+
+    iter := query.Iter()
+    notifications := []datalayer.Notification{}
+
+    for iter.Scan(&uuid, &timestamp, &dismissed, &msg, &notifyType) {
+        notifications = append(notifications, &CassNotification{
+                uuid, timestamp, dismissed, msg, notifyType})
+    }
+
+    if err := iter.Close(); err != nil {
+        return []datalayer.Notification{}, err
+    }
+
+    return notifications, nil
+}
+
+
+func (device *CassDevice)InsertNotification(notifyType int, t time.Time, msg string) error {
+    err := device.conn.session.Query(`
+            INSERT INTO notifications (device_id, time_issued, dismissed, msg, notify_type)
+            VALUES (?, ?, false, ?, ?)
+    `, device.ID(), t, msg, notifyType).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil
+}
 
 func (device *CassDevice) insertSensorSample_int(propname string, t time.Time, value int32) error {
     err := device.conn.session.Query(`

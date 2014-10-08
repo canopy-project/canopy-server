@@ -264,6 +264,15 @@ var creationQueries []string = []string{
         username text,
         PRIMARY KEY(email)
     ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE notifications (
+        device_id uuid,
+        time_issued timestamp,
+        dismissed bool,
+        msg string,
+        notify_type int
+        PRIMARY KEY(device_id, time_issued)
+    ) WITH COMPACT STORAGE`,
 }
 
 type CassDatalayer struct {

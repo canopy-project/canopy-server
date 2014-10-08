@@ -40,6 +40,16 @@ const (
     ShareRevokeAllowed
 )
 
+type NotificationType int
+const (
+    NotificationType_LowPriority = iota
+    NotificationType_MedPriority
+    NotificationType_HighPriority
+    NotificationType_SMS
+    NotificationType_Email
+    NotificationType_InApp
+)
+
 // Datalayer provides an abstracted interface for interacting with Canopy's
 // backend perstistant datastore.
 type Datalayer interface {
@@ -119,6 +129,9 @@ type Device interface {
     // Get historic sample data for a property, by property name.
     HistoricDataByPropertyName(propertyName string, startTime, endTime time.Time) ([]sddl.PropertySample, error)
 
+    // Get historic notifications originating from this device
+    HistoricNotifications() ([]Notification, error)
+
     // Get the UUID of this device.
     ID() gocql.UUID
 
@@ -128,6 +141,9 @@ type Device interface {
     // <value> must have an appropriate dynamic type.  See documentation in
     // sddl/sddl_sample.go for more details.
     InsertSample(property sddl.Property, t time.Time, value interface{}) error
+
+    // Store a record of a notification.
+    InsertNotification(notifyType int, t time.Time, msg string) error
 
     // Get latest sample data for a property.
     //
@@ -167,3 +183,23 @@ type Device interface {
     // Set the SDDL class associated with this device.
     SetSDDLClass(class *sddl.Class) error
 }
+
+// Notification is a record of a message sent to the device owner originiating
+// from the device.
+type Notification interface {
+    // Get the date & time that this notification was sent.
+    Datetime() time.Time
+
+    // Mark this notification as dismissed.
+    Dismiss() error
+
+    // Has this notification been dismissed?
+    IsDismissed() bool
+ 
+    // Get the notification message
+    Msg() string
+
+    // Get the requested notification type.
+    NotifyType() int
+}
+
