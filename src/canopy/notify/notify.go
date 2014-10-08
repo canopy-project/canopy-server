@@ -18,10 +18,34 @@ package notify
 import (
     "canopy/datalayer"
     "canopy/mail"
+    "fmt"
+    "time"
 )
 
 func ProcessNotification(device datalayer.Device, notifyType string, msg string) error {
-    // TODO: Add to notification log
+    // Add to notification log
+    var notifyTypeInt int
+    switch notifyType {
+    case "low-priority":
+        notifyTypeInt = datalayer.NotificationType_LowPriority
+    case "med-priority":
+        notifyTypeInt = datalayer.NotificationType_MedPriority
+    case "high-priority":
+        notifyTypeInt = datalayer.NotificationType_HighPriority
+    case "sms":
+        notifyTypeInt = datalayer.NotificationType_SMS
+    case "email":
+        notifyTypeInt = datalayer.NotificationType_Email
+    case "in-app":
+        notifyTypeInt = datalayer.NotificationType_InApp
+    default:
+        return fmt.Errorf("Unexpected notifyType: %s", notifyType)
+    }
+
+    err := device.InsertNotification(notifyTypeInt, time.Now(), msg)
+    if (err != nil) {
+        return err
+    }
 
     // Send email
     if notifyType == "email" {

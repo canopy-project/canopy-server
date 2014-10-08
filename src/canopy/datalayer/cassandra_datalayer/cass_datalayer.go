@@ -268,11 +268,11 @@ var creationQueries []string = []string{
     `CREATE TABLE notifications (
         device_id uuid,
         time_issued timestamp,
-        dismissed bool,
-        msg string,
-        notify_type int
+        dismissed boolean,
+        msg text,
+        notify_type int,
         PRIMARY KEY(device_id, time_issued)
-    ) WITH COMPACT STORAGE`,
+    ) `,
 }
 
 type CassDatalayer struct {
