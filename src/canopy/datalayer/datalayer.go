@@ -122,6 +122,9 @@ type Account interface {
 
 // Device is a Canopy-enabled device
 type Device interface {
+    // Extend the SDDL class by adding sensors or controls
+    ExtendSDDLClass(jsn map[string]interface{}) error
+
     // Get historic sample data for a property.
     // <property> must be an sddl.Control or an sddl.Sensor.
     HistoricData(property sddl.Property, startTime, endTime time.Time) ([]sddl.PropertySample, error)

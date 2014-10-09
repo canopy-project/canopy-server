@@ -160,6 +160,26 @@ func (device *CassDevice) getHistoricData_generic(propname string, datatype sddl
     return samples, nil
 }
 
+func (device *CassDevice) ExtendSDDLClass(jsn map[string]interface{}) error {
+    // TODO: Race condition?
+    class := device.SDDLClass()
+    canolog.Info("ExtendClass")
+    err := sddl.ExtendClass(class, jsn)
+    if err != nil {
+        canolog.Error("Error extending class ", jsn, err)
+        return err
+    }
+
+    canolog.Info("Saving SDDLClass")
+    // save modified SDDL class to DB
+    err = device.SetSDDLClass(class)
+    if err != nil {
+        canolog.Error("Error saving SDDL: ", err)
+        return err
+    }
+    return nil
+}
+
 func (device *CassDevice) HistoricData(property sddl.Property, startTime, endTime time.Time) ([]sddl.PropertySample, error) {
     switch prop := property.(type) {
     case *sddl.Control:

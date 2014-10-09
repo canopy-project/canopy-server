@@ -16,6 +16,7 @@
 package sddl
 
 import (
+    "canopy/canolog"
     "errors"
     "fmt"
     "encoding/json"
@@ -377,7 +378,13 @@ func parseControl(decl string, json map[string]interface{}) (*Control, error) {
     if !(len(splitDecl) == 2 && splitDecl[0] == "control") {
         return nil, errors.New("Expected declaration of form: \"control <NAME>\"")
     }
-    prop := Control{decl: decl, name: splitDecl[1]}
+    prop := Control{
+        decl: decl, 
+        name: splitDecl[1],
+        controlType: CONTROL_TYPE_PARAMETER,
+        numericDisplayHint: NUMERIC_DISPLAY_HINT_NORMAL,
+        // TODO: remaining defaults
+    }
     for k, v := range json {
         var ok bool
         if k == "control-type" {
@@ -566,6 +573,56 @@ func ParseClass(name string, jsn map[string]interface{}) (*Class, error) {
     }
 
     return &class, nil
+}
+
+func ExtendClass(class *Class, jsn map[string]interface{}) error {
+    // TODO: combine implementation with ParseClass ?
+    for k, v := range jsn {
+        canolog.Info("Key:", k)
+        if strings.HasPrefix(k, "control ") {
+            vObj, ok := v.(map[string]interface{})
+            if !ok {
+                canolog.Info("Expected object for control definition")
+                return errors.New("Expected object for control definition")
+            }
+            control, err := parseControl(k, vObj)
+            if err != nil {
+                canolog.Info("Error: ", err)
+                return err
+            }
+            class.properties = append(class.properties, control)
+            canolog.Info("Control added")
+        } else if strings.HasPrefix(k, "sensor ") {
+            vObj, ok := v.(map[string]interface{})
+            if !ok {
+                return errors.New("Expected object for sensor definition")
+            }
+            sensor, err := parseSensor(k, vObj)
+            if err != nil {
+                return err
+            }
+            class.properties = append(class.properties, sensor)
+        } else if strings.HasPrefix(k, "class ") {
+            vObj, ok := v.(map[string]interface{})
+            if !ok {
+                return errors.New("Expected object for class definition")
+            }
+            childClass, err := ParseClass(k, vObj)
+            if err != nil {
+                return err
+            }
+            class.properties = append(class.properties, childClass)
+        }
+    }
+
+    // Re-generate JSON
+    jsonObj, err := JsonEncodeClass(class)
+    if err != nil {
+        return err
+    }
+    class.jsonObj = jsonObj
+
+    return nil
 }
 
 func ParseDocument(jsn map[string]interface{}) (*Document, error) {

@@ -26,6 +26,7 @@ import (
     "canopy/datalayer/cassandra_datalayer"
     "canopy/pigeon"
     "canopy/rest/endpoints"
+    "canopy/service"
     "canopy/sddl"
 )
 
@@ -35,6 +36,9 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
     var device datalayer.Device
     var deviceIdString string
     var sddlClass *sddl.Class
+
+    // TODO: Combine properly
+    service.ProcessDeviceComm(conn, payload)
 
     err := json.Unmarshal([]byte(payload), &payloadObj)
     if err != nil{
