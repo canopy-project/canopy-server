@@ -96,6 +96,9 @@ type SDDL interface {
     // TODO: make method of VarDef?
     Extend(varDef VarDef, jsn map[string]interface{}) error
 
+    // Create a new empty SDDL document.
+    NewEmptyDocument() Document
+
     // Create a new Cloud Variable definition for an empty "struct".
     NewEmptyStruct() VarDef
 }
@@ -156,6 +159,9 @@ type VarDef interface {
 // Document is an SDDL document.  It contains zero or more Cloud Variable
 // definitions as well as other metadata.
 type Document interface{
+    // TODO: other qualifiers & properties?
+    AddVarDef(name string, datatype DatatypeEnum) (VarDef, error)
+
     // Get the document's authors
     Authors() []string
 

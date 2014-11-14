@@ -124,34 +124,32 @@ func POST_device__id(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    /* Store control value.  For now, use sensor_data table */
-    for propName, value := range data {
-        /* TODO: Verify that control is, in fact, a control according to SDDL
-         * class */
-        if (propName == "__friendly_name") {
+    /* Store cloud variable value.  */
+    for fieldName, value := range data {
+        if (fieldName == "__friendly_name") {
             friendlyName, ok := value.(string)
             if !ok {
                 continue;
             }
             device.SetName(friendlyName);
-        } else if (propName == "__location_note") {
+        } else if (fieldName == "__location_note") {
             locationNote, ok := value.(string)
             if !ok {
                 continue;
             }
             device.SetLocationNote(locationNote);
         } else {
-            prop, err := device.LookupProperty(propName)
+            varDef, err := device.LookupVarDef(fieldName)
             if err != nil {
                 /* TODO: Report warning in response*/
                 continue;
             }
-            propVal, err := JsonToPropertyValue(prop, value)
+            varVal, err := JsonToCloudVarValue(varDef, value)
             if err != nil {
                 /* TODO: Report warning in response*/
                 continue;
             }
-            device.InsertSample(prop, time.Now(), propVal);
+            device.InsertSample(varDef, time.Now(), varVal);
         }
     }
 

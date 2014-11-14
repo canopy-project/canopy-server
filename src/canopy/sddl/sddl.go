@@ -245,6 +245,11 @@ func (sys *SDDLSys) ParseDocumentString(doc string) (Document, error) {
     return sys.ParseDocument(jsn)
 }
 
+func (sys *SDDLSys) NewEmptyDocument() (Document) {
+    var doc SDDLDocument;
+    return &doc;
+}
+
 func (sys *SDDLSys) NewEmptyStruct() (VarDef) {
     var varDef SDDLVarDef;
     varDef.datatype = DATATYPE_STRUCT
@@ -490,6 +495,10 @@ func (prop *VarDecl) LookupProperty(propName string) (Property, error) {
 
     return string(bytes), nil
 }*/
+
+func (doc *SDDLDocument) AddVarDef(name string, datatype DatatypeEnum) (VarDef, error) {
+    return nil, fmt.Errorf("Not implemented")
+}
 
 func (doc *SDDLDocument) Authors() []string {
     return doc.authors

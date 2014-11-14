@@ -24,7 +24,7 @@ all: $(TARGETS)
 
 build/canopy-cloud-service:
 	mkdir -p ~/.canopy/golang
-	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go canopy_json.go
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go
 	mkdir -p build/
 	mv canopy-cloud-service build/
 

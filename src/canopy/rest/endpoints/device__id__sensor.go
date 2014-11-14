@@ -97,21 +97,21 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    sddlClass := device.SDDLClass()
-    if sddlClass == nil {
+    doc := device.SDDLDocument()
+    if doc == nil {
         w.WriteHeader(http.StatusBadRequest);
-        fmt.Fprintf(w, "{\"error\" : \"Device doesn't have any sensors\"}");
+        fmt.Fprintf(w, "{\"error\" : \"Device doesn't have any cloud variables\"}");
         return
     }
 
-    property, err := sddlClass.LookupProperty(sensorName)
+    varDef, err := doc.LookupVarDef(sensorName)
     if err != nil{
         w.WriteHeader(http.StatusBadRequest);
-        fmt.Fprintf(w, "{\"error\" : \"Device does not have property %s\"}", sensorName);
+        fmt.Fprintf(w, "{\"error\" : \"Device does not have cloud variable %s\"}", sensorName);
         return
     }
 
-    samples, err := device.HistoricData(property, time.Now(), time.Now())
+    samples, err := device.HistoricData(varDef, time.Now(), time.Now())
     if err != nil {
         fmt.Println(err)
         w.WriteHeader(http.StatusInternalServerError);

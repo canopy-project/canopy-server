@@ -38,7 +38,7 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
     var payloadObj map[string]interface{}
     var device datalayer.Device
     var deviceIdString string
-    var sddlClass *sddl.Class
+    var sddlDoc sddl.Document
 
     err := json.Unmarshal([]byte(payload), &payloadObj)
     if err != nil{
@@ -73,15 +73,15 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
             canolog.Error("Expected object for SDDL");
             return "";
         }
-        sddlClass, err = sddl.ParseClass("anonymous", sddlJson)
+        sddlDoc, err = sddl.Sys.ParseDocument(sddlJson)
         if err != nil {
-            canolog.Error("Failed parsing sddl class definition: ", err);
+            canolog.Error("Failed parsing sddl document: ", err);
             return "";
         }
 
-        err = device.SetSDDLClass(sddlClass)
+        err = device.SetSDDLDocument(sddlDoc)
         if err != nil {
-            canolog.Error("Error storing SDDL class during processPayload")
+            canolog.Error("Error storing SDDL document during processPayload")
             return "";
         }
     } else {
@@ -97,7 +97,7 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
             if k == "device_id" || k == "sddl" {
                 continue
             }
-            sensor, err := sddlClass.LookupSensor(k)
+            varDef, err := sddlDoc.LookupVarDef(k)
             if err != nil {
                 /* sensor not found */
                 canolog.Warn("Unexpected key: ", k)
@@ -105,13 +105,13 @@ func processPayload(conn datalayer.Connection, payload string, cnt int32) string
             }
             t := time.Now()
             // convert from JSON to Go
-            v2, err := endpoints.JsonToPropertyValue(sensor, v)
+            v2, err := endpoints.JsonToCloudVarValue(varDef, v)
             if err != nil {
                 canolog.Warn(err)
                 continue
             }
             // Insert converts from Go to Cassandra
-            err = device.InsertSample(sensor, t, v2)
+            err = device.InsertSample(varDef, t, v2)
             if err != nil {
                 canolog.Warn(err)
                 continue

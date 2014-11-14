@@ -17,6 +17,7 @@ package endpoints
 
 import (
     "canopy/canolog"
+    "canopy/cloudvar"
     "canopy/datalayer"
     "canopy/pigeon"
     "canopy/sddl"
@@ -97,91 +98,82 @@ func basicAuthFromRequest(r *http.Request) (username string, password string, er
 // float64               float64 -->    float64
 // datetime              string  -->    time.Time
 //
-func JsonToPropertyValue(property sddl.Property, value interface{}) (interface{}, error) {
-    var datatype sddl.DatatypeEnum
-    switch prop := property.(type) {
-    case *sddl.Control:
-        datatype = prop.Datatype()
-    case *sddl.Sensor:
-        datatype = prop.Datatype()
-    default:
-        return nil, fmt.Errorf("JsonToPropertyValue expects control or sensor property")
-    }
-    switch datatype {
+func JsonToCloudVarValue(varDef sddl.VarDef, value interface{}) (interface{}, error) {
+    switch varDef.Datatype() {
     case sddl.DATATYPE_VOID:
         return nil, nil
     case sddl.DATATYPE_STRING:
         v, ok := value.(string)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects string value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects string value for %s", varDef.Name())
         }
         return v, nil
     case sddl.DATATYPE_BOOL:
         v, ok := value.(bool)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects bool value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects bool value for %s", varDef.Name())
         }
         return v, nil
     case sddl.DATATYPE_INT8:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return int8(v), nil
     case sddl.DATATYPE_UINT8:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return uint16(v), nil
     case sddl.DATATYPE_INT16:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return int16(v), nil
     case sddl.DATATYPE_UINT16:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return uint16(v), nil
     case sddl.DATATYPE_INT32:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return int32(v), nil
     case sddl.DATATYPE_UINT32:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return uint32(v), nil
     case sddl.DATATYPE_FLOAT32:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return float32(v), nil
     case sddl.DATATYPE_FLOAT64:
         v, ok := value.(float64)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects number value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
         return v, nil
     case sddl.DATATYPE_DATETIME:
         v, ok := value.(string)
         if !ok {
-            return nil, fmt.Errorf("JsonToPropertyValue expects string value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects string value for %s", varDef.Name())
         }
         tval, err := time.Parse(time.RFC3339, v)
         if err != nil {
-            return nil, fmt.Errorf("JsonToPropertyValue expects RFC3339 formatted time value for %s", property.Name())
+            return nil, fmt.Errorf("JsonToCloudVarValue expects RFC3339 formatted time value for %s", varDef.Name())
         }
         return tval, nil
     default:
-        return nil, fmt.Errorf("InsertSample unsupported datatype ", datatype)
+        return nil, fmt.Errorf("InsertSample unsupported datatype ", varDef.Datatype())
     }
 }
 
@@ -217,34 +209,20 @@ func deviceToJson(device datalayer.Device) (string, error) {
     // TODO: Unify this and devicesToJson
     out := jsonDevicesItem{}
 
-    outDeviceClass := device.SDDLClass()
-    if outDeviceClass != nil {
-        outDeviceClassJson := outDeviceClass.Json()
+    outDoc := device.SDDLDocument()
+    if outDoc != nil {
+        outDocJson := outDoc.Json()
 
         // get most recent value of each sensor/control
-        propValues := map[string]jsonSample{}
-        for _, prop := range outDeviceClass.Properties() {
-            sensor, ok := prop.(*sddl.Sensor)
-            if ok {
-                sample, err := device.LatestDataByPropertyName(prop.Name())
-                if err != nil {
-                    continue
-                }
-                propValues[sensor.Declaration()] = jsonSample{
-                    sample.Timestamp.Format(time.RFC3339),
-                    sample.Value,
-                }
+        varValues := map[string]jsonSample{}
+        for _, varDef := range outDoc.VarDefs() {
+            sample, err := device.LatestDataByName(varDef.Name())
+            if err != nil {
+                continue
             }
-            control, ok := prop.(*sddl.Control)
-            if ok {
-                sample, err := device.LatestDataByPropertyName(prop.Name())
-                if err != nil {
-                    continue
-                }
-                propValues[control.Name()] = jsonSample{
-                    sample.Timestamp.Format(time.RFC3339),
-                    sample.Value,
-                }
+            varValues[varDef.Name()] = jsonSample{
+                sample.Timestamp.Format(time.RFC3339),
+                sample.Value,
             }
         }
 
@@ -273,8 +251,8 @@ func deviceToJson(device datalayer.Device) (string, error) {
                 device.ID().String(), 
                 device.Name(),
                 IsDeviceConnected(device.ID().String()),
-                outDeviceClassJson,
-                propValues,
+                outDocJson,
+                varValues,
                 outNotifications,
         }
     }
@@ -291,36 +269,21 @@ func devicesToJson(devices []datalayer.Device) (string, error) {
     out := jsonDevices{[]jsonDevicesItem{}};
 
     for _, device := range devices {
-        outDeviceClass := device.SDDLClass()
-        if outDeviceClass != nil {
-            outDeviceClassJson := outDeviceClass.Json()
+        outDoc := device.SDDLDocument()
+        if outDoc != nil {
+            outDocJson := outDoc.Json()
 
-            // get most recent value of each sensor/control
-            propValues := map[string]jsonSample{}
-            for _, prop := range outDeviceClass.Properties() {
-                sensor, ok := prop.(*sddl.Sensor)
-                if ok {
-                    sample, err := device.LatestDataByPropertyName(prop.Name())
-                    if err != nil {
-                        continue
-                    }
-                    propValues[sensor.Name()] = jsonSample{
-                        sample.Timestamp.Format(time.RFC3339),
-                        sample.Value,
-                    }
+            // get most recent value of each cloud variable
+            varValues := map[string]jsonSample{}
+            for _, varDef := range outDoc.VarDefs() {
+                sample, err := device.LatestDataByName(varDef.Name())
+                if err != nil {
+                    continue
                 }
-                control, ok := prop.(*sddl.Control)
-                if ok {
-                    sample, err := device.LatestDataByPropertyName(prop.Name())
-                    if err != nil {
-                        continue
-                    }
-                    propValues[control.Name()] = jsonSample{
-                        sample.Timestamp.Format(time.RFC3339),
-                        sample.Value,
-                    }
+                varValues[varDef.Name()] = jsonSample{
+                    sample.Timestamp.Format(time.RFC3339),
+                    sample.Value,
                 }
-
             }
 
             out.Devices = append(
@@ -328,8 +291,8 @@ func devicesToJson(devices []datalayer.Device) (string, error) {
                     device.ID().String(), 
                     device.Name(),
                     IsDeviceConnected(device.ID().String()),
-                    outDeviceClassJson,
-                    propValues,
+                    outDocJson,
+                    varValues,
                     nil})
         }
     }
@@ -341,7 +304,7 @@ func devicesToJson(devices []datalayer.Device) (string, error) {
     return string(jsn), nil
 }
 
-func samplesToJson(samples []sddl.PropertySample) (string, error) {
+func samplesToJson(samples []cloudvar.CloudVarSample) (string, error) {
     out := jsonSamples{[]jsonSample{}}
     for _, sample := range samples {
         out.Samples = append(out.Samples, jsonSample{

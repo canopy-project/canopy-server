@@ -102,14 +102,14 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
         fmt.Fprintf(w, "{\"error\" : \"Error reading database\"}");
         return
     }
-    sddlClass := device.SDDLClass()
+    doc := device.SDDLDocument()
     canolog.Info("Checking for SDDL")
-    if sddlClass == nil {
+    if doc == nil {
         canolog.Info("SDDL Not found")
         // Create SDDL for the device if it doesn't exist.
         // TODO: should this be automatically done by device.SDDLClass()?
-        newClass := sddl.NewEmptyClass()
-        err = device.SetSDDLClass(newClass)
+        newDoc := sddl.Sys.NewEmptyDocument()
+        err = device.SetSDDLDocument(newDoc)
         canolog.Info("Setting SDDL")
         if (err != nil) {
             canolog.Info("Oops -error")
@@ -117,22 +117,23 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
             fmt.Fprintf(w, "{\"error\" : \"Error creating SDDL for new device\"}");
             return
         }
-        sddlClass = newClass;
+        doc = newDoc;
     }
 
     // For each reported property, create SDDL property if necessary
-    for propName, value := range data {
-        if strings.HasPrefix(propName, "__") {
+    for varName, value := range data {
+        if strings.HasPrefix(varName, "__") {
             continue;
         }
-        prop := sddlClass.LookupPropertyOrNil(propName)
-        canolog.Info("Looking up property ", propName)
-        if (prop == nil) {
+        varDef, err := doc.LookupVarDef(varName)
+        // TODO: an error doesn't necessarily mean prop should be created?
+        canolog.Info("Looking up property ", varName)
+        if (varDef == nil) {
             // Property doesn't exist.  Add it.
-            canolog.Info("Not found.  Add property ", propName)
+            canolog.Info("Not found.  Add property ", varName)
             // TODO: What datatype?
             // TODO: What other parameters?
-            prop, err = sddlClass.AddSensorProperty(propName, sddl.DATATYPE_FLOAT32)
+            varDef, err = doc.AddVarDef(varName, sddl.DATATYPE_FLOAT32)
             if err != nil {
                 canolog.Info("Oops error", err)
                 w.WriteHeader(http.StatusInternalServerError);
@@ -141,8 +142,8 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
             }
 
             // save modified SDDL 
-            canolog.Info("SetSDDLClass ", sddlClass)
-            err = device.SetSDDLClass(sddlClass)
+            canolog.Info("SetSDDLDocument ", doc)
+            err = device.SetSDDLDocument(doc)
             if err != nil {
                 canolog.Info("Oops error", err)
                 w.WriteHeader(http.StatusInternalServerError);
@@ -153,7 +154,7 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
 
         // Store property value.
         // Convert value datatype
-        propVal, err := JsonToPropertyValue(prop, value)
+        varVal, err := JsonToCloudVarValue(varDef, value)
         if err != nil {
                 canolog.Info("Error converting JSON to property value: ", value)
                 w.WriteHeader(http.StatusInternalServerError);
@@ -161,9 +162,9 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
                 return
         }
         canolog.Info("InsertStample")
-        err = device.InsertSample(prop, time.Now(), propVal)
+        err = device.InsertSample(varDef, time.Now(), varVal)
         if (err != nil) {
-            canolog.Warn("Error inserting sample ", propName, ": ", err)
+            canolog.Warn("Error inserting sample ", varName, ": ", err)
         }
     }
 
