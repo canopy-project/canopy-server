@@ -16,6 +16,7 @@
 package datalayer
 
 import (
+    "canopy/cloudvar"
     "canopy/sddl"
     "github.com/gocql/gocql"
     "time"
@@ -122,15 +123,14 @@ type Account interface {
 
 // Device is a Canopy-enabled device
 type Device interface {
-    // Extend the SDDL class by adding sensors or controls
-    ExtendSDDLClass(jsn map[string]interface{}) error
+    // Extend the SDDL by adding Cloud Variables
+    ExtendSDDL(jsn map[string]interface{}) error
 
-    // Get historic sample data for a property.
-    // <property> must be an sddl.Control or an sddl.Sensor.
-    HistoricData(property sddl.Property, startTime, endTime time.Time) ([]sddl.PropertySample, error)
+    // Get historic sample data for a Cloud Variable.
+    HistoricData(varDef sddl.VarDef, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
 
-    // Get historic sample data for a property, by property name.
-    HistoricDataByPropertyName(propertyName string, startTime, endTime time.Time) ([]sddl.PropertySample, error)
+    // Get historic sample data for a Cloud Variable, by name.
+    HistoricDataByName(cloudVarName string, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
 
     // Get historic notifications originating from this device
     HistoricNotifications() ([]Notification, error)
@@ -138,27 +138,23 @@ type Device interface {
     // Get the UUID of this device.
     ID() gocql.UUID
 
-    // Store a data sample from a control or sensor.
-    // <property> must be an sddl.Control (with ControlType() == "parameter") or
-    // an sddl.Sensor.
+    // Store a Cloud Variable data sample.
     // <value> must have an appropriate dynamic type.  See documentation in
-    // sddl/sddl_sample.go for more details.
-    InsertSample(property sddl.Property, t time.Time, value interface{}) error
+    // cloudvar/cloudvar.go for more details.
+    InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error
 
     // Store a record of a notification.
     InsertNotification(notifyType int, t time.Time, msg string) error
 
-    // Get latest sample data for a property.
-    //
-    // property must be an sddl.Control or an sddl.Sensor.
-    LatestData(property sddl.Property) (*sddl.PropertySample, error)
+    // Get latest sample data for a Cloud Variable.
+    LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error)
 
-    // Get latest sample data for a property, by property name.
-    LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error)
+    // Get latest sample data for a Cloud Variable, by name.
+    LatestDataByName(cloudVarName string) (*cloudvar.CloudVarSample, error)
 
-    // Lookup a property by name.  Essentially, shorthand for:
-    //      device.SDDLClass().LookupProperty(propertyName)
-    LookupProperty(propertyName string) (sddl.Property, error)
+    // Lookup a Cloud Variable by name.  Essentially, shorthand for:
+    //      device.SDDLDocument().LookupVarDef(cloudVarName)
+    LookupVarDef(cloudVarName string) (sddl.VarDef, error)
 
     // Get the user-assigned name for this device.
     Name() string
@@ -166,15 +162,15 @@ type Device interface {
     // Get the public access level
     PublicAccessLevel() AccessLevel
 
-    // Get the SDDL class for this device.  Returns nil if class is unknown
-    // (which may happen for newly provisioned devices that haven't sent any
-    // reports yet).
-    SDDLClass() *sddl.Class
+    // Get the SDDL document for this device.  Returns nil if document is
+    // unknown (which may happen for newly provisioned devices that haven't
+    // sent any reports yet).
+    SDDLDocument() sddl.Document
 
-    // Get the SDDL class for this device, as a marshalled JSON string.
-    // Returns "" if class is unknown (which may happen for newly provisioned
-    // devices that haven't sent any reports yet).
-    SDDLClassString() string
+    // Get the SDDL document for this device, as a marshalled JSON string.
+    // Returns "" if document is unknown (which may happen for newly
+    // provisioned devices that haven't sent any reports yet).
+    SDDLDocumentString() string
 
     // Set the access and sharing permissions that an account has for this
     // device.
@@ -187,7 +183,7 @@ type Device interface {
     SetName(name string) error
 
     // Set the SDDL class associated with this device.
-    SetSDDLClass(class *sddl.Class) error
+    SetSDDLDocument(doc sddl.Document) error
 }
 
 // Notification is a record of a message sent to the device owner originiating

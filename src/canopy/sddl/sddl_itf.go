@@ -162,8 +162,14 @@ type Document interface{
     // Get the document's "description" metadata
     Description() string
 
+    // Add new member variables to this document
+    Extend(jsn map[string]interface{}) error
+
     // Get a golang JSON representation of this SDDL document.
     Json() map[string]interface{}
+
+    // Find a member variable by name
+    LookupVarDef(varName string) (VarDef, error)
 
     // Get a string JSON representation of this SDDL document.
     ToString() (string, error)

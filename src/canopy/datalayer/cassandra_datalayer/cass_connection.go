@@ -95,8 +95,8 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, publicAc
         conn: conn,
         deviceId: id,
         name: name,
-        class: nil,         // class gets initialized during first report
-        classString: "",
+        doc: nil,         // doc gets initialized during first report
+        docString: "",
         publicAccessLevel: publicAccessLevel,
     }, nil
 }
@@ -183,15 +183,15 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
-            &device.classString)
+            &device.docString)
     if err != nil {
         return nil, err
     }
 
-    if device.classString != "" {
-        device.class, err = sddl.ParseClassString("anonymous", device.classString)
+    if device.docString != "" {
+        device.doc, err = sddl.Sys.ParseDocumentString(device.docString)
         if err != nil {
-            canolog.Error("Error parsing class string for device: ", device.classString, err)
+            canolog.Error("Error parsing class string for device: ", device.docString, err)
             return nil, err
         }
     }
