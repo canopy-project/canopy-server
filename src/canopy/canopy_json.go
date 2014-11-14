@@ -18,6 +18,7 @@ package main
 import (
     "canopy/datalayer"
     "canopy/sddl"
+    "canopy/ws"
     "encoding/json"
     "time"
 )
@@ -84,7 +85,7 @@ func devicesToJson(devices []datalayer.Device) (string, error) {
                 out.Devices, jsonDevicesItem{
                     device.ID().String(), 
                     device.Name(),
-                    IsDeviceConnected(device.ID().String()),
+                    ws.IsDeviceConnected(device.ID().String()),
                     outDeviceClassJson,
                     propValues})
         }

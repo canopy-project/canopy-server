@@ -14,6 +14,25 @@
  * limitations under the License.
  */
 
+package ws
+
+import (
+    "time"
+    "encoding/json"
+    "code.google.com/p/go.net/websocket"
+    "io"
+    "net"
+    "canopy/canolog"
+    "canopy/datalayer"
+    "canopy/datalayer/cassandra_datalayer"
+    "canopy/pigeon"
+    "canopy/rest/endpoints"
+    // "canopy/service"
+    "canopy/sddl"
+)
+
+var gPigeon = pigeon.InitPigeonSystem()
+
 // Process JSON message from the client
 func processPayload(conn datalayer.Connection, payload string, cnt int32) string{
     var payloadObj map[string]interface{}

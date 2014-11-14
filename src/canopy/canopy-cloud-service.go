@@ -24,16 +24,14 @@ import (
     "github.com/gorilla/context"
     "github.com/gorilla/mux"
     "canopy/canolog"
-    "canopy/pigeon"
     "canopy/rest"
     "canopy/webapp"
+    "canopy/ws"
     "flag"
     "os"
     "os/signal"
     "syscall"
 )
-
-var gPigeon = pigeon.InitPigeonSystem()
 
 var gConfAllowOrigin = ""
 
@@ -102,7 +100,7 @@ js-client-path: `, *jsClientPath)
         canolog.Info("No reverse proxy for other hosts consfigured.")
     }
 
-    http.Handle(*hostname + "/echo", websocket.Handler(CanopyWebsocketServer))
+    http.Handle(*hostname + "/echo", websocket.Handler(ws.CanopyWebsocketServer))
 
     webapp.AddRoutes(r)
     rest.AddRoutes(r)

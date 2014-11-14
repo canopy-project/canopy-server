@@ -23,13 +23,19 @@ import (
 // Process communication payload from device (via websocket.  or REST?)
 //  {
 //      "device_id" : "9dfe2a00-efe2-45f9-a84c-8afc69caf4e7", 
-//      "__sddl_update" : {
-//          "control onoff" : { 
-//              "datatype" : "float32" } 
-//          } 
-//      }
+//        "var_config" : {
+//          "optional inbound bool onoff" : {}
+//        },
+//        "vars" : {
+//            "temperature" : 38.0f;
+//            "gps" : {
+//                "latitude" : 38.0f;
+//                "longitude" : 38.0f;
+//            }
+//        }
+//    }
 //  }
-func ProcessDeviceComm(conn datalayer.Connection, payload string) string {
+func ProcessDeviceComm(conn datalayer.Connection, payload string) (datalayer.Device, string) {
     var payloadObj map[string]interface{}
     var device datalayer.Device
     var deviceIdString string
@@ -38,7 +44,7 @@ func ProcessDeviceComm(conn datalayer.Connection, payload string) string {
     err := json.Unmarshal([]byte(payload), &payloadObj)
     if err != nil{
         canolog.Error("Error JSON decoding payload: ", payload, err);
-        return "";
+        return nil, "";
     }
 
     // lookup device
@@ -47,28 +53,61 @@ func ProcessDeviceComm(conn datalayer.Connection, payload string) string {
         deviceIdString, ok = payloadObj["device_id"].(string)
         if !ok {
             canolog.Error("Expected string for device_id: ", payload);
-            return "";
+            return nil, "";
         }
 
         device, err = conn.LookupDeviceByStringID(deviceIdString)
         if err != nil {
             canolog.Error("Device not found: ", deviceIdString, err);
-            return "";
+            return nil, "";
         }
     } else {
         canolog.Error("device_id field mandatory: ", payload);
-        return "";
+        return nil, "";
     }
 
     // update SDDL if necessary
-    _, ok = payloadObj["__sddl_update"] // TODO: call this "__sddl_extend" ?
+    _, ok = payloadObj["var_config"]
     if ok {
-        updateMap, ok := payloadObj["__sddl_update"].(map[string]interface{})
+        updateMap, ok := payloadObj["var_config"].(map[string]interface{})
         if !ok {
-            canolog.Error("Expected object for __sddl_update value");
-            return "";
+            canolog.Error("Expected object for var_config value");
+            return nil, "";
         }
         err = device.ExtendSDDLClass(updateMap)
     }
-    return ""
+
+    // store Cloud Variable values
+    _, ok := payloadObj["vars"]
+    if ok {
+        vars, ok := payloadObj["vars"].(map[string]interface{})
+        if !ok {
+            canolog.Error("Expected object for vars value");
+            return nil, "";
+        }
+
+        for k, v := range vars {
+            sensor, err := sddlClass.LookupSensor(k)
+            if err != nil {
+                /* sensor not found */
+                canolog.Warn("Unexpected key: ", k)
+                continue
+            }
+            t := time.Now()
+            // convert from JSON to Go
+            v2, err := endpoints.JsonToPropertyValue(sensor, v)
+            if err != nil {
+                canolog.Warn(err)
+                continue
+            }
+            // Insert converts from Go to Cassandra
+            err = device.InsertSample(sensor, t, v2)
+            if err != nil {
+                canolog.Warn(err)
+                continue
+            }
+        }
+    }
+
+    return device, ""
 }
