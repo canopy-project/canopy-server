@@ -18,6 +18,8 @@ import (
     "encoding/json"
     "canopy/canolog"
     "canopy/datalayer"
+    "canopy/rest/endpoints"
+    "time"
 )
 
 // Process communication payload from device (via websocket.  or REST?)
@@ -74,11 +76,12 @@ func ProcessDeviceComm(conn datalayer.Connection, payload string) (datalayer.Dev
             canolog.Error("Expected object for var_config value");
             return nil, "";
         }
-        err = device.ExtendSDDLClass(updateMap)
+        err = device.ExtendSDDL(updateMap)
     }
 
     // store Cloud Variable values
-    _, ok := payloadObj["vars"]
+    doc := device.SDDLDocument()
+    _, ok = payloadObj["vars"]
     if ok {
         vars, ok := payloadObj["vars"].(map[string]interface{})
         if !ok {
@@ -87,21 +90,21 @@ func ProcessDeviceComm(conn datalayer.Connection, payload string) (datalayer.Dev
         }
 
         for k, v := range vars {
-            sensor, err := sddlClass.LookupSensor(k)
+            varDef, err := doc.LookupVarDef(k)
             if err != nil {
-                /* sensor not found */
+                // Cloud variable not found */
                 canolog.Warn("Unexpected key: ", k)
                 continue
             }
             t := time.Now()
             // convert from JSON to Go
-            v2, err := endpoints.JsonToPropertyValue(sensor, v)
+            v2, err := endpoints.JsonToCloudVarValue(varDef, v)
             if err != nil {
                 canolog.Warn(err)
                 continue
             }
             // Insert converts from Go to Cassandra
-            err = device.InsertSample(sensor, t, v2)
+            err = device.InsertSample(varDef, t, v2)
             if err != nil {
                 canolog.Warn(err)
                 continue

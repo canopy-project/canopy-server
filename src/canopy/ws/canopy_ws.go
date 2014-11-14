@@ -23,104 +23,12 @@ import (
     "io"
     "net"
     "canopy/canolog"
-    "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/pigeon"
-    "canopy/rest/endpoints"
-    // "canopy/service"
-    "canopy/sddl"
+    "canopy/service"
 )
 
 var gPigeon = pigeon.InitPigeonSystem()
-
-// Process JSON message from the client
-func processPayload(conn datalayer.Connection, payload string, cnt int32) string{
-    var payloadObj map[string]interface{}
-    var device datalayer.Device
-    var deviceIdString string
-    var sddlDoc sddl.Document
-
-    err := json.Unmarshal([]byte(payload), &payloadObj)
-    if err != nil{
-        canolog.Error("Error JSON decoding payload: ", payload, err);
-        return "";
-    }
-
-    /* Lookup device */
-    _, ok := payloadObj["device_id"]
-    if ok {
-        deviceIdString, ok = payloadObj["device_id"].(string)
-        if !ok {
-            canolog.Error("Expected string for device_id: ", payload);
-            return "";
-        }
-
-        device, err = conn.LookupDeviceByStringID(deviceIdString)
-        if err != nil {
-            canolog.Error("Device not found: ", deviceIdString, err);
-            return "";
-        }
-    } else {
-            canolog.Error("device_id field mandatory: ", payload);
-            return "";
-    }
-
-    /* Store SDDL class */
-    _, ok = payloadObj["sddl"]
-    if ok {
-        sddlJson, ok := payloadObj["sddl"].(map[string]interface{})
-        if !ok {
-            canolog.Error("Expected object for SDDL");
-            return "";
-        }
-        sddlDoc, err = sddl.Sys.ParseDocument(sddlJson)
-        if err != nil {
-            canolog.Error("Failed parsing sddl document: ", err);
-            return "";
-        }
-
-        err = device.SetSDDLDocument(sddlDoc)
-        if err != nil {
-            canolog.Error("Error storing SDDL document during processPayload")
-            return "";
-        }
-    } else {
-            canolog.Error("sddl field mandatory:", payload)
-            return "";
-    }
-
-
-    /* Store sensor data */
-    if cnt % 100 != 0 {
-        for k, v := range payloadObj {
-            /* hack */
-            if k == "device_id" || k == "sddl" {
-                continue
-            }
-            varDef, err := sddlDoc.LookupVarDef(k)
-            if err != nil {
-                /* sensor not found */
-                canolog.Warn("Unexpected key: ", k)
-                continue
-            }
-            t := time.Now()
-            // convert from JSON to Go
-            v2, err := endpoints.JsonToCloudVarValue(varDef, v)
-            if err != nil {
-                canolog.Warn(err)
-                continue
-            }
-            // Insert converts from Go to Cassandra
-            err = device.InsertSample(varDef, t, v2)
-            if err != nil {
-                canolog.Warn(err)
-                continue
-            }
-        }
-    }
-
-    return deviceIdString;
-}
 
 func IsDeviceConnected(deviceIdString string) bool {
     return (gPigeon.Mailbox(deviceIdString) != nil)
@@ -155,9 +63,14 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
         if err == nil {
             // success, payload received
             cnt++;
-            deviceId := processPayload(conn, in, cnt)
-            if deviceId != "" && mailbox == nil {
-                mailbox = gPigeon.CreateMailbox(deviceId)
+            device, _ := service.ProcessDeviceComm(conn, in)
+            if device == nil{
+                canolog.Error("Error processing device communications")
+            } else {
+                if mailbox == nil {
+                    deviceIdString := device.ID().String()
+                    mailbox = gPigeon.CreateMailbox(deviceIdString)
+                }
             }
         } else if err == io.EOF {
             canolog.Websocket("Websocket connection closed")
