@@ -23,6 +23,7 @@ import (
     "io"
     "net"
     "canopy/canolog"
+    "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/pigeon"
     "canopy/service"
@@ -42,6 +43,7 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
 
     var mailbox *pigeon.PigeonMailbox
     var cnt int32
+    var device datalayer.Device
     
     cnt = 0
 
@@ -63,10 +65,11 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
         if err == nil {
             // success, payload received
             cnt++;
-            device, _ := service.ProcessDeviceComm(conn, in)
-            if device == nil{
-                canolog.Error("Error processing device communications")
+            resp := service.ProcessDeviceComm(conn, device, "", in)
+            if resp.Device == nil{
+                canolog.Error("Error processing device communications: %s", resp.Err)
             } else {
+                device = resp.Device
                 if mailbox == nil {
                     deviceIdString := device.ID().String()
                     mailbox = gPigeon.CreateMailbox(deviceIdString)

@@ -18,14 +18,27 @@ import (
     "encoding/json"
     "canopy/canolog"
     "canopy/datalayer"
+    "canopy/datalayer/cassandra_datalayer"
     "canopy/rest/endpoints"
+    "canopy/sddl"
     "time"
+    "github.com/gocql/gocql"
+    "net/http"
+    "fmt"
 )
 
-// Process communication payload from device (via websocket.  or REST?)
+type ServiceResponse struct {
+    HttpCode int
+    Err error
+    Response string
+    Device datalayer.Device
+}
+
+
+// Process communication payload from device (via websocket. or REST)
 //  {
 //      "device_id" : "9dfe2a00-efe2-45f9-a84c-8afc69caf4e7", 
-//        "var_config" : {
+//        "sddl" : {
 //          "optional inbound bool onoff" : {}
 //        },
 //        "vars" : {
@@ -37,80 +50,240 @@ import (
 //        }
 //    }
 //  }
-func ProcessDeviceComm(conn datalayer.Connection, payload string) (datalayer.Device, string) {
-    var payloadObj map[string]interface{}
-    var device datalayer.Device
-    var deviceIdString string
+//
+//  <conn> is an optional datalayer connection.  If provided, it is used.
+//  Otherwise, a datalayer connection is opened by this routine.
+//
+//  <device> is the device that sent the communication.  If nil, then either
+//  <deviceId> or, as a last resort, the payload's "device_id" will be used.
+//
+//  <deviceId> is a string device ID of the device that sent the communication.
+//  This is ignored if <device> is not nil.  If nil, then the payload's
+//  "device_id" will be used.
+//
+//  <payload> is a string containing the JSON payload.
+func ProcessDeviceComm(
+        conn datalayer.Connection, 
+        device datalayer.Device, 
+        deviceIdString string,
+        payload string) ServiceResponse {
+    var err error
+    var out ServiceResponse
+    var ok bool
 
-    // parse payload
-    err := json.Unmarshal([]byte(payload), &payloadObj)
-    if err != nil{
-        canolog.Error("Error JSON decoding payload: ", payload, err);
-        return nil, "";
-    }
-
-    // lookup device
-    _, ok := payloadObj["device_id"]
-    if ok {
-        deviceIdString, ok = payloadObj["device_id"].(string)
-        if !ok {
-            canolog.Error("Expected string for device_id: ", payload);
-            return nil, "";
-        }
-
-        device, err = conn.LookupDeviceByStringID(deviceIdString)
+    // If conn is nil, open a datalayer connection.
+    if conn == nil {
+        dl := cassandra_datalayer.NewDatalayer()
+        conn, err = dl.Connect("canopy")
         if err != nil {
-            canolog.Error("Device not found: ", deviceIdString, err);
-            return nil, "";
+            return ServiceResponse{
+                HttpCode: http.StatusInternalServerError,
+                Err: fmt.Errorf("Could not connect to database: %s", err),
+                Response: `{"result" : "error", "error_type" : "could_not_connect_to_database"}`,
+                Device: nil,
+            }
         }
-    } else {
-        canolog.Error("device_id field mandatory: ", payload);
-        return nil, "";
+        defer conn.Close()
     }
 
-    // update SDDL if necessary
-    _, ok = payloadObj["var_config"]
+    // Parse JSON payload
+    var payloadObj map[string]interface{}
+    err = json.Unmarshal([]byte(payload), &payloadObj)
+    if err != nil{
+        return ServiceResponse{
+            HttpCode: http.StatusBadRequest,
+            Err: fmt.Errorf("Error JSON decoding payload: %s", err),
+            Response: `{"result" : "error", "error_type" : "decoding_paylaod"}`,
+            Device: nil,
+        }
+    }
+
+    // Device can be provided to this routine in one of three ways:
+    // 1) <device> parameter
+    // 2) <deviceId> parameter (creates new device if necessary)
+    // 3) "device_id" field in payload (creates new device if necessary)
+    if device == nil {
+        // Parse UUID
+        uuid, err := gocql.ParseUUID(deviceIdString)
+        if err != nil {
+            return ServiceResponse{
+                HttpCode: http.StatusBadRequest,
+                Err: fmt.Errorf("Invalid UUID %s: %s", deviceIdString, err),
+                Response: `{"result" : "error", "error_type" : "device_uuid_required"}`,
+                Device: nil,
+            }
+        }
+
+        // Does device exist?  If not, create an anonymous device.
+        device, err = conn.LookupOrCreateDevice(uuid, datalayer.ReadWriteAccess)
+        if err != nil {
+            return ServiceResponse{
+                HttpCode: http.StatusInternalServerError,
+                Err: fmt.Errorf("Error looking up or creating device: %s", err),
+                Response: `{"result" : "error", "error_type" : "database_error"}`,
+                Device: nil,
+            }
+        }
+    }
+
+    // Is "device_id" provided in payload?
+    _, ok = payloadObj["device_id"]
     if ok {
-        updateMap, ok := payloadObj["var_config"].(map[string]interface{})
+        deviceIdStringFromPayload, ok := payloadObj["device_id"].(string)
         if !ok {
-            canolog.Error("Expected object for var_config value");
-            return nil, "";
+            return ServiceResponse{
+                HttpCode: http.StatusBadRequest,
+                Err: fmt.Errorf("\"device_id\" field must be string"),
+                Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+                Device: nil,
+            }
+        }
+
+        // Parse UUID
+        uuid, err := gocql.ParseUUID(deviceIdStringFromPayload)
+        if err != nil {
+            return ServiceResponse{
+                HttpCode: http.StatusBadRequest,
+                Err: fmt.Errorf("Invalid UUID %s: %s", deviceIdStringFromPayload, err),
+                Response: `{"result" : "error", "error_type" : "device_uuid_required"}`,
+                Device: nil,
+            }
+        }
+
+        // Is <device> already set?
+        // If not: set it.
+        // If so: ensure consistency
+        if device == nil {
+            device, err = conn.LookupOrCreateDevice(uuid, datalayer.ReadWriteAccess)
+            if err != nil {
+                return ServiceResponse{
+                    HttpCode: http.StatusInternalServerError,
+                    Err: fmt.Errorf("Error looking up or creating device: %s", err),
+                    Response: `{"result" : "error", "error_type" : "database_error"}`,
+                    Device: nil,
+                }
+            }
+        } else {
+            if device.ID().String() != deviceIdStringFromPayload {
+                return ServiceResponse{
+                    HttpCode: http.StatusBadRequest,
+                    Err: fmt.Errorf("Inconsistent device ID: %s %s", device.ID().String(), deviceIdStringFromPayload),
+                    Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+                    Device: nil,
+                }
+            }
+        }
+    }
+
+    // If device wasn't provided at all, throw error.
+    if device == nil {
+        return ServiceResponse{
+            HttpCode: http.StatusBadRequest,
+            Err: fmt.Errorf("Device ID expected"),
+            Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+            Device: nil,
+        }
+    }
+    out.Device = device
+
+    // If "sddl" is present, create new / reconfigure Cloud Variables.
+    _, ok = payloadObj["sddl"]
+    if ok {
+        updateMap, ok := payloadObj["sddl"].(map[string]interface{})
+        if !ok {
+            return ServiceResponse{
+                HttpCode: http.StatusBadRequest,
+                Err: fmt.Errorf("Expected object for \"sdd\" field"),
+                Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+                Device: nil,
+            }
         }
         err = device.ExtendSDDL(updateMap)
+        if err != nil {
+            return ServiceResponse{
+                HttpCode: http.StatusInternalServerError,
+                Err: fmt.Errorf("Error updating device's SDDL: %s", err),
+                Response: `{"result" : "error", "error_type" : "database_error"}`,
+                Device: nil,
+            }
+        }
     }
 
-    // store Cloud Variable values
+    // If "vars" is present, update value of all Cloud Variables (creating new
+    // Cloud Variables as necessary)
     doc := device.SDDLDocument()
     _, ok = payloadObj["vars"]
     if ok {
-        vars, ok := payloadObj["vars"].(map[string]interface{})
+        varsMap, ok := payloadObj["vars"].(map[string]interface{})
         if !ok {
-            canolog.Error("Expected object for vars value");
-            return nil, "";
+            return ServiceResponse{
+                HttpCode: http.StatusBadRequest,
+                Err: fmt.Errorf("Expected object for \"vars\" field"),
+                Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+                Device: nil,
+            }
         }
+        for varName, value := range varsMap {
+            varDef, err := doc.LookupVarDef(varName)
+            // TODO: an error doesn't necessarily mean prop should be created?
+            canolog.Info("Looking up property ", varName)
+            if (varDef == nil) {
+                // Property doesn't exist.  Add it.
+                canolog.Info("Not found.  Add property ", varName)
+                // TODO: What datatype?
+                // TODO: What other parameters?
+                varDef, err = doc.AddVarDef(varName, sddl.DATATYPE_FLOAT32)
+                if err != nil {
+                    return ServiceResponse{
+                        HttpCode: http.StatusInternalServerError,
+                        Err: fmt.Errorf("Error creating cloud variable %s: %s", varName, err),
+                        Response: `{"result" : "error", "error_type" : "database_error"}`,
+                        Device: nil,
+                    }
+                }
 
-        for k, v := range vars {
-            varDef, err := doc.LookupVarDef(k)
-            if err != nil {
-                // Cloud variable not found */
-                canolog.Warn("Unexpected key: ", k)
-                continue
+                // save modified SDDL 
+                // TODO: Save at the end?
+                canolog.Info("SetSDDLDocument ", doc)
+                err = device.SetSDDLDocument(doc)
+                if err != nil {
+                    return ServiceResponse{
+                        HttpCode: http.StatusInternalServerError,
+                        Err: fmt.Errorf("Error updating SDDL: %s", err),
+                        Response: `{"result" : "error", "error_type" : "database_error"}`,
+                        Device: nil,
+                    }
+                }
             }
-            t := time.Now()
-            // convert from JSON to Go
-            v2, err := endpoints.JsonToCloudVarValue(varDef, v)
+
+            // Store property value.
+            // Convert value datatype
+            varVal, err := endpoints.JsonToCloudVarValue(varDef, value)
             if err != nil {
-                canolog.Warn(err)
-                continue
+                return ServiceResponse{
+                    HttpCode: http.StatusInternalServerError,
+                    Err: fmt.Errorf("Error converting JSON to propertyValue: %s", err),
+                    Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+                    Device: nil,
+                }
             }
-            // Insert converts from Go to Cassandra
-            err = device.InsertSample(varDef, t, v2)
-            if err != nil {
-                canolog.Warn(err)
-                continue
+            canolog.Info("InsertStample")
+            err = device.InsertSample(varDef, time.Now(), varVal)
+            if (err != nil) {
+                return ServiceResponse{
+                    HttpCode: http.StatusInternalServerError,
+                    Err: fmt.Errorf("Error inserting sample %s: %s", varName, err),
+                    Response: `{"result" : "error", "error_type" : "database_error"}`,
+                    Device: nil,
+                }
             }
         }
     }
 
-    return device, ""
+    return ServiceResponse{
+        HttpCode: http.StatusOK,
+        Err: nil,
+        Response: `{"result" : "ok"}`,
+        Device: device,
+    }
 }
