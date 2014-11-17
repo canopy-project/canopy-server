@@ -207,7 +207,7 @@ var creationQueries []string = []string{
         device_id uuid,
         propname text,
         time timestamp,
-        value text
+        value text,
         PRIMARY KEY((device_id, propname), time)
     ) WITH COMPACT STORAGE`,
 
@@ -347,7 +347,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
             // Ignore errors (just print them).
             // This allows PrepDB to be used to add new tables.  Eventually, we
             // should come up with a proper migration strategy.
-            canolog.Warn("(IGNORED) ", err)
+            canolog.Warn("(IGNORED) ", query, ": ", err)
         }
     }
     return nil

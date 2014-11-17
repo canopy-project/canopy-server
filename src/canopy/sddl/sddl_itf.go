@@ -174,6 +174,10 @@ type Document interface{
     // Find a member variable by name
     LookupVarDef(varName string) (VarDef, error)
 
+    // Remove a member variable by name
+    // Returns true if removed, false if not found
+    RemoveVarDef(varName string) (bool, error)
+
     // Get a string JSON representation of this SDDL document.
     ToString() (string, error)
 

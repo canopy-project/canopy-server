@@ -125,7 +125,7 @@ func JsonToCloudVarValue(varDef sddl.VarDef, value interface{}) (interface{}, er
         if !ok {
             return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
         }
-        return uint16(v), nil
+        return uint8(v), nil
     case sddl.DATATYPE_INT16:
         v, ok := value.(float64)
         if !ok {

@@ -72,6 +72,8 @@ func keyTokenFromString(s string) (string, int, error) {
         return "datatype", int(DATATYPE_FLOAT32), nil
     case "float64":
         return "datatype", int(DATATYPE_FLOAT64), nil
+    case "string":
+        return "datatype", int(DATATYPE_STRING), nil
     case "datetime":
         return "datatype", int(DATATYPE_DATETIME), nil
 
@@ -87,7 +89,7 @@ func keyTokenFromString(s string) (string, int, error) {
     case "required":
         return "optionality", int(OPTIONALITY_REQUIRED), nil
     }
-    return "", 0, fmt.Errorf("Invalid token %s", s)
+    return "unknown", 0, nil 
 }
 
 // Helper routine for parsing defininition strings
@@ -123,13 +125,16 @@ func parseVarKey(key string) (OptionalityEnum, DirectionEnum, DatatypeEnum, stri
                 optionality = OptionalityEnum(tokenVal)
             default:
                 if datatype == DATATYPE_INVALID {
-                    return 0, 0, 0, "", fmt.Errorf("Datatype or qualifier expected")
+                    return 0, 0, 0, "", fmt.Errorf("Datatype or qualifier expected: %s", part)
                 }
                 if name != "" {
                     return 0, 0, 0, "", fmt.Errorf("Variable name already specified")
                 }
                 name = part
         }
+    }
+    if name == "" {
+            return 0, 0, 0, "", fmt.Errorf("Variable name expected")
     }
 
     return optionality, direction, datatype, name, nil
@@ -197,41 +202,11 @@ func (sys *SDDLSys) ParseDocument(jsn map[string]interface{}) (Document, error) 
         vars: []VarDef{}, 
         authors: []string{},
     }
-    var ok bool
 
-    for k, v := range jsn {
-        if k == "authors" {
-            authorsList, ok := v.([]interface{})
-            /* TODO: finish */
-            if !ok {
-                return nil, errors.New("Expected list for authors")
-            }
-            for _, authorItf := range authorsList {
-                authorString, ok := authorItf.(string)
-                if !ok {
-                    return nil, errors.New("Expect string for author")
-                }
-                doc.authors = append(doc.authors, authorString)
-            }
-        } else if k == "description" {
-            doc.description, ok = v.(string)
-            if !ok {
-                return nil, errors.New("Expected string for description")
-            }
-        } else {
-            vObj, ok := v.(map[string]interface{})
-            if !ok {
-                return nil, errors.New("Expected object for variable metadata")
-            }
-            varDef, err := ParseVar(k, vObj);
-            if (err != nil) {
-                return nil, err;
-            }
-
-            doc.vars = append(doc.vars, varDef);
-        }
+    err := doc.Extend(jsn)
+    if err != nil {
+        return nil, err
     }
-
     return &doc, nil
 }
 
@@ -455,7 +430,43 @@ func (doc *SDDLDocument) Description() string {
 }
 
 func (doc *SDDLDocument) Extend(jsn map[string]interface{}) error {
-    return fmt.Errorf("Not Implemented")
+    var ok bool
+
+    for k, v := range jsn {
+        if k == "authors" {
+            authorsList, ok := v.([]interface{})
+            /* TODO: finish */
+            if !ok {
+                return errors.New("Expected list for authors")
+            }
+            for _, authorItf := range authorsList {
+                authorString, ok := authorItf.(string)
+                if !ok {
+                    return errors.New("Expect string for author")
+                }
+                doc.authors = append(doc.authors, authorString)
+            }
+        } else if k == "description" {
+            doc.description, ok = v.(string)
+            if !ok {
+                return errors.New("Expected string for description")
+            }
+        } else {
+            vObj, ok := v.(map[string]interface{})
+            if !ok {
+                return errors.New("Expected object for variable metadata")
+            }
+            varDef, err := ParseVar(k, vObj);
+            if (err != nil) {
+                return err;
+            }
+
+            doc.RemoveVarDef(varDef.Name()) // If var already exists, remove it first
+            doc.vars = append(doc.vars, varDef);
+        }
+    }
+
+    return nil
 }
 
 // Encode document as golang JSON object.
@@ -502,6 +513,23 @@ func (doc *SDDLDocument) LookupVarDef(varName string) (VarDef, error) {
         }
     }
     return nil, fmt.Errorf("Variable %s not found in document", varName)
+}
+
+func (doc *SDDLDocument) RemoveVarDef(varName string) (bool, error) {
+    // TODO: improve implementation
+    var removed bool
+    newVars := []VarDef{}
+
+    for _, varDef := range doc.vars {
+        if (varDef.Name() != varName) {
+            newVars = append(newVars, varDef);
+        } else {
+            removed = true
+        }
+    }
+
+    doc.vars = newVars
+    return removed, nil
 }
 
 func (doc *SDDLDocument) ToString() (string, error) {
