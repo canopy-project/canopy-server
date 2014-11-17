@@ -273,9 +273,61 @@ func (varDef *SDDLVarDef) IsNumeric() bool {
     return ((varDef.datatype == DATATYPE_FLOAT32) || (varDef.datatype == DATATYPE_FLOAT64) || (varDef.datatype == DATATYPE_INT8) || (varDef.datatype == DATATYPE_INT16) || (varDef.datatype == DATATYPE_INT32) || (varDef.datatype == DATATYPE_UINT8) || (varDef.datatype == DATATYPE_UINT16) || (varDef.datatype == DATATYPE_UINT32))
 }
 
-func (vardef *SDDLVarDef) Json() map[string]interface{} {
-    return vardef.jsonObj
+func (varDef *SDDLVarDef) Json() map[string]interface{} {
+    return varDef.jsonObj
 }
+
+// Encode Cloud Variable definition as golang JSON object.
+// Does the actual work of encoding/marshalling, unlike .Json() which just
+// returns cached version.
+func (varDef *SDDLVarDef) jsonEncode() (map[string]interface{}, error) {
+    jsn := map[string]interface{}{}
+
+    jsn["description"] = varDef.description
+
+    datatype, err := DatatypeEnumToString(varDef.datatype)
+    if err != nil {
+        return nil, err
+    }
+    jsn["datatype"] = datatype
+
+    // TODO: Don't always have these?
+    if varDef.IsNumeric() {
+        jsn["max-value"] = varDef.maxValue
+        jsn["min-value"] = varDef.minValue
+
+        numericDisplayHint, err := NumericDisplayHintEnumToString(varDef.numericDisplayHint)
+        if err != nil {
+            return nil, err
+        }
+        jsn["numeric-display-hint"] = numericDisplayHint
+    }
+
+    if varDef.datatype == DATATYPE_STRING {
+        jsn["regex"] = varDef.regex
+    }
+
+    jsn["units"] = varDef.units
+
+    return jsn, nil
+}
+
+
+// Encode a Cloud Variable definition as a JSON string.
+func (varDef *SDDLVarDef) jsonStringEncode() (string, error) {
+    jsn, err := varDef.jsonEncode()
+    if err != nil {
+        return "", err
+    }
+
+    bytes, err := json.Marshal(jsn)
+    if err != nil {
+        return "", err
+    }
+
+    return string(bytes), nil
+}
+
 
 func (varDef *SDDLVarDef) MaxValue() (float64, error)  {
     if !varDef.IsNumeric() {
@@ -325,51 +377,6 @@ func (varDef *SDDLVarDef) Units() (string, error) {
     return varDef.units, nil
 }
 
-/*func (prop *VarDecl) AddSensorProperty(propName string, datatype DatatypeEnum) (*VarDecl, error) {
-    // TODO: What if sensor already exists?
-
-    sensor := &VarDecl{
-        name: propName,
-        datatype: datatype,
-        decl: "sensor " + propName, // TODO: what does this need to be?
-        numericDisplayHint: NUMERIC_DISPLAY_HINT_NORMAL,
-    }
-
-    prop.properties = append(prop.properties, &sensor)
-
-    // Re-generate JSON
-    jsonObj, err := JsonEncodeClass(prop)
-    if err != nil {
-        return nil, err
-    }
-    prop.jsonObj = jsonObj
-
-    return &sensor, nil
-}*/
-
-/*
-func (prop *VarDecl) LookupProperty(propName string) (Property, error) {
-    // TODO: improve implementation
-    for _, child := range prop.properties {
-        if (child.Name() == propName) {
-            return child, nil
-        }
-    }
-    return nil, fmt.Errorf("Property %s not found in class %s", propName, prop.Name())
-}*/
-
-/*func (prop *VarDecl) LookupPropertyOrNil(propName string) (Property) {
-    // TODO: improve implementation
-    // TODO: We could combine with LookupProperty.. just don't return error
-    // * when property not found. 
-    for _, child := range prop.properties {
-        if (child.Name() == propName) {
-            return child
-        }
-    }
-    return nil
-}*/
-
 /*func ExtendClass(class *Class, jsn map[string]interface{}) error {
     // TODO: combine implementation with ParseClass ?
     for k, v := range jsn {
@@ -412,92 +419,31 @@ func (prop *VarDecl) LookupProperty(propName string) (Property, error) {
 
 
 
-/*func jsonEncodeProperty(prop Property) (map[string]interface{}, error) {
-    jsn := map[string]interface{}{}
-
-    switch p := prop.(type) {
-    case *Control:
-        jsn["description"] = p.description
-
-        datatype, err := DatatypeEnumToString(p.datatype)
-        if err != nil {
-            return nil, err
-        }
-        jsn["datatype"] = datatype
-
-        // TODO: Don't always have these?
-        jsn["max-value"] = p.maxValue
-        jsn["min-value"] = p.minValue
-
-        numericDisplayHint, err := NumericDisplayHintEnumToString(p.numericDisplayHint)
-        if err != nil {
-            return nil, err
-        }
-        jsn["numeric-display-hint"] = numericDisplayHint
-
-        jsn["regex"] = p.regex
-        jsn["units"] = p.units
-    case *Sensor:
-        jsn["description"] = p.description
-
-        datatype, err := DatatypeEnumToString(p.datatype)
-        if err != nil {
-            return nil, err
-        }
-        jsn["datatype"] = datatype
-
-        // TODO: Don't always have these?
-        jsn["max-value"] = p.maxValue
-        jsn["min-value"] = p.minValue
-
-        numericDisplayHint, err := NumericDisplayHintEnumToString(p.numericDisplayHint)
-        if err != nil {
-            return nil, err
-        }
-        jsn["numeric-display-hint"] = numericDisplayHint
-
-        jsn["regex"] = p.regex
-        jsn["units"] = p.units
-
-        // TODO: recursive case for encoding sub-classes
-    default:
-        return nil, fmt.Errorf("jsonEncodeProperty expects control or sensor property")
-    }
-
-    return jsn, nil
-}*/
-
-/*func JsonEncodeClass(cloudVar *VarDecl) (map[string]interface{}, error) {
-    jsn := map[string]interface{}{}
-
-    for _, prop := range cloudVar.properties {
-        val, err := jsonEncodeProperty(prop)
-        if err != nil {
-            return nil, err
-        }
-        jsn[prop.Declaration()] = val
-    }
-    // TODO: authors
-    // TODO: description
-    return jsn, nil
-}*/
-
-/*func JsonStringEncodeClass(cloudVar *VarDecl) (string, error) {
-    jsn, err := JsonEncodeClass(cloudVar)
-    if err != nil {
-        return "", err
-    }
-
-    bytes, err := json.Marshal(jsn)
-    if err != nil {
-        return "", err
-    }
-
-    return string(bytes), nil
-}*/
-
 func (doc *SDDLDocument) AddVarDef(name string, datatype DatatypeEnum) (VarDef, error) {
-    return nil, fmt.Errorf("Not implemented")
+    // TODO: What if cloud variable already exists?
+
+    datatypeString, err := DatatypeEnumToString(datatype)
+    if err != nil {
+        return nil, err
+    }
+
+    varDef := &SDDLVarDef{
+        name: name,
+        datatype: datatype,
+        decl: datatypeString + " " + name,
+        numericDisplayHint: NUMERIC_DISPLAY_HINT_NORMAL,
+    }
+
+    doc.vars = append(doc.vars, varDef)
+
+    // Re-generate JSON
+    jsonObj, err := varDef.jsonEncode()
+    if err != nil {
+        return nil, err
+    }
+    varDef.jsonObj = jsonObj
+
+    return varDef, nil
 }
 
 func (doc *SDDLDocument) Authors() []string {
@@ -512,12 +458,50 @@ func (doc *SDDLDocument) Extend(jsn map[string]interface{}) error {
     return fmt.Errorf("Not Implemented")
 }
 
+// Encode document as golang JSON object.
+// Does the actual work of encoding/marshalling, unlike .Json() which just re
+func (doc *SDDLDocument) jsonEncode() (map[string]interface{}, error) {
+    jsn := map[string]interface{}{}
+
+    for _, varDef := range doc.vars {
+        val, err := varDef.jsonEncode()
+        if err != nil {
+            return nil, err
+        }
+        jsn[varDef.Declaration()] = val
+    }
+    // TODO: authors
+    // TODO: description
+    return jsn, nil
+}
+
+// Encode document as string JSON object.
+func (doc *SDDLDocument) jsonStringEncode() (string, error) {
+    jsn, err := doc.jsonEncode()
+    if err != nil {
+        return "", err
+    }
+
+    bytes, err := json.Marshal(jsn)
+    if err != nil {
+        return "", err
+    }
+
+    return string(bytes), nil
+}
+
 func (doc *SDDLDocument) Json() map[string]interface{} {
     return doc.jsonObj
 }
 
 func (doc *SDDLDocument) LookupVarDef(varName string) (VarDef, error) {
-    return nil, fmt.Errorf("Not Implemented")
+    // TODO: improve implementation
+    for _, varDef := range doc.vars {
+        if (varDef.Name() == varName) {
+            return varDef, nil
+        }
+    }
+    return nil, fmt.Errorf("Variable %s not found in document", varName)
 }
 
 func (doc *SDDLDocument) ToString() (string, error) {

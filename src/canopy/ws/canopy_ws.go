@@ -67,7 +67,7 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
             cnt++;
             resp := service.ProcessDeviceComm(conn, device, "", in)
             if resp.Device == nil{
-                canolog.Error("Error processing device communications: %s", resp.Err)
+                canolog.Error("Error processing device communications: ", resp.Err)
             } else {
                 device = resp.Device
                 if mailbox == nil {

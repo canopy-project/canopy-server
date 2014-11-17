@@ -95,7 +95,7 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, publicAc
         conn: conn,
         deviceId: id,
         name: name,
-        doc: nil,         // doc gets initialized during first report
+        doc: sddl.Sys.NewEmptyDocument(),
         docString: "",
         publicAccessLevel: publicAccessLevel,
     }, nil
@@ -194,6 +194,8 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
             canolog.Error("Error parsing class string for device: ", device.docString, err)
             return nil, err
         }
+    } else {
+        device.doc = sddl.Sys.NewEmptyDocument()
     }
 
     return &device, nil

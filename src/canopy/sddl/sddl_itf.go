@@ -86,12 +86,6 @@ type SDDL interface {
     //      }
     ParseVarDef(decl string, propsJson map[string]interface{}) (*VarDef, error)
 
-    // Encode a Cloud Variable definition as a golang JSON object.
-    //JsonEncode(varDef VarDef) (map[string]interface{}, error) // TODO: Make private?  We also .Json routine.
-
-    // Encode a Cloud Variable definition as a JSON string.
-    //JsonStringEncode(varDef VarDef) (string, error)
-
     // Extend a struct by adding new members
     // TODO: make method of VarDef?
     Extend(varDef VarDef, jsn map[string]interface{}) error
@@ -124,6 +118,9 @@ type VarDef interface {
 
     // Get a golang JSON representation of this Cloud Variable definition.
     Json() map[string]interface{}
+
+    // Internal routine does the actual work of encoding to JSON
+    jsonEncode() (map[string]interface{}, error)
 
     // Get the "max-value" property for this Cloud Variable, cast to a float64.
     // Returns an error if the Cloud Variable does not have a numeric type.

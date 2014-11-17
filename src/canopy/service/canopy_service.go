@@ -71,6 +71,7 @@ func ProcessDeviceComm(
     var out ServiceResponse
     var ok bool
 
+    canolog.Info("ProcessDeviceComm STARTED")
     // If conn is nil, open a datalayer connection.
     if conn == nil {
         dl := cassandra_datalayer.NewDatalayer()
@@ -102,7 +103,7 @@ func ProcessDeviceComm(
     // 1) <device> parameter
     // 2) <deviceId> parameter (creates new device if necessary)
     // 3) "device_id" field in payload (creates new device if necessary)
-    if device == nil {
+    if device == nil && deviceIdString != "" {
         // Parse UUID
         uuid, err := gocql.ParseUUID(deviceIdString)
         if err != nil {
@@ -213,6 +214,7 @@ func ProcessDeviceComm(
     // Cloud Variables as necessary)
     doc := device.SDDLDocument()
     _, ok = payloadObj["vars"]
+    canolog.Info("vars present:", ok)
     if ok {
         varsMap, ok := payloadObj["vars"].(map[string]interface{})
         if !ok {
@@ -223,6 +225,7 @@ func ProcessDeviceComm(
                 Device: nil,
             }
         }
+        canolog.Info("varsMap: ", varsMap)
         for varName, value := range varsMap {
             varDef, err := doc.LookupVarDef(varName)
             // TODO: an error doesn't necessarily mean prop should be created?
