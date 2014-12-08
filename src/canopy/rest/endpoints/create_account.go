@@ -70,8 +70,20 @@ func POST_create_account(w http.ResponseWriter, r *http.Request) {
     }
     defer conn.Close()
 
+    account, err := conn.LookupAccount(username)
+    if err == nil {
+        fmt.Fprintf(w, "{\"error\" : \"username_already_taken\"}")
+        return
+    }
+
+    account, err = conn.LookupAccount(email)
+    if err == nil {
+        fmt.Fprintf(w, "{\"error\" : \"email_already_taken\"}")
+        return
+    }
+
     canolog.Trace("Creating acct")
-    account, err := conn.CreateAccount(username, email, password)
+    account, err = conn.CreateAccount(username, email, password)
     if err != nil {
         fmt.Fprintf(w, "{\"error\" : \"creating_account\"}")
         return
