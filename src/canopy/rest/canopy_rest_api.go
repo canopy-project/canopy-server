@@ -21,6 +21,7 @@ import (
 )
 
 func AddRoutes(r *mux.Router) {
+    // TODO: Need to handle allow-origin correctly!
     r.HandleFunc("/api/info", endpoints.GET_info).Methods("GET")
     r.HandleFunc("/api/create_account", endpoints.POST_create_account).Methods("POST")
     r.HandleFunc("/api/create_device", endpoints.POST_create_device).Methods("POST")

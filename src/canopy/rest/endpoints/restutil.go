@@ -30,7 +30,9 @@ import (
     "time"
 )
 
-var gConfAllowOrigin = ""
+// TODO: Need to handle allow-origin correctly!
+var gConfAllowOrigin = "http://74.93.13.249:8080"
+
 var gPigeon = pigeon.InitPigeonSystem()
 func writeDatabaseConnectionError(w http.ResponseWriter) {
     w.WriteHeader(http.StatusInternalServerError);

@@ -23,6 +23,7 @@ import (
 )
 
 func POST_create_device(w http.ResponseWriter, r *http.Request) {
+    // TODO: Need to handle allow-origin correctly!
     writeStandardHeaders(w);
 
     username, password, err := basicAuthFromRequest(r)
