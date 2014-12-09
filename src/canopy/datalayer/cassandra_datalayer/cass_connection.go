@@ -74,7 +74,7 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
     return &CassAccount{conn, username, email, password_hash}, nil
 }
 
-func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
+func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
     // TODO: validate parameters 
     var id gocql.UUID
     if uuid == nil {
@@ -83,10 +83,15 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, publicAc
         id = *uuid
     }
     
+    if secretKey == "" {
+        // TODO
+        secretKey = "abcdefg12345"
+    }
+    
     err := conn.session.Query(`
-            INSERT INTO devices (device_id, friendly_name, public_access_level)
-            VALUES (?, ?, ?)
-    `, id, name, publicAccessLevel).Exec()
+            INSERT INTO devices (device_id, secret_key, friendly_name, public_access_level)
+            VALUES (?, ?, ?, ?)
+    `, id, secretKey, name, publicAccessLevel).Exec()
     if err != nil {
         canolog.Error("Error creating device:", err)
         return nil, err
@@ -112,7 +117,7 @@ func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID, publicAcce
         return device, nil
     }
 
-    device, err = conn.CreateDevice("AnonDevice", &deviceId, publicAccessLevel)
+    device, err = conn.CreateDevice("AnonDevice", &deviceId, "", publicAccessLevel)
     if err != nil {
         canolog.Info("LookupOrCreateDevice - device ", deviceId, "error")
     }

@@ -22,16 +22,55 @@ import (
     "net/http"
 )
 
+func auth_user(conn datalayer.Connection, w http.ResponseWriter, r *http.Request) (datalayer.Account, error) {
+    // First try BASIC AUTH
+    username_string, password, err := basicAuthFromRequest(r)
+    if err == nil {
+        acct, err := conn.LookupAccountVerifyPassword(username_string, password)
+        if err != nil {
+            if err == datalayer.InvalidPasswordError {
+                w.WriteHeader(http.StatusUnauthorized)
+                fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
+                return nil, err;
+            } else {
+                w.WriteHeader(http.StatusInternalServerError);
+                fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+                return nil, err
+            }
+        }
+        
+        return acct, nil
+    }
+
+    // Next try session
+    session, _ := store.Get(r, "canopy-login-session")
+
+    username, ok := session.Values["logged_in_username"]
+    if ok {
+        username_string, ok = username.(string)
+        if !(ok && username_string != "") {
+            writeNotLoggedInError(w);
+            return nil, fmt.Errorf("Could not get username from session");
+        }
+    } else {
+        writeNotLoggedInError(w);
+        return nil, fmt.Errorf("Could not get username from session");
+    }
+
+    account, err := conn.LookupAccount(username_string)
+    if err != nil {
+        w.WriteHeader(http.StatusInternalServerError);
+        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+        return nil, err
+    }
+
+    return account, nil
+}
+
+
 func POST_create_device(w http.ResponseWriter, r *http.Request) {
     // TODO: Need to handle allow-origin correctly!
     writeStandardHeaders(w);
-
-    username, password, err := basicAuthFromRequest(r)
-    if err != nil {
-        w.WriteHeader(http.StatusUnauthorized)
-        fmt.Fprintf(w, "{\"error\" : \"bad_credentials\"}")
-        return
-    }
 
     dl := cassandra_datalayer.NewDatalayer()
     conn, err := dl.Connect("canopy")
@@ -41,20 +80,12 @@ func POST_create_device(w http.ResponseWriter, r *http.Request) {
     }
     defer conn.Close()
 
-    acct, err := conn.LookupAccountVerifyPassword(username, password)
+    acct, err := auth_user(conn, w, r)
     if err != nil {
-        if err == datalayer.InvalidPasswordError {
-            w.WriteHeader(http.StatusUnauthorized)
-            fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
-            return;
-        } else {
-            w.WriteHeader(http.StatusInternalServerError);
-            fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
-            return
-        }
+        return
     }
 
-    device, err := conn.CreateDevice("Pending Device", nil, datalayer.NoAccess);
+    device, err := conn.CreateDevice("Pending Device", nil, "", datalayer.NoAccess);
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Println(err)
@@ -69,6 +100,6 @@ func POST_create_device(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    fmt.Fprintf(w, "{\"success\" : true, \"device_id\" : \"%s\"}", device.ID().String())
+    fmt.Fprintf(w, "{\"result\" : \"ok\", \"device_id\" : \"%s\"}", device.ID().String())
     return
 }

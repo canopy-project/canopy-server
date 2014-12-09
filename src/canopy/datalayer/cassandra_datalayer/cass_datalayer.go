@@ -222,6 +222,7 @@ var creationQueries []string = []string{
 
     `CREATE TABLE devices (
         device_id uuid,
+        secret_key text,
         friendly_name text,
         sddl text,
         public_access_level int,

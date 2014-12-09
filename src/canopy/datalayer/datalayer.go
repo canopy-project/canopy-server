@@ -77,8 +77,9 @@ type Connection interface {
     CreateAccount(username, email, password string) (Account, error)
 
     // Create a new device in the database.  If <uuid> is nil, then the
-    // implementation will assign a newly created UUID.
-    CreateDevice(name string, uuid *gocql.UUID, publicAccessLevel AccessLevel) (Device, error)
+    // implementation will assign a newly created UUID.  If <secretKey> is nil,
+    // then the implementation will assign a newly created Secret Key.
+    CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel AccessLevel) (Device, error)
 
     // Remove a user account from the database.
     DeleteAccount(username string)

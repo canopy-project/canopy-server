@@ -29,6 +29,7 @@ func AddRoutes(r *mux.Router) {
     r.HandleFunc("/api/device/{id}", endpoints.POST_device__id).Methods("POST")
     r.HandleFunc("/api/device/{id}/{sensor}", endpoints.GET_device__id__sensor).Methods("GET")
     r.HandleFunc("/api/devices", endpoints.GET_devices).Methods("GET")
+    r.HandleFunc("/api/me/devices", endpoints.GET_devices).Methods("GET")
     r.HandleFunc("/api/share", endpoints.POST_share).Methods("POST")
     r.HandleFunc("/api/finish_share_transaction", endpoints.POST_finish_share_transaction).Methods("POST")
     r.HandleFunc("/api/login", endpoints.POST_login).Methods("POST")
