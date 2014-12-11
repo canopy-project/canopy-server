@@ -15,17 +15,26 @@
 package config
 
 type Config interface {
+    DumpToString() string
+
     LoadConfig() error
     LoadConfigFile(filename string) error
     LoadConfigJson(jsonObj map[string]interface{}) error
+    LoadConfigCLI() error
+    LoadConfigEnv() error
 
+    OptAllowAnonDevices() bool
     OptAllowOrigin() string
+    OptForwardOtherHosts() string
     OptHostname() string
-    OptDefaultProxyTarget() string
-    OptWebManagerPath() string
+    OptHTTPPort() int16
     OptJavascriptClientPath() string
+    OptLogFile() string
+    OptWebManagerPath() string
 }
 
 func NewDefaultConfig() Config {
-    return &CanopyConfig{}
+    return &CanopyConfig{
+        httpPort: 80,
+    }
 }

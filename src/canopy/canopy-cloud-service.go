@@ -28,7 +28,6 @@ import (
     "canopy/rest"
     "canopy/webapp"
     "canopy/ws"
-    "flag"
     "os"
     "os/signal"
     "syscall"
@@ -76,56 +75,44 @@ func main() {
         os.Exit(1)
     }()
 
-    //gConfAllowOrigin = os.Getenv("CCS_ALLOW_ORIGIN");
-    allowOrigin := flag.String("allow-origin", "", "Allow CORS origin")
-    hostname := flag.String("hostname", "", "Hostname of server")
-    defaultProxyTarget := flag.String("default-proxy-target", "", "Proxy destination for all requests to other hosts")
-    webManagerPath := flag.String("web-manager-path", "", "Path to web manager")
-    jsClientPath := flag.String("js-client-path", "", "Path to JS client")
-    flag.Parse()
-    gConfAllowOrigin = *allowOrigin
-    if (gConfAllowOrigin == "") {
-        canolog.Error("Expected parameter -allow-origin")
+    if (cfg.OptHostname() == "") {
+        canolog.Error("You must set the configuration option \"hostname\"")
         return
     }
-    if (hostname == nil || *hostname == "") {
-        canolog.Error("Expected parameter -hostname")
-        return
-    }
-    canolog.Info(`SETTINGS:
-allow-origin: `, gConfAllowOrigin, `
-hostname: `, *hostname, `
-default-proxy-target: `, *defaultProxyTarget, `
-web-manager-path: `, *webManagerPath, `
-js-client-path: `, *jsClientPath)
 
-    if (*defaultProxyTarget != "") {
-        canolog.Info("Requests to hosts other than ", *hostname, " will be forwarded to ", *defaultProxyTarget)
-        targetUrl, _ := url.Parse(*defaultProxyTarget)
+    canolog.Info(cfg.DumpToString())
+
+    if (cfg.OptForwardOtherHosts() != "") {
+        canolog.Info("Requests to hosts other than ", cfg.OptHostname(), " will be forwarded to ", cfg.OptForwardOtherHosts())
+        targetUrl, _ := url.Parse(cfg.OptForwardOtherHosts())
         reverseProxy := httputil.NewSingleHostReverseProxy(targetUrl)
         http.Handle("/", reverseProxy)
     } else {
         canolog.Info("No reverse proxy for other hosts consfigured.")
     }
 
-    http.Handle(*hostname + "/echo", websocket.Handler(ws.CanopyWebsocketServer))
+    hostname := cfg.OptHostname()
+    webManagerPath := cfg.OptWebManagerPath()
+    jsClientPath := cfg.OptJavascriptClientPath()
+    httpPort := cfg.OptHTTPPort()
+    http.Handle(hostname + "/echo", websocket.Handler(ws.CanopyWebsocketServer))
 
     webapp.AddRoutes(r)
     rest.AddRoutes(r)
 
-    http.Handle(*hostname + "/", r)
+    http.Handle(hostname + "/", r)
 
-    if (*webManagerPath != "") {
-        http.Handle(*hostname + "/mgr/", http.StripPrefix("/mgr/", http.FileServer(http.Dir(*webManagerPath))))
+    if (webManagerPath != "") {
+        http.Handle(hostname + "/mgr/", http.StripPrefix("/mgr/", http.FileServer(http.Dir(webManagerPath))))
     }
 
-    if (*jsClientPath != "") {
-        http.Handle(*hostname + "/canopy-js-client/", http.StripPrefix("/canopy-js-client/", http.FileServer(http.Dir(*jsClientPath))))
+    if (jsClientPath != "") {
+        http.Handle(hostname + "/canopy-js-client/", http.StripPrefix("/canopy-js-client/", http.FileServer(http.Dir(jsClientPath))))
     }
 
     //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
     srv := &http.Server{
-        Addr: ":80",
+        Addr: fmt.Sprintf(":%d", httpPort),
         Handler: context.ClearHandler(http.DefaultServeMux),
         //ReadTimeout: 10*time.Second,
         //WriteTimeout: 10*time.Second,
