@@ -24,6 +24,7 @@ import (
     "github.com/gorilla/context"
     "github.com/gorilla/mux"
     "canopy/canolog"
+    "canopy/config"
     "canopy/rest"
     "canopy/webapp"
     "canopy/ws"
@@ -48,6 +49,13 @@ func main() {
         return
     }
     canolog.Info("Starting Canopy Cloud Service")
+
+    cfg := config.NewDefaultConfig()
+    err = cfg.LoadConfig()
+    if err != nil {
+        canolog.Error("Configuration error: %s", err)
+        return
+    }
 
     // handle SIGINT & SIGTERM
     defer shutdown()
