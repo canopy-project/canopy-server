@@ -16,18 +16,21 @@
 package endpoints
 
 import (
-    "fmt"
     "net/http"
     "canopy/rest/adapter"
     "canopy/rest/rest_errors"
 )
 
 func GET_info(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
-    fmt.Fprintf(w, `{
+    return map[string]interface{}{
+        "service-name" : "Canopy Cloud Service",
+        "version" : "0.9.0-beta",
+        "config" : info.Config.ToJsonObject(),
+    }, nil
+    /*fmt.Fprintf(w, `{
     "service-name" : "Canopy Cloud Service",
     "version" : "0.9.0-beta",
-    "dbconn" : "%p",
-}`, info.Conn)
-    return nil, nil
+    "config" : "0.9.0-beta",
+}`, info.Conn)*/
 }
 

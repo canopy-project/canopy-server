@@ -31,10 +31,11 @@ type CanopyConfig struct {
     httpPort int16
     logFile string
     webManagerPath string
+    productionSecret string
     javascriptClientPath string
 }
 
-func (config *CanopyConfig) DumpToString() string {
+func (config *CanopyConfig) ToString() string {
     return fmt.Sprint(`SERVER CONFIG SETTINGS:
 allow-anon-devices:  `, config.allowAnonDevices, `
 allow-origin:        `, config.allowOrigin, `
@@ -44,6 +45,19 @@ http-port:           `, config.httpPort, `
 js-client-path:      `, config.javascriptClientPath, `
 log-file:            `, config.logFile, `
 web-manager-path:    `, config.webManagerPath)
+}
+
+func (config *CanopyConfig) ToJsonObject() map[string]interface{}{
+    return map[string]interface{} {
+        "allow-anon-devices" : config.allowAnonDevices,
+        "allow-origin" : config.allowOrigin,
+        "forward-other-hosts" : config.forwardOtherHosts,
+        "hostname" : config.hostname,
+        "http-port" : config.httpPort,
+        "js-client-path" : config.javascriptClientPath,
+        "log-file" : config.logFile,
+        "web-manager-path" : config.webManagerPath,
+    }
 }
 
 func (config *CanopyConfig) LoadConfig() error {
@@ -130,6 +144,11 @@ func (config *CanopyConfig) LoadConfigEnv() error {
         config.logFile = logFile
     }
 
+    productionSecret := os.Getenv("CCS_PRODUCTION_SECRET")
+    if productionSecret != "" {
+        config.productionSecret = productionSecret
+    }
+
     webMgrPath := os.Getenv("CCS_WEB_MANAGER_PATH")
     if webMgrPath != "" {
         config.webManagerPath = webMgrPath
@@ -146,6 +165,7 @@ func (config *CanopyConfig) LoadConfigCLI() error {
     httpPort := flag.String("http-port", "", "")
     jsClientPath := flag.String("js-client-path", "", "")
     logFile := flag.String("log-file", "", "")
+    productionSecret := flag.String("production-secret", "", "")
     webMgrPath := flag.String("web-manager-path", "", "")
 
     flag.Parse()
@@ -186,6 +206,10 @@ func (config *CanopyConfig) LoadConfigCLI() error {
 
     if *logFile != "" {
         config.logFile = *logFile
+    }
+
+    if *productionSecret != "" {
+        config.productionSecret = *productionSecret
     }
 
     if *webMgrPath != "" {
@@ -239,6 +263,8 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.javascriptClientPath, ok = v.(string)
         case "log-file": 
             config.logFile, ok = v.(string)
+        case "production-secret": 
+            config.productionSecret, ok = v.(string)
         case "web-manager-path": 
             config.webManagerPath, ok = v.(string)
         default:
@@ -276,6 +302,10 @@ func (config *CanopyConfig) OptJavascriptClientPath() string {
 }
 
 func (config *CanopyConfig) OptLogFile() string {
+    return config.logFile
+}
+
+func (config *CanopyConfig) OptProductionSecret() string {
     return config.logFile
 }
 

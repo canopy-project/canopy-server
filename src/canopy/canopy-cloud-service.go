@@ -90,7 +90,7 @@ func main() {
         return
     }
 
-    canolog.Info(cfg.DumpToString())
+    canolog.Info(cfg.ToString())
 
     if (cfg.OptForwardOtherHosts() != "") {
         canolog.Info("Requests to hosts other than ", cfg.OptHostname(), " will be forwarded to ", cfg.OptForwardOtherHosts())

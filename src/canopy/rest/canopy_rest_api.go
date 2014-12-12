@@ -20,11 +20,14 @@ import (
     "canopy/rest/adapter"
     "canopy/rest/endpoints"
     "github.com/gorilla/mux"
+    "github.com/gorilla/sessions"
 )
 
 func AddRoutes(r *mux.Router, cfg config.Config) {
+    store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
+
     // TODO: Need to handle allow-origin correctly!
-    r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, cfg)).Methods("GET")
+    r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, cfg, store)).Methods("GET")
     r.HandleFunc("/api/create_account", endpoints.POST_create_account).Methods("POST")
     r.HandleFunc("/api/create_device", endpoints.POST_create_device).Methods("POST")
     r.HandleFunc("/api/device/{id}", endpoints.GET_device__id).Methods("GET")

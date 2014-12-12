@@ -15,7 +15,8 @@
 package config
 
 type Config interface {
-    DumpToString() string
+    ToString() string
+    ToJsonObject() map[string]interface{}
 
     LoadConfig() error
     LoadConfigFile(filename string) error
@@ -30,6 +31,7 @@ type Config interface {
     OptHTTPPort() int16
     OptJavascriptClientPath() string
     OptLogFile() string
+    OptProductionSecret() string
     OptWebManagerPath() string
 }
 

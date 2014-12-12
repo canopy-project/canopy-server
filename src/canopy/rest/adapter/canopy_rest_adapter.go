@@ -29,9 +29,6 @@ import(
     "strings"
 )
 
-// TODO!
-var store = sessions.NewCookieStore([]byte("my_production_secret"))
-
 // CanopyRestAuthTypeEnum is the type of authentication used in a request
 type CanopyRestAuthTypeEnum int
 const (
@@ -50,6 +47,7 @@ type CanopyRestInfo struct {
     Account datalayer.Account
     BodyObj map[string]interface{}
     Conn datalayer.Connection
+    Config config.Config
 }
 
 
@@ -79,9 +77,11 @@ func basicAuthFromRequest(r *http.Request) (username string, password string, er
     return parts[0], parts[1], nil
 }
 
-func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config) http.HandlerFunc {
+func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.CookieStore) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
-        info := CanopyRestInfo{}
+        info := CanopyRestInfo{
+            Config: cfg,
+        }
 
         // Log request
         canolog.Info("Request: ", r.Method, r.URL, " BY ", r.RemoteAddr)
@@ -178,7 +178,7 @@ func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config) http.HandlerFunc
 
         // On success, if jsonObj was returned:
         if jsonObj != nil {
-            jsonBytes, err := json.Marshal(jsonObj)
+            jsonBytes, err := json.MarshalIndent(jsonObj, "", "    ")
             if err != nil {
                 return
             }
