@@ -108,7 +108,7 @@ func main() {
     http.Handle(hostname + "/echo", websocket.Handler(ws.CanopyWebsocketServer))
 
     webapp.AddRoutes(r)
-    rest.AddRoutes(r)
+    rest.AddRoutes(r, cfg)
 
     http.Handle(hostname + "/", r)
 

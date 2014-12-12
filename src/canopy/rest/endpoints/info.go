@@ -18,15 +18,16 @@ package endpoints
 import (
     "fmt"
     "net/http"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
 )
 
-func GET_info(w http.ResponseWriter, r *http.Request) {
-    writeStandardHeaders(w);
-
+func GET_info(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
     fmt.Fprintf(w, `{
     "service-name" : "Canopy Cloud Service",
-    "version" : "0.8.0-alpha",
-}`)
-
+    "version" : "0.9.0-beta",
+    "dbconn" : "%p",
+}`, info.Conn)
+    return nil, nil
 }
 
