@@ -32,3 +32,37 @@ func (DatabaseConnectionError) WriteTo(w http.ResponseWriter) {
 func NewDatabaseConnectionError() CanopyRestError {
     return &DatabaseConnectionError{}
 }
+
+type NotLoggedInError struct {}
+func (NotLoggedInError) WriteTo(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusUnauthorized);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "not_logged_in"}`)
+}
+
+func NewNotLoggedInError() CanopyRestError {
+    return &NotLoggedInError{}
+}
+
+type BadInputError struct {
+    msg string
+}
+func (err BadInputError) WriteTo(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusBadRequest);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "bad_input", "error_msg" : "%s"}`, err.msg)
+}
+
+func NewBadInputError(msg string) CanopyRestError {
+    return &BadInputError{msg}
+}
+
+type InternalServerError struct {
+    msg string
+}
+func (err InternalServerError) WriteTo(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusInternalServerError);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "internal_error", "error_msg" : "%s"}`, err.msg)
+}
+
+func NewInternalServerError(msg string) CanopyRestError {
+    return &BadInputError{msg}
+}

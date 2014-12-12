@@ -23,14 +23,10 @@ import (
 
 func GET_info(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
     return map[string]interface{}{
+        "result" : "ok",
         "service-name" : "Canopy Cloud Service",
         "version" : "0.9.0-beta",
         "config" : info.Config.ToJsonObject(),
     }, nil
-    /*fmt.Fprintf(w, `{
-    "service-name" : "Canopy Cloud Service",
-    "version" : "0.9.0-beta",
-    "config" : "0.9.0-beta",
-}`, info.Conn)*/
 }
 

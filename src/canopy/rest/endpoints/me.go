@@ -16,44 +16,19 @@
 package endpoints
 
 import (
-    "fmt"
-    "canopy/datalayer/cassandra_datalayer"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
     "net/http"
 )
 
-func GET_me(w http.ResponseWriter, r *http.Request) {
-    writeStandardHeaders(w);
-    session, _ := store.Get(r, "canopy-login-session")
-
-    var username_string string
-    username, ok := session.Values["logged_in_username"]
-    if ok {
-        username_string, ok = username.(string)
-        if !(ok && username_string != "") {
-            writeNotLoggedInError(w);
-            return
-        }
-    } else {
-        writeNotLoggedInError(w);
-        return
+func GET_me(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    if info.Account == nil {
+        return nil, rest_errors.NewNotLoggedInError()
     }
-
-    dl := cassandra_datalayer.NewDatalayer()
-    conn, err := dl.Connect("canopy")
-    if err != nil {
-        writeDatabaseConnectionError(w)
-        return
-    }
-    defer conn.Close()
-
-    account, err := conn.LookupAccount(username_string)
-    if err != nil {
-        return
-    }
-
-    fmt.Fprintf(w, "{\"result\" : \"ok\", \"username\" : \"%s\", \"email\" : \"%s\"}",
-        account.Username(),
-        account.Email())
-    return
+    return map[string]interface{}{
+        "result" : "ok",
+        "username" : info.Account.Username(),
+        "email" : info.Account.Email(),
+    }, nil
 }
 

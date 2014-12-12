@@ -29,7 +29,7 @@ func AddRoutes(r *mux.Router, cfg config.Config) {
     // TODO: Need to handle allow-origin correctly!
     r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, cfg, store)).Methods("GET")
     r.HandleFunc("/api/create_account", endpoints.POST_create_account).Methods("POST")
-    r.HandleFunc("/api/create_device", endpoints.POST_create_device).Methods("POST")
+    r.HandleFunc("/api/create_devices", adapter.CanopyRestAdapter(endpoints.POST_create_devices, cfg, store)).Methods("POST")
     r.HandleFunc("/api/device/{id}", endpoints.GET_device__id).Methods("GET")
     r.HandleFunc("/api/device/{id}", endpoints.POST_device__id).Methods("POST")
     r.HandleFunc("/api/device/{id}/{sensor}", endpoints.GET_device__id__sensor).Methods("GET")
@@ -39,7 +39,7 @@ func AddRoutes(r *mux.Router, cfg config.Config) {
     r.HandleFunc("/api/finish_share_transaction", endpoints.POST_finish_share_transaction).Methods("POST")
     r.HandleFunc("/api/login", endpoints.POST_login).Methods("POST")
     r.HandleFunc("/api/logout", endpoints.GET_POST_logout)
-    r.HandleFunc("/api/me", endpoints.GET_me)
+    r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.GET_me, cfg, store)).Methods("GET")
     r.HandleFunc("/di/device/{id}", endpoints.POST_di__device__id).Methods("POST")
     r.HandleFunc("/di/device/{id}/notify", endpoints.POST_di__device__id__notify).Methods("POST")
 }

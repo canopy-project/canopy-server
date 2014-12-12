@@ -19,6 +19,8 @@ import(
     "canopy/canolog"
     "canopy/datalayer"
     "canopy/sddl"
+    "crypto/rand"
+    "encoding/base64"
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
 )
@@ -74,6 +76,15 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
     return &CassAccount{conn, username, email, password_hash}, nil
 }
 
+func randomSecretKey(numChars int) (string, error) {
+    randBytes := make([]byte, numChars)
+    _, err := rand.Read(randBytes)
+    if err != nil {
+        return "", err
+    }
+    return base64.StdEncoding.EncodeToString(randBytes), nil
+}
+
 func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
     // TODO: validate parameters 
     var id gocql.UUID
@@ -83,12 +94,15 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKe
         id = *uuid
     }
     
+    var err error
     if secretKey == "" {
-        // TODO
-        secretKey = "abcdefg12345"
+        secretKey, err = randomSecretKey(24)
+        if err != nil {
+            return nil, err
+        }
     }
     
-    err := conn.session.Query(`
+    err = conn.session.Query(`
             INSERT INTO devices (device_id, secret_key, friendly_name, public_access_level)
             VALUES (?, ?, ?, ?)
     `, id, secretKey, name, publicAccessLevel).Exec()
@@ -99,6 +113,7 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKe
     return &CassDevice{
         conn: conn,
         deviceId: id,
+        secretKey: secretKey,
         name: name,
         doc: sddl.Sys.NewEmptyDocument(),
         docString: "",
@@ -183,11 +198,12 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
     device.conn = conn
 
     err := conn.session.Query(`
-        SELECT friendly_name, sddl
+        SELECT friendly_name, secret_key, sddl
         FROM devices
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
+            &device.secretKey,
             &device.docString)
     if err != nil {
         return nil, err

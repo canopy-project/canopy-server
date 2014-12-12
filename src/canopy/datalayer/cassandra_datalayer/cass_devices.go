@@ -29,11 +29,12 @@ import (
 type CassDevice struct {
     conn *CassConnection
     deviceId gocql.UUID
-    name string
-    locationNote string
     doc sddl.Document
     docString string
+    locationNote string
+    name string
     publicAccessLevel datalayer.AccessLevel
+    secretKey string
 }
 
 func tableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
@@ -195,6 +196,11 @@ func (device *CassDevice) HistoricDataByName(cloudVarName string, startTime, end
 
 func (device *CassDevice) ID() gocql.UUID {
     return device.deviceId
+}
+
+
+func (device *CassDevice) SecretKey() string {
+    return device.secretKey
 }
 
 func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, error) {

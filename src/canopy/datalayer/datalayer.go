@@ -173,6 +173,10 @@ type Device interface {
     // provisioned devices that haven't sent any reports yet).
     SDDLDocumentString() string
 
+    // Get the Secret Key for this device.  The Secret Key is used to
+    // authenticate messages coming from the device.
+    SecretKey() string
+
     // Set the access and sharing permissions that an account has for this
     // device.
     SetAccountAccess(account Account, access AccessLevel, sharing ShareLevel) error
