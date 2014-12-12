@@ -32,10 +32,6 @@ CONFDIR=/etc/canopy
 CCS_BIN=/usr/local/bin/canopy-cloud-service
 test -x $CCS_BIN || echo "$CCS_BIN not installed" || exit 0
 
-CCS_CONFIG=/etc/canopy/ccs-env.sh
-test -r $CCS_CONFIG || echo "$CCS_CONFIG not found" || exit 0
-. $CCS_CONFIG
-
 # Load the VERBOSE setting and other rcS variables
 . /lib/init/vars.sh
 
@@ -74,7 +70,7 @@ do_start()
         install -d -ocanopy -gcanopy -m750 `dirname $PIDFILE`
 
     start-stop-daemon -S -c root -a /usr/local/bin/canopy-cloud-service -q -p "$PIDFILE" -t >/dev/null || return 1
-    start-stop-daemon -S -c root -a /usr/local/bin/canopy-cloud-service -b -m -p "$PIDFILE" -- --js-client-path="$CCS_JS_CLIENT_PATH" --web-manager-path="$CCS_WEB_MANAGER_PATH" --allow-origin="$CCS_ALLOW_ORIGIN" --hostname="$CCS_HOSTNAME" --default-proxy-target="$CCS_DEFAULT_PROXY_TARGET" > /dev/null || return 2
+    start-stop-daemon -S -c root -a /usr/local/bin/canopy-cloud-service -b -m -p "$PIDFILE" -- > /dev/null || return 2
 }
 
 #

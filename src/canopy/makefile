@@ -50,7 +50,7 @@ install:
 	cp $(TARGETS) /usr/local/bin
 	cp ../../scripts/canopy-cloud-service /etc/init.d
 	mkdir -p /etc/canopy
-	cp ../../scripts/ccs-env.sh /etc/canopy
+	cp -u ../../scripts/server.conf /etc/canopy
 	../../scripts/create-canopy-group-user.sh
 	mkdir -p /var/log/canopy
 	touch /var/log/canopy/ccs.log
