@@ -25,7 +25,7 @@ package canolog
 
 import (
     "log"
-    "io"
+    //"io"
     "os"
     "fmt"
 )
@@ -64,14 +64,16 @@ func Init(logFilename string) error {
     }
     std.logger = log.New(std.logFile, "", log.LstdFlags | log.Lshortfile)
 
-    std.errorLogFile, err = os.OpenFile("/var/log/canopy/ccs-errors.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666);
+    std.errorLogger = log.New(std.logFile, "ERROR ", log.LstdFlags | log.Lshortfile)
+    std.warnLogger = log.New(std.logFile, "WARN ", log.LstdFlags | log.Lshortfile)
+    /*std.errorLogFile, err = os.OpenFile("/var/log/canopy/ccs-errors.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666);
     if err != nil {
         fmt.Println("Error opening file /var/log/canopy/ccs-errors.log: ", err)
         fmt.Println("Falling back to STDOUT for logging")
         return InitFallback()
     }
-    /*std.errorLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "ERROR ", log.LstdFlags | log.Lshortfile)
-    std.warnLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "WARN ", log.LstdFlags | log.Lshortfile)
+    std.errorLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "ERROR ", log.LstdFlags | log.Lshortfile)
+    std.warnLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "WARN ", log.LstdFlags | log.Lshortfile)*/
 
     return nil
 }
