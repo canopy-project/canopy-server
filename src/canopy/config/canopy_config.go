@@ -282,3 +282,15 @@ func (config *CanopyConfig) OptLogFile() string {
 func (config *CanopyConfig) OptWebManagerPath() string {
     return config.webManagerPath
 }
+
+func justGetOptLogFile() string {
+    out := "/var/log/canopy/canopy-server.log"
+
+    logFile := os.Getenv("CCS_LOG_FILE")
+    if logFile != "" {
+        out = logFile
+    }
+
+    // TODO: also read config files and command-line
+    return out;
+}

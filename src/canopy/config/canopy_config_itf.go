@@ -36,5 +36,12 @@ type Config interface {
 func NewDefaultConfig() Config {
     return &CanopyConfig{
         httpPort: 80,
+        logFile: "/var/log/canopy/canopy-server.log",
     }
+}
+
+// Reads the "log-file" option without reading the whole config.  This allows
+// us to log errors relating to configuration to the right place.
+func JustGetOptLogFile() string {
+    return justGetOptLogFile()
 }

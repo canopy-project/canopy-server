@@ -42,19 +42,29 @@ func shutdown() {
 func main() {
     r := mux.NewRouter()
 
-    err := canolog.Init()
+    cfg := config.NewDefaultConfig()
+    err := cfg.LoadConfig()
+    if err != nil {
+        logFilename := config.JustGetOptLogFile()
+
+        err := canolog.Init(logFilename)
+        if err != nil {
+            fmt.Println(err)
+            return
+        }
+        canolog.Info("Starting Canopy Cloud Service")
+        canolog.Error("Configuration error: %s", err)
+        canolog.Info("Exiting")
+        return
+    }
+
+    err = canolog.Init(cfg.OptLogFile())
     if err != nil {
         fmt.Println(err)
         return
     }
-    canolog.Info("Starting Canopy Cloud Service")
 
-    cfg := config.NewDefaultConfig()
-    err = cfg.LoadConfig()
-    if err != nil {
-        canolog.Error("Configuration error: %s", err)
-        return
-    }
+    canolog.Info("Starting Canopy Cloud Service")
 
     // handle SIGINT & SIGTERM
     defer shutdown()

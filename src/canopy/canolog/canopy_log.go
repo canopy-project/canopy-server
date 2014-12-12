@@ -25,8 +25,8 @@ package canolog
 
 import (
     "log"
-    "os"
     "io"
+    "os"
     "fmt"
 )
 
@@ -54,11 +54,11 @@ func InitFallback() error {
 }
 
 // Initialize Canopy logger
-func Init() error {
+func Init(logFilename string) error {
     var err error
-    std.logFile, err = os.OpenFile("/var/log/canopy/ccs.log", os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666);
+    std.logFile, err = os.OpenFile(logFilename, os.O_RDWR | os.O_CREATE | os.O_APPEND, 0666);
     if err != nil {
-        fmt.Println("Error opening file /var/log/canopy/ccs.log: ", err)
+        fmt.Println("Error opening file " + logFilename + ": ", err)
         fmt.Println("Falling back to STDOUT for logging")
         return InitFallback()
     }
@@ -70,7 +70,7 @@ func Init() error {
         fmt.Println("Falling back to STDOUT for logging")
         return InitFallback()
     }
-    std.errorLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "ERROR ", log.LstdFlags | log.Lshortfile)
+    /*std.errorLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "ERROR ", log.LstdFlags | log.Lshortfile)
     std.warnLogger = log.New(io.MultiWriter(std.errorLogFile, std.logFile), "WARN ", log.LstdFlags | log.Lshortfile)
 
     return nil

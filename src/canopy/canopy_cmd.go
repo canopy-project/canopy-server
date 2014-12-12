@@ -27,7 +27,7 @@ import (
 )
 
 func main() {
-    err := canolog.Init()
+    err := canolog.Init("/var/log/canopy/canotool.log")
     if (err != nil) {
         fmt.Println(err)
         return
