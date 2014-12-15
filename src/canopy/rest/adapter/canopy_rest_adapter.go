@@ -48,6 +48,7 @@ type CanopyRestInfo struct {
     BodyObj map[string]interface{}
     Conn datalayer.Connection
     Config config.Config
+    Session *sessions.Session
 }
 
 
@@ -122,12 +123,14 @@ func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.
                 }
             }
             
+            canolog.Info("Basic auth provided")
             info.AuthType = CANOPY_REST_AUTH_BASIC
             info.Account = acct
         }
 
         // Check for session-based AUTH
         session, _ := store.Get(r, "canopy-login-session")
+        info.Session = session
 
         username, ok := session.Values["logged_in_username"]
         if ok {
@@ -140,10 +143,14 @@ func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.
                 return
             }
 
+            canolog.Info("Session auth provided")
             info.AuthType = CANOPY_REST_AUTH_SESSION
             info.Account = acct
         }
 
+        if info.Account == nil {
+            canolog.Info("No auth provided")
+        }
         // Parse the JSON payload
         // TODO: better way to figure out if there is a message body?
         var data map[string]interface{}

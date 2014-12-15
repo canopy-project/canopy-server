@@ -16,60 +16,36 @@
 package endpoints
 
 import (
-    "encoding/json"
-    "fmt"
-    "github.com/gorilla/sessions"
-    "canopy/datalayer/cassandra_datalayer"
     "net/http"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
 )
 
-var store = sessions.NewCookieStore([]byte("my_production_secret"))
-
-func POST_login(w http.ResponseWriter, r *http.Request) {
-    writeStandardHeaders(w);
-
-    var data map[string]interface{}
-    decoder := json.NewDecoder(r.Body)
-    err := decoder.Decode(&data)
-    if err != nil {
-        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
-        return
-    }
-
-    username, ok := data["username"].(string)
+func POST_login(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    username, ok := info.BodyObj["username"].(string)
     if !ok {
-        fmt.Fprintf(w, "{\"error\" : \"string_username_expected\"}")
-        return
+        return nil, rest_errors.NewBadInputError("String \"username\" expected")
     }
 
-    password, ok := data["password"].(string)
+    password, ok := info.BodyObj["password"].(string)
     if !ok {
-        fmt.Fprintf(w, "{\"error\" : \"string_password_expected\"}")
-        return
+        return nil, rest_errors.NewBadInputError("String \"password\" expected")
     }
 
-    session, _ := store.Get(r, "canopy-login-session")
-    dl := cassandra_datalayer.NewDatalayer()
-    conn, err := dl.Connect("canopy")
+    account, err := info.Conn.LookupAccountVerifyPassword(username, password)
     if err != nil {
-        writeDatabaseConnectionError(w)
-        return
+        return nil, rest_errors.NewIncorrectUsernameOrPasswordError()
     }
-    defer conn.Close()
-    account, err := conn.LookupAccountVerifyPassword(username, password)
-    if err == nil {
-        session.Values["logged_in_username"] = username
-        err := session.Save(r, w)
-        if err != nil {
-            fmt.Fprintf(w, "{\"error\" : \"saving_session\"}")
-            return
-        }
-        fmt.Fprintf(w, "{\"result\" : \"ok\", \"username\" : \"%s\", \"email\" : \"%s\"}",
-            account.Username(),
-            account.Email())
-        return
-    } else {
-        writeIncorrectUsernameOrPasswordError(w);
-        return
+
+    info.Session.Values["logged_in_username"] = username
+    err = info.Session.Save(r, w)
+    if err != nil {
+        return nil, rest_errors.NewInternalServerError("Problem saving session")
+    }
+
+    out := map[string]interface{} {
+        "result" : "ok",
+        "username" : account.Username(),
+        "email" : account.Email(),
     }
 }
