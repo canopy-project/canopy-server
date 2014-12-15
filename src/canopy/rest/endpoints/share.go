@@ -1,29 +1,26 @@
-/*
- * Copyright 2014 Gregory Prisament
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 SimpleThings, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package endpoints
 
 import (
-    "canopy/datalayer/cassandra_datalayer"
     "canopy/mail"
-    "encoding/json"
-    "fmt"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
     "net/http"
 )
 
-func POST_share(w http.ResponseWriter, r *http.Request) {
+func POST_share(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
     /*
      *  POST
      *  {
@@ -35,36 +32,14 @@ func POST_share(w http.ResponseWriter, r *http.Request) {
      *
      * TODO: Add to REST API documentation
      */
-    var data map[string]interface{}
-    writeStandardHeaders(w);
-    session, _ := store.Get(r, "canopy-login-session")
-
-    decoder := json.NewDecoder(r.Body)
-    err := decoder.Decode(&data)
-    if err != nil {
-        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
-        return
-    }
-
-    deviceId, ok := data["device_id"].(string)
+    deviceId, ok := info.BodyObj["device_id"].(string)
     if !ok {
-        fmt.Fprintf(w, "{\"error\" : \"device_id expected\"}")
-        return
+        return nil, rest_errors.NewBadInputError("String \"device_id\" expected")
     }
 
-    dl := cassandra_datalayer.NewDatalayer()
-    conn, err := dl.Connect("canopy")
+    device, err := info.Conn.LookupDeviceByStringID(deviceId)
     if err != nil {
-        writeDatabaseConnectionError(w)
-        return
-    }
-    defer conn.Close()
-
-    device, err := conn.LookupDeviceByStringID(deviceId)
-    if err != nil {
-        w.WriteHeader(http.StatusBadRequest);
-        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
-        return
+        return nil, rest_errors.NewBadInputError("Device not found")
     }
 
     //accessLevel, ok := data["access_level"].(int)
@@ -81,43 +56,23 @@ func POST_share(w http.ResponseWriter, r *http.Request) {
         return
     }*/
 
-    email, ok := data["email"].(string)
+    email, ok := info.BodyObj["email"].(string)
     if !ok {
-        fmt.Fprintf(w, "{\"error\" : \"email expected\"}")
-        return
-    }
-    var username_string string
-    username, ok := session.Values["logged_in_username"]
-    if ok {
-        username_string, ok = username.(string)
-        if !(ok && username_string != "") {
-            writeNotLoggedInError(w);
-            return
-        }
-    } else {
-        writeNotLoggedInError(w);
-        return
+        return nil, rest_errors.NewBadInputError("String \"email\" expected")
     }
 
-    account, err := conn.LookupAccount(username_string)
-    if account == nil || err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
-        return
+    if info.Account == nil {
+        return nil, rest_errors.NewNotLoggedInError()
     }
 
     mailer, err := mail.NewDefaultMailClient()
     if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"Failed to initialize mail client\"}")
-        return
+        return nil, rest_errors.NewInternalServerError("Error initializing mail client")
     }
     mail := mailer.NewMail();
     err = mail.AddTo(email, "")
     if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"Invalid email recipient\"}")
-        return
+        return nil, rest_errors.NewBadInputError("Invalid email recipient")
     }
     mail.SetSubject(device.Name())
     mail.SetHTML(`
@@ -131,11 +86,10 @@ devices.  Learn more at <a href=http://devel.canopy.link>http://canopy.link</a>
     mail.SetFrom("greg@canopy.link", "greg (via Canopy)")
     err = mailer.Send(mail)
     if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"Error sending email\"}")
-        return
+        return nil, rest_errors.NewInternalServerError("Error sending mail")
     }
 
-    fmt.Fprintf(w, "{\"result\" : \"ok\"}");
-    return
+    return map[string]interface{} {
+        "result" : "ok",
+    }, nil
 }

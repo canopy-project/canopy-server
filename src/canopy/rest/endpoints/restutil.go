@@ -28,7 +28,7 @@ import (
 )
 
 // TODO: Need to handle allow-origin correctly!
-var gConfAllowOrigin = "http://74.93.13.249:8080"
+//var gConfAllowOrigin = "http://74.93.13.249:8080"
 
 var gPigeon = pigeon.InitPigeonSystem()
 func writeDatabaseConnectionError(w http.ResponseWriter) {
@@ -50,12 +50,12 @@ func writeIncorrectUsernameOrPasswordError(w http.ResponseWriter) {
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "incorrect_username_or_password"}`);
 }
 
-func writeStandardHeaders(w http.ResponseWriter) {
+/*func writeStandardHeaders(w http.ResponseWriter) {
     w.Header().Set("Connection", "close")
     w.Header().Set("Content-Type", "application/json")
     w.Header().Set("Access-Control-Allow-Origin", gConfAllowOrigin)
     w.Header().Set("Access-Control-Allow-Credentials", "true")
-}
+}*/
 
 func basicAuthFromRequest(r *http.Request) (username string, password string, err error) {
     h, ok := r.Header["Authorization"]
@@ -217,10 +217,7 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
 
     outDoc := device.SDDLDocument()
     if outDoc != nil {
-        outDocJson := outDoc.Json()
-
         // get most recent value of each sensor/control
-        varValues := map[string]jsonSample{}
         for _, varDef := range outDoc.VarDefs() {
             sample, err := device.LatestDataByName(varDef.Name())
             if err != nil {
