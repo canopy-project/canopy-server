@@ -21,8 +21,10 @@ import(
     "canopy/sddl"
     "crypto/rand"
     "encoding/base64"
+    "fmt"
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
+    "regexp"
 )
 
 type CassConnection struct {
@@ -53,8 +55,56 @@ func (conn *CassConnection) Close() {
     conn.session.Close()
 }
 
+func validateUsername(username string) error {
+    if username == "leela" {
+        return fmt.Errorf("Username reserved")
+    }
+    if len(username) < 5 {
+        return fmt.Errorf("Username too short")
+    }
+    if len(username) > 24 {
+        return fmt.Errorf("Username too long")
+    }
+    matched, err := regexp.MatchString("[a-zA-Z][a-zA-Z0-9_]+", username)
+    if !matched || err != nil {
+        return fmt.Errorf("Invalid characters in username")
+    }
+
+    return nil
+}
+
+func validatePassword(password string) error {
+    if len(password) < 6 {
+        return fmt.Errorf("Password too short")
+    }
+    if len(password) > 120 {
+        return fmt.Errorf("Password too long")
+    }
+    return nil
+}
+
+func validateEmail(email string) error {
+    // TODO
+    return nil
+}
+
 func (conn *CassConnection) CreateAccount(username, email, password string) (datalayer.Account, error) {
     password_hash, _ := bcrypt.GenerateFromPassword([]byte(password + salt), hashCost)
+
+    err := validateUsername(username)
+    if err != nil {
+        return nil, err
+    }
+
+    err = validateEmail(email)
+    if err != nil {
+        return nil, err
+    }
+
+    err = validatePassword(password)
+    if err != nil {
+        return nil, err
+    }
 
     // TODO: transactionize
     if err := conn.session.Query(`

@@ -140,17 +140,19 @@ func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.
         username, ok := session.Values["logged_in_username"]
         if ok {
             username_string, ok = username.(string)
+            if ok && username_string != "" {
+                canolog.Info("Looking up account: ", username_string)
+                acct, err := conn.LookupAccount(username_string)
+                if err != nil {
+                    w.WriteHeader(http.StatusInternalServerError);
+                    fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+                    return
+                }
 
-            acct, err := conn.LookupAccount(username_string)
-            if err != nil {
-                w.WriteHeader(http.StatusInternalServerError);
-                fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
-                return
+                canolog.Info("Session auth provided")
+                info.AuthType = CANOPY_REST_AUTH_SESSION
+                info.Account = acct
             }
-
-            canolog.Info("Session auth provided")
-            info.AuthType = CANOPY_REST_AUTH_SESSION
-            info.Account = acct
         }
 
         if info.Account == nil {

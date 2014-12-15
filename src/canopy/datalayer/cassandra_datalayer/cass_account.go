@@ -22,7 +22,7 @@ import (
     "code.google.com/p/go.crypto/bcrypt"
 )
 
-// Salt is added to passwords.  TODO: don't reveal in source code!
+// Salt is added to passwords.  TODO: INSECURE: don't reveal in source code!
 var salt = "aik897sipz0Z*@4:zikp"
 
  // Computational cost of between 4 and 31.. 14 takes about 1 sec to compute
