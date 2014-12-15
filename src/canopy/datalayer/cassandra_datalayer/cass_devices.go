@@ -491,6 +491,10 @@ func (device *CassDevice) LatestDataByName(varName string) (*cloudvar.CloudVarSa
     return device.LatestData(varDef)
 }
 
+func (device *CassDevice) LocationNote() string {
+    return device.locationNote
+}
+
 func (device *CassDevice) LookupVarDef(varName string) (sddl.VarDef, error) {
     doc := device.SDDLDocument()
     if doc == nil {

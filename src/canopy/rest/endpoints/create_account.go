@@ -1,103 +1,63 @@
-/*
- * Copyright 2014 Gregory Prisament
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014 SimpleThings, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package endpoints
 
 import (
-    "encoding/json"
-    "fmt"
-    "canopy/datalayer/cassandra_datalayer"
-    "canopy/canolog"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
     //"canopy/mail"
     "net/http"
 )
 
-func POST_create_account(w http.ResponseWriter, r *http.Request) {
-    canolog.Trace("POST_create_account")
-    writeStandardHeaders(w);
-
-    canolog.Trace("Decoding payload")
-    var data map[string]interface{}
-    decoder := json.NewDecoder(r.Body)
-    err := decoder.Decode(&data)
-    if err != nil {
-        fmt.Fprintf(w, "{\"error\" : \"json_decode_failed\"}")
-        return
-    }
-
-    canolog.Trace("Reading username")
-    username, ok := data["username"].(string)
+func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    username, ok := info.BodyObj["username"].(string)
     if !ok {
-        fmt.Fprintf(w, "{\"error\" : \"string_username_expected\"}")
-        return
+        return nil, rest_errors.NewBadInputError("String \"username\" expected")
     }
 
-    canolog.Trace("Reading email")
-    email, ok := data["email"].(string)
+    email, ok := info.BodyObj["email"].(string)
     if !ok {
-        fmt.Fprintf(w, "{\"error\" : \"string_email_expected\"}")
-        return
+        return nil, rest_errors.NewBadInputError("String \"email\" expected")
     }
 
-    canolog.Trace("Reading password")
-    password, ok := data["password"].(string)
+    password, ok := info.BodyObj["password"].(string)
     if !ok {
-        fmt.Fprintf(w, "{\"error\" : \"string_password_expected\"}")
-        return
+        return nil, rest_errors.NewBadInputError("String \"password\" expected")
     }
 
-    canolog.Trace("Getting session")
-    session, _ := store.Get(r, "canopy-login-session")
-
-    canolog.Trace("Connecting to DB")
-    dl := cassandra_datalayer.NewDatalayer()
-    conn, err := dl.Connect("canopy")
-    if err != nil {
-        writeDatabaseConnectionError(w)
-        return
-    }
-    defer conn.Close()
-
-    account, err := conn.LookupAccount(username)
+    account, err := info.Conn.LookupAccount(username)
     if err == nil {
-        fmt.Fprintf(w, "{\"error\" : \"username_already_taken\"}")
-        return
+        return nil, rest_errors.NewUsernameTakenError()
     }
 
-    account, err = conn.LookupAccount(email)
+    account, err = info.Conn.LookupAccount(email)
     if err == nil {
-        fmt.Fprintf(w, "{\"error\" : \"email_already_taken\"}")
-        return
+        return nil, rest_errors.NewEmailTakenError()
     }
 
-    canolog.Trace("Creating acct")
-    account, err = conn.CreateAccount(username, email, password)
+    account, err = info.Conn.CreateAccount(username, email, password)
     if err != nil {
-        fmt.Fprintf(w, "{\"error\" : \"creating_account\"}")
-        return
+        return nil, rest_errors.NewInternalServerError("Problem Creating Account")
     }
 
-    canolog.Trace("Updating Session")
-    session.Values["logged_in_username"] = username
-    err = session.Save(r, w)
+    info.Session.Values["logged_in_username"] = username
+    err = info.Session.Save(r, w)
     if err != nil {
-        fmt.Fprintf(w, "{\"error\" : \"saving_session\"}")
-        return
+        return nil, rest_errors.NewInternalServerError("Problem saving session")
     }
 
-
+    // TODO send welcome email
     /*canolog.Trace("Sending email")
     mailer, err := mail.NewDefaultMailClient()
     if (err != nil) {
@@ -118,10 +78,11 @@ func POST_create_account(w http.ResponseWriter, r *http.Request) {
         return
     }*/
 
-    canolog.Trace("All done!")
-    fmt.Fprintf(w, "{\"result\" : \"ok\", \"username\" : \"%s\", \"email\" : \"%s\"}",
-        account.Username(),
-        account.Email())
-    return
+    out := map[string]interface{} {
+        "result" : "ok",
+        "username" : account.Username(),
+        "email" : account.Email(),
+    }
+    return out, nil
 }
 

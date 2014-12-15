@@ -16,56 +16,24 @@
 package endpoints
 
 import (
-    "canopy/datalayer/cassandra_datalayer"
-    "fmt"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
     "net/http"
 )
 
-func GET_devices(w http.ResponseWriter, r *http.Request) {
-    writeStandardHeaders(w);
-    session, _ := store.Get(r, "canopy-login-session")
-
-    var username_string string
-    username, ok := session.Values["logged_in_username"]
-    if ok {
-        username_string, ok = username.(string)
-        if !(ok && username_string != "") {
-            writeNotLoggedInError(w);
-            return
-        }
-    } else {
-        writeNotLoggedInError(w);
-        return
+func GET_devices(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    if info.Account == nil {
+        return nil, rest_errors.NewNotLoggedInError()
     }
 
-    dl := cassandra_datalayer.NewDatalayer()
-    conn, err := dl.Connect("canopy")
+    devices, err := info.Account.Devices()
     if err != nil {
-        writeDatabaseConnectionError(w)
-        return
+        return nil, rest_errors.NewInternalServerError("Device lookup failed")
     }
-    defer conn.Close()
-
-    account, err := conn.LookupAccount(username_string)
+    out, err := devicesToJsonObj(devices)
     if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
-        return
+        return nil, rest_errors.NewInternalServerError("Generating JSON")
     }
 
-    devices, err := account.Devices()
-    if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
-        return
-    }
-    out, err := devicesToJson(devices)
-    if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"generating_json\"}");
-        return
-    }
-    fmt.Fprintf(w, out);
-
-    return
+    return out, nil
 }

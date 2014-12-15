@@ -153,6 +153,9 @@ type Device interface {
     // Get latest sample data for a Cloud Variable, by name.
     LatestDataByName(cloudVarName string) (*cloudvar.CloudVarSample, error)
 
+    // Get the user-assigned note about device's location
+    LocationNote() string
+
     // Lookup a Cloud Variable by name.  Essentially, shorthand for:
     //      device.SDDLDocument().LookupVarDef(cloudVarName)
     LookupVarDef(cloudVarName string) (sddl.VarDef, error)

@@ -16,99 +16,64 @@
 package endpoints
 
 import (
-    "canopy/canolog"
     "canopy/datalayer"
-    "canopy/datalayer/cassandra_datalayer"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
     "fmt"
     "github.com/gocql/gocql"
-    "github.com/gorilla/mux"
     "net/http"
     "time"
 )
 
-func GET_device__id__sensor(w http.ResponseWriter, r *http.Request) {
-    vars := mux.Vars(r)
-    deviceIdString := vars["id"]
-    sensorName := vars["sensor"]
+func GET_device__id__sensor(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    deviceIdString := info.URLVars["id"]
+    sensorName := info.URLVars["sensor"]
     authorized := false;
-    writeStandardHeaders(w);
+    var device datalayer.Device
 
     uuid, err := gocql.ParseUUID(deviceIdString)
     if err != nil {
-        w.WriteHeader(http.StatusBadRequest);
-        fmt.Fprintf(w, "{\"error\" : \"Device UUID expected\"}");
-        return
+        return nil, rest_errors.NewURLNotFoundError()
     }
 
-    dl := cassandra_datalayer.NewDatalayer()
-    conn, err := dl.Connect("canopy")
-    if err != nil {
-        writeDatabaseConnectionError(w)
-        return
-    }
-    defer conn.Close()
-
-    device, err := conn.LookupDevice(uuid)
-    if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{\"error\" : \"device_lookup_failed\"}");
-        return
-    }
-
-    if device.PublicAccessLevel() > datalayer.NoAccess || true { // TODO FIX
+    if info.Config.OptAllowAnonDevices() && device.PublicAccessLevel() > datalayer.NoAccess {
+        device, err = info.Conn.LookupDevice(uuid)
+        if err != nil {
+            // TODO: What errors to return here?
+            return nil, rest_errors.NewInternalServerError("Device lookup failed")
+        }
         authorized = true
     } else {
-        session, _ := store.Get(r, "canopy-login-session")
-
-        var username_string string
-        username, ok := session.Values["logged_in_username"]
-        if ok {
-            username_string, ok = username.(string)
-            if !(ok && username_string != "") {
-                writeNotLoggedInError(w);
-                return
-            }
-        } else {
-            writeNotLoggedInError(w);
-            return
+        if info.Account == nil {
+            return nil, rest_errors.NewNotLoggedInError()
         }
 
-        account, err := conn.LookupAccount(username_string)
+        device, err = info.Account.Device(uuid)
         if err != nil {
-            w.WriteHeader(http.StatusInternalServerError);
-            fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
-            return
-        }
-
-        device, err = account.Device(uuid)
-        if err != nil {
-            w.WriteHeader(http.StatusBadRequest);
-            fmt.Fprintf(w, "{\"error\" : \"Could not find or access device\"}");
-            return
+            // TODO: What errors to return here?
+            return nil, rest_errors.NewInternalServerError("Device lookup failed")
         }
 
         authorized = true
     }
-    canolog.Info("D")
 
     if !authorized {
-        w.WriteHeader(http.StatusUnauthorized);
-        fmt.Fprintf(w, "{\"error\" : \"Not authorized to access sensor data\"}");
-        return
+        // TODO: What is the correct error for this?
+        return nil, rest_errors.NewURLNotFoundError()
     }
 
     doc := device.SDDLDocument()
     if doc == nil {
         w.WriteHeader(http.StatusBadRequest);
         fmt.Fprintf(w, "{\"error\" : \"Device doesn't have any cloud variables\"}");
-        return
+        return nil, nil
     }
 
     varDef, err := doc.LookupVarDef(sensorName)
     if err != nil{
         w.WriteHeader(http.StatusBadRequest);
         fmt.Fprintf(w, "{\"error\" : \"Device does not have cloud variable %s\"}", sensorName);
-        return
+        return nil, nil
     }
 
     samples, err := device.HistoricData(varDef, time.Now(), time.Now())
@@ -116,16 +81,16 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request) {
         fmt.Println(err)
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"Could not obtain sample data\"}");
-        return
+        return nil, nil
     }
 
     out, err := samplesToJson(samples)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"generating_json\"} : ", err);
-        return
+        return nil, nil
     }
 
     fmt.Fprintf(w, out);
-    return
+    return nil, nil
 }

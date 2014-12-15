@@ -23,6 +23,7 @@ import(
     "errors"
     "encoding/json"
     "fmt"
+    "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
     "io/ioutil"
     "net/http"
@@ -49,6 +50,7 @@ type CanopyRestInfo struct {
     Conn datalayer.Connection
     Config config.Config
     Session *sessions.Session
+    URLVars map[string]string
 }
 
 
@@ -86,6 +88,9 @@ func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.
 
         // Log request
         canolog.Info("Request: ", r.Method, r.URL, " BY ", r.RemoteAddr)
+
+        // Get vars from URL if any
+        info.URLVars = mux.Vars(r)
 
         // Connect to the database
         dl := cassandra_datalayer.NewDatalayer()

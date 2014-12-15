@@ -44,6 +44,16 @@ func NewDatabaseConnectionError() CanopyRestError {
     return &DatabaseConnectionError{}
 }
 
+// EmailTakenError
+type EmailTakenError struct {}
+func (EmailTakenError) WriteTo(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusBadRequest);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "email_taken"}`)
+}
+func NewEmailTakenError() CanopyRestError {
+    return &EmailTakenError{}
+}
+
 // IncorrectUsernameOrPassword
 type IncorrectUsernameOrPasswordError struct {
     msg string
@@ -78,4 +88,23 @@ func NewNotLoggedInError() CanopyRestError {
     return &NotLoggedInError{}
 }
 
+// URLNotFoundError
+type URLNotFoundError struct {}
+func (URLNotFoundError) WriteTo(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusNotFound);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "url_not_found"}`)
+}
+func NewURLNotFoundError() CanopyRestError {
+    return &URLNotFoundError{}
+}
+
+// UsernameTakenError
+type UsernameTakenError struct {}
+func (UsernameTakenError) WriteTo(w http.ResponseWriter) {
+    w.WriteHeader(http.StatusBadRequest);
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "username_taken"}`)
+}
+func NewUsernameTakenError() CanopyRestError {
+    return &UsernameTakenError{}
+}
 
