@@ -16,19 +16,20 @@
 package endpoints
 
 import (
-    "fmt"
     "net/http"
+    "canopy/rest/adapter"
+    "canopy/rest/rest_errors"
 )
 
-func GET_POST_logout(w http.ResponseWriter, r *http.Request) {
-    writeStandardHeaders(w);
-    session, _ := store.Get(r, "canopy-login-session")
-    session.Values["logged_in_username"] = ""
-    err := session.Save(r, w)
+func GET_POST_logout(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    info.Session.Values["logged_in_username"] = ""
+    err := info.Session.Save(r, w)
     if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        fmt.Fprintf(w, "{ \"error\" : \"could_not_logout\"");
-        return;
+        return nil, rest_errors.NewInternalServerError("Problem saving session")
     }
-    fmt.Fprintf(w, "{ \"success\" : true }")
+
+    out := map[string]interface{} {
+        "result" : "ok",
+    }
+    return out, nil
 }

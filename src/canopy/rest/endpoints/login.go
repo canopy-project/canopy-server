@@ -48,4 +48,5 @@ func POST_login(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestI
         "username" : account.Username(),
         "email" : account.Email(),
     }
+    return out, nil
 }
