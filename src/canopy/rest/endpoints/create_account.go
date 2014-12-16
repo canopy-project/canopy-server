@@ -14,9 +14,12 @@
 package endpoints
 
 import (
+    "canopy/canolog"
+    "canopy/mail/messages"
     "canopy/rest/adapter"
     "canopy/rest/rest_errors"
     //"canopy/mail"
+    "fmt"
     "net/http"
 )
 
@@ -57,26 +60,23 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
         return nil, rest_errors.NewInternalServerError("Problem saving session")
     }
 
-    // TODO send welcome email
-    /*canolog.Trace("Sending email")
-    mailer, err := mail.NewDefaultMailClient()
-    if (err != nil) {
-        canolog.Error(err)
-        fmt.Fprintf(w, "{\"error\" : \"initializing_mail_client\"}")
-        return
-    }
+    canolog.Trace("Sending email")
 
-    msg := mailer.NewMail();
+    msg := info.Mailer.NewMail();
     msg.AddTo(account.Email(), account.Username())
     msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
     msg.SetReplyTo("no-reply@canopy.link")
-    msg.SetSubject("Welcome to Canopy")
-    msg.SetHTML("Thank you for creating a Canopy account!")
-    err = mailer.Send(msg)
+    messages.MailMessageCreatedAccount(msg,
+        account.Username(), 
+        "http://" + info.Config.OptHostname() + "activate/",
+        "http://" + info.Config.OptHostname(),
+        info.Config.OptHostname(),
+    )
+    err = info.Mailer.Send(msg)
     if (err != nil) {
         fmt.Fprintf(w, "{\"error\" : \"sending_email\"}")
-        return
-    }*/
+        return nil, rest_errors.NewInternalServerError("Problem sending mail")
+    }
 
     out := map[string]interface{} {
         "result" : "ok",

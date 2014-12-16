@@ -185,7 +185,7 @@ func (config *CanopyConfig) LoadConfigEnv() error {
 func (config *CanopyConfig) LoadConfigCLI() error {
     allowAnonDevices := flag.String("allow-anon-devices", "", "")
     allowOrigin := flag.String("allow-origin", "", "")
-    emailService := flag.String("email-service", "none", "")
+    emailService := flag.String("email-service", "", "")
     forwardOtherHosts := flag.String("forward-other-hosts", "", "")
     hostname := flag.String("hostname", "", "")
     httpPort := flag.String("http-port", "", "")
@@ -315,6 +315,10 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.logFile, ok = v.(string)
         case "production-secret": 
             config.productionSecret, ok = v.(string)
+        case "sendgrid-secret-key": 
+            config.sendgridSecretKey, ok = v.(string)
+        case "sendgrid-username": 
+            config.sendgridUsername, ok = v.(string)
         case "web-manager-path": 
             config.webManagerPath, ok = v.(string)
         default:

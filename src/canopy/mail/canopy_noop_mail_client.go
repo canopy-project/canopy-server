@@ -16,6 +16,7 @@
 package mail
 
 import (
+    "canopy/canolog"
     "time"
 )
 
@@ -33,6 +34,7 @@ func (*CanopyNoOpMailClient) NewMail() MailMessage {
     return &CanopyNoOpMail{}
 }
 func (client *CanopyNoOpMailClient) Send(m MailMessage) error {
+    canolog.Info("Noop Mail Client: not sending message")
     return nil
 }
 

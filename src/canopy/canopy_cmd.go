@@ -18,6 +18,7 @@ package main
 import (
     "github.com/gocql/gocql"
     "canopy/canolog"
+    "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/mail"
@@ -27,7 +28,13 @@ import (
 )
 
 func main() {
-    err := canolog.Init("/var/log/canopy/canotool.log")
+    cfg := config.NewDefaultConfig()
+    err := cfg.LoadConfig()
+    if err != nil {
+        fmt.Printf("Error loading config")
+    }
+
+    err = canolog.Init("/var/log/canopy/canotool.log")
     if (err != nil) {
         fmt.Println(err)
         return
@@ -123,7 +130,7 @@ func main() {
         conn.ClearSensorData();
 
     } else if flag.Arg(0) == "test-email" {
-        mailer, err := mail.NewMailClient(nil)
+        mailer, err := mail.NewMailClient(cfg)
         if err != nil {
             fmt.Println("Error initializing mail client: ", err)
             return

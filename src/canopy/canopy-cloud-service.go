@@ -47,8 +47,8 @@ func main() {
     if err != nil {
         logFilename := config.JustGetOptLogFile()
 
-        err := canolog.Init(logFilename)
-        if err != nil {
+        err2 := canolog.Init(logFilename)
+        if err2 != nil {
             fmt.Println(err)
             return
         }

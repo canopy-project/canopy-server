@@ -18,6 +18,7 @@ import(
     "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
+    "canopy/mail"
     "canopy/rest/rest_errors"
     "encoding/base64"
     "errors"
@@ -29,6 +30,12 @@ import(
     "net/http"
     "strings"
 )
+
+type RestHandlerIn struct {
+    Config config.Config
+    CookieStore *sessions.CookieStore
+    Mailer mail.MailClient
+}
 
 // CanopyRestAuthTypeEnum is the type of authentication used in a request
 type CanopyRestAuthTypeEnum int
@@ -50,6 +57,7 @@ type CanopyRestInfo struct {
     Conn datalayer.Connection
     Config config.Config
     Session *sessions.Session
+    Mailer mail.MailClient
     URLVars map[string]string
 }
 
@@ -80,10 +88,11 @@ func basicAuthFromRequest(r *http.Request) (username string, password string, er
     return parts[0], parts[1], nil
 }
 
-func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.CookieStore) http.HandlerFunc {
+func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc {
     return func(w http.ResponseWriter, r *http.Request) {
         info := CanopyRestInfo{
-            Config: cfg,
+            Config: in.Config,
+            Mailer: in.Mailer,
         }
 
         // Log request
@@ -104,8 +113,8 @@ func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.
 
         // Set standard headers
         w.Header().Set("Content-Type", "application/json")
-        if (cfg.OptAllowOrigin() != "") {
-            w.Header().Set("Access-Control-Allow-Origin", cfg.OptAllowOrigin())
+        if (in.Config.OptAllowOrigin() != "") {
+            w.Header().Set("Access-Control-Allow-Origin", in.Config.OptAllowOrigin())
             // Allow cross-origin cookies.
             // Client must also set "withCredentials" to ture on the
             // XMLHttpRequest.
@@ -134,7 +143,7 @@ func CanopyRestAdapter(fn CanopyRestHandler, cfg config.Config, store *sessions.
         }
 
         // Check for session-based AUTH
-        session, _ := store.Get(r, "canopy-login-session")
+        session, _ := in.CookieStore.Get(r, "canopy-login-session")
         info.Session = session
 
         username, ok := session.Values["logged_in_username"]

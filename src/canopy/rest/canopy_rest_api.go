@@ -17,30 +17,44 @@ package rest
 
 import (
     "canopy/config"
+    "canopy/mail"
     "canopy/rest/adapter"
     "canopy/rest/endpoints"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
 )
 
-func AddRoutes(r *mux.Router, cfg config.Config) {
+func AddRoutes(r *mux.Router, cfg config.Config) error {
     store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
+    
+    mailer, err := mail.NewMailClient(cfg)
+    if err != nil {
+        return err
+    }
+
+    extra := adapter.RestHandlerIn{
+        Config: cfg,
+        CookieStore: store,
+        Mailer: mailer,
+   }
 
     // TODO: Need to handle allow-origin correctly!
-    r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, cfg, store)).Methods("GET")
-    r.HandleFunc("/api/create_account", adapter.CanopyRestAdapter(endpoints.POST_create_account, cfg, store)).Methods("POST")
-    r.HandleFunc("/api/create_devices", adapter.CanopyRestAdapter(endpoints.POST_create_devices, cfg, store)).Methods("POST")
-    r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.GET_device__id, cfg, store)).Methods("GET")
-    r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.POST_device__id, cfg, store)).Methods("POST")
-    r.HandleFunc("/api/device/{id}/{sensor}", adapter.CanopyRestAdapter(endpoints.GET_device__id__sensor, cfg, store)).Methods("GET")
-    r.HandleFunc("/api/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, cfg, store)).Methods("GET")
-    r.HandleFunc("/api/me/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, cfg, store)).Methods("GET")
-    r.HandleFunc("/api/share", adapter.CanopyRestAdapter(endpoints.POST_share, cfg, store)).Methods("POST")
-    r.HandleFunc("/api/finish_share_transaction", adapter.CanopyRestAdapter(endpoints.POST_finish_share_transaction, cfg, store)).Methods("POST")
-    r.HandleFunc("/api/login", adapter.CanopyRestAdapter(endpoints.POST_login, cfg, store)).Methods("POST")
-    r.HandleFunc("/api/logout", adapter.CanopyRestAdapter(endpoints.GET_POST_logout, cfg, store))
-    r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.GET_me, cfg, store)).Methods("GET")
+    r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, extra)).Methods("GET")
+    r.HandleFunc("/api/create_account", adapter.CanopyRestAdapter(endpoints.POST_create_account, extra)).Methods("POST")
+    r.HandleFunc("/api/create_devices", adapter.CanopyRestAdapter(endpoints.POST_create_devices, extra)).Methods("POST")
+    r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.GET_device__id, extra)).Methods("GET")
+    r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.POST_device__id, extra)).Methods("POST")
+    r.HandleFunc("/api/device/{id}/{sensor}", adapter.CanopyRestAdapter(endpoints.GET_device__id__sensor, extra)).Methods("GET")
+    r.HandleFunc("/api/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, extra)).Methods("GET")
+    r.HandleFunc("/api/me/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, extra)).Methods("GET")
+    r.HandleFunc("/api/share", adapter.CanopyRestAdapter(endpoints.POST_share, extra)).Methods("POST")
+    r.HandleFunc("/api/finish_share_transaction", adapter.CanopyRestAdapter(endpoints.POST_finish_share_transaction, extra)).Methods("POST")
+    r.HandleFunc("/api/login", adapter.CanopyRestAdapter(endpoints.POST_login, extra)).Methods("POST")
+    r.HandleFunc("/api/logout", adapter.CanopyRestAdapter(endpoints.GET_POST_logout, extra))
+    r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.GET_me, extra)).Methods("GET")
     r.HandleFunc("/di/device/{id}", endpoints.POST_di__device__id).Methods("POST")
     r.HandleFunc("/di/device/{id}/notify", endpoints.POST_di__device__id__notify).Methods("POST")
+
+    return nil
 }
 
