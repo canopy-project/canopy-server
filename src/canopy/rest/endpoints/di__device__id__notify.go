@@ -96,7 +96,7 @@ func POST_di__device__id__notify(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    err = notify.ProcessNotification(device, "email", msg);
+    err = notify.ProcessNotification(device, "email", nil, msg);
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         fmt.Fprintf(w, "{\"error\" : \"Error sending notification: ", err, "\"}");

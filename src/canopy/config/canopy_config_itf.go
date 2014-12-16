@@ -26,12 +26,15 @@ type Config interface {
 
     OptAllowAnonDevices() bool
     OptAllowOrigin() string
+    OptEmailService() string
     OptForwardOtherHosts() string
     OptHostname() string
     OptHTTPPort() int16
     OptJavascriptClientPath() string
     OptLogFile() string
     OptProductionSecret() string
+    OptSendgridUsername() string
+    OptSendgridSecretKey() string
     OptWebManagerPath() string
 }
 

@@ -26,12 +26,15 @@ import (
 type CanopyConfig struct {
     allowAnonDevices bool
     allowOrigin string
+    emailService string
     forwardOtherHosts string
     hostname string
     httpPort int16
     logFile string
     webManagerPath string
     productionSecret string
+    sendgridSecretKey string
+    sendgridUsername string
     javascriptClientPath string
 }
 
@@ -39,11 +42,13 @@ func (config *CanopyConfig) ToString() string {
     return fmt.Sprint(`SERVER CONFIG SETTINGS:
 allow-anon-devices:  `, config.allowAnonDevices, `
 allow-origin:        `, config.allowOrigin, `
+email-service:       `, config.emailService, `
 forward-other-hosts: `, config.forwardOtherHosts, `
 hostname:            `, config.hostname, `
 http-port:           `, config.httpPort, `
 js-client-path:      `, config.javascriptClientPath, `
 log-file:            `, config.logFile, `
+sendgrid-username:   `, config.sendgridUsername, `
 web-manager-path:    `, config.webManagerPath)
 }
 
@@ -51,11 +56,13 @@ func (config *CanopyConfig) ToJsonObject() map[string]interface{}{
     return map[string]interface{} {
         "allow-anon-devices" : config.allowAnonDevices,
         "allow-origin" : config.allowOrigin,
+        "email-service" : config.emailService,
         "forward-other-hosts" : config.forwardOtherHosts,
         "hostname" : config.hostname,
         "http-port" : config.httpPort,
         "js-client-path" : config.javascriptClientPath,
         "log-file" : config.logFile,
+        "sendgrid-username" : config.sendgridUsername,
         "web-manager-path" : config.webManagerPath,
     }
 }
@@ -115,6 +122,14 @@ func (config *CanopyConfig) LoadConfigEnv() error {
         config.allowOrigin = allowOrigin
     }
 
+    emailService := os.Getenv("CCS_EMAIL_SERVICE")
+    if emailService != "" {
+        if !(emailService == "none" || emailService == "sendgrid") {
+            return fmt.Errorf("Unknown email service: %s",  emailService)
+        }
+        config.emailService = emailService
+    }
+
     forwardOtherHosts := os.Getenv("CCS_FORWARD_OTHER_HOSTS")
     if forwardOtherHosts != "" {
         config.forwardOtherHosts = forwardOtherHosts
@@ -149,6 +164,16 @@ func (config *CanopyConfig) LoadConfigEnv() error {
         config.productionSecret = productionSecret
     }
 
+    sendgridSecretKey := os.Getenv("CCS_SENDGRID_SECRET_KEY")
+    if sendgridSecretKey != "" {
+        config.sendgridSecretKey = sendgridSecretKey
+    }
+
+    sendgridUsername := os.Getenv("CCS_SENDGRID_USERNAME")
+    if sendgridUsername != "" {
+        config.sendgridUsername = sendgridUsername
+    }
+
     webMgrPath := os.Getenv("CCS_WEB_MANAGER_PATH")
     if webMgrPath != "" {
         config.webManagerPath = webMgrPath
@@ -160,12 +185,15 @@ func (config *CanopyConfig) LoadConfigEnv() error {
 func (config *CanopyConfig) LoadConfigCLI() error {
     allowAnonDevices := flag.String("allow-anon-devices", "", "")
     allowOrigin := flag.String("allow-origin", "", "")
+    emailService := flag.String("email-service", "none", "")
     forwardOtherHosts := flag.String("forward-other-hosts", "", "")
     hostname := flag.String("hostname", "", "")
     httpPort := flag.String("http-port", "", "")
     jsClientPath := flag.String("js-client-path", "", "")
     logFile := flag.String("log-file", "", "")
     productionSecret := flag.String("production-secret", "", "")
+    sendgridSecretKey := flag.String("sendgrid-secret-key", "", "")
+    sendgridUsername := flag.String("sendgrid-username", "", "")
     webMgrPath := flag.String("web-manager-path", "", "")
 
     flag.Parse()
@@ -182,6 +210,13 @@ func (config *CanopyConfig) LoadConfigCLI() error {
 
     if *allowOrigin != "" {
         config.allowOrigin = *allowOrigin
+    }
+
+    if *emailService != "" {
+        if !(*emailService == "none" || *emailService == "sendgrid") {
+            return fmt.Errorf("Unknown email service: %s",  emailService)
+        }
+        config.emailService = *emailService
     }
 
     if *forwardOtherHosts != "" {
@@ -210,6 +245,14 @@ func (config *CanopyConfig) LoadConfigCLI() error {
 
     if *productionSecret != "" {
         config.productionSecret = *productionSecret
+    }
+
+    if *sendgridSecretKey != "" {
+        config.sendgridSecretKey = *sendgridSecretKey
+    }
+
+    if *sendgridUsername != "" {
+        config.sendgridUsername = *sendgridUsername
     }
 
     if *webMgrPath != "" {
@@ -250,6 +293,13 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.allowAnonDevices, ok = v.(bool)
         case "allow-origin":
             config.allowOrigin, ok = v.(string)
+        case "email-service":
+            var emailService string
+            emailService, ok = v.(string)
+            if !(emailService == "none" || emailService == "sendgrid") {
+                return fmt.Errorf("Unknown email service: %s", emailService)
+            }
+            config.emailService = emailService
         case "forward-other-hosts": 
             config.forwardOtherHosts, ok = v.(string)
         case "hostname": 
@@ -285,6 +335,10 @@ func (config *CanopyConfig) OptAllowOrigin() string {
     return config.allowOrigin
 }
 
+func (config *CanopyConfig) OptEmailService() string {
+    return config.emailService
+}
+
 func (config *CanopyConfig) OptForwardOtherHosts() string {
     return config.forwardOtherHosts
 }
@@ -307,6 +361,14 @@ func (config *CanopyConfig) OptLogFile() string {
 
 func (config *CanopyConfig) OptProductionSecret() string {
     return config.logFile
+}
+
+func (config *CanopyConfig) OptSendgridUsername() string {
+    return config.sendgridUsername
+}
+
+func (config *CanopyConfig) OptSendgridSecretKey() string {
+    return config.sendgridSecretKey
 }
 
 func (config *CanopyConfig) OptWebManagerPath() string {

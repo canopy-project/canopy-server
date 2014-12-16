@@ -123,7 +123,7 @@ func main() {
         conn.ClearSensorData();
 
     } else if flag.Arg(0) == "test-email" {
-        mailer, err := mail.NewDefaultMailClient()
+        mailer, err := mail.NewMailClient(nil)
         if err != nil {
             fmt.Println("Error initializing mail client: ", err)
             return

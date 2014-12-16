@@ -65,7 +65,7 @@ func POST_share(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestI
         return nil, rest_errors.NewNotLoggedInError()
     }
 
-    mailer, err := mail.NewDefaultMailClient()
+    mailer, err := mail.NewMailClient(info.Config)
     if err != nil {
         return nil, rest_errors.NewInternalServerError("Error initializing mail client")
     }

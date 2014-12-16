@@ -17,8 +17,8 @@ package mail
 
 import (
     "errors"
+    "fmt"
     "github.com/sendgrid/sendgrid-go"
-    "os"
     "time"
 )
 
@@ -30,18 +30,18 @@ type CanopySGMail struct {
     sgmail *sendgrid.SGMail
 }
 
-func NewSendGridMailClient() (MailClient, error) {
+func NewSendGridMailClient(sendgridUsername, sendgridSecretKey string) (MailClient, error) {
     client := CanopySGClient{}
-    username := os.Getenv("SENDGRID_USERNAME")
-    if username == "" {
-        return nil, errors.New("You must set environment variable SENDGRID_USERNAME")
+
+    if sendgridUsername == "" {
+        return nil, fmt.Errorf("sendgrid-username must be set")
     }
 
-    secret := os.Getenv("SENDGRID_SECRET_KEY")
-    if secret == "" {
-        return nil, errors.New("You must set environment variable SENDGRID_SECRET_KEY")
+    if sendgridSecretKey == "" {
+        return nil, fmt.Errorf("sendgrid-secret-key must be set")
     }
-    client.sg = sendgrid.NewSendGridClient(username, secret)
+
+    client.sg = sendgrid.NewSendGridClient(sendgridUsername, sendgridSecretKey)
     return &client, nil
 }
 
