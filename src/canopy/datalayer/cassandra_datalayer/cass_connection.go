@@ -133,13 +133,17 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
 func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
     // TODO: validate parameters 
     var id gocql.UUID
+    var err error
+
     if uuid == nil {
-        id = gocql.TimeUUID()
+        id, err = gocql.RandomUUID()
+        if err != nil {
+            return nil, err
+        }
     } else {
         id = *uuid
     }
     
-    var err error
     if secretKey == "" {
         secretKey, err = random.Base64String(24)
         if err != nil {

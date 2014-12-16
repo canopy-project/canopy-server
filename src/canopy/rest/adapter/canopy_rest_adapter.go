@@ -43,8 +43,11 @@ const (
     // Request did not include any authentication
     CANOPY_REST_AUTH_NONE = iota
 
-    // Request included HTTP BASIC authentication
+    // Request included HTTP BASIC authentication for a user account
     CANOPY_REST_AUTH_BASIC
+
+    // Request included HTTP BASIC authentication for a device
+    CANOPY_REST_AUTH_DEVICE_BASIC
 
     // Request included a session cookie
     CANOPY_REST_AUTH_SESSION
@@ -56,6 +59,7 @@ type CanopyRestInfo struct {
     BodyObj map[string]interface{}
     Conn datalayer.Connection
     Config config.Config
+    Device datalayer.Device
     Session *sessions.Session
     Mailer mail.MailClient
     URLVars map[string]string
@@ -124,22 +128,43 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
         // Check for BASIC AUTH
         username_string, password, err := basicAuthFromRequest(r)
         if err == nil {
-            acct, err := conn.LookupAccountVerifyPassword(username_string, password)
-            if err != nil {
-                if err == datalayer.InvalidPasswordError {
+            // was a UUID provided?
+            if len(username_string) == 36 {
+                device, err := conn.LookupDeviceByStringID(username_string)
+                if err != nil {
                     w.WriteHeader(http.StatusUnauthorized)
                     fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
                     return
-                } else {
-                    w.WriteHeader(http.StatusInternalServerError);
-                    fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+                }
+                
+                if device.SecretKey() != password {
+                    w.WriteHeader(http.StatusUnauthorized)
+                    fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
                     return
                 }
+
+                info.AuthType = CANOPY_REST_AUTH_DEVICE_BASIC
+                info.Device = device
+                canolog.Info("Device BASIC auth provided")
+            } else {
+                // otherwise, assume user account username/password provided
+                acct, err := conn.LookupAccountVerifyPassword(username_string, password)
+                if err != nil {
+                    if err == datalayer.InvalidPasswordError {
+                        w.WriteHeader(http.StatusUnauthorized)
+                        fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
+                        return
+                    } else {
+                        w.WriteHeader(http.StatusInternalServerError);
+                        fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+                        return
+                    }
+                }
+                
+                canolog.Info("Basic auth provided")
+                info.AuthType = CANOPY_REST_AUTH_BASIC
+                info.Account = acct
             }
-            
-            canolog.Info("Basic auth provided")
-            info.AuthType = CANOPY_REST_AUTH_BASIC
-            info.Account = acct
         }
 
         // Check for session-based AUTH
@@ -166,7 +191,7 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
             }
         }
 
-        if info.Account == nil {
+        if info.Account == nil && info.Device == nil {
             canolog.Info("No auth provided")
         }
         // Parse the JSON payload

@@ -145,6 +145,9 @@ type Device interface {
     // Get the UUID of this device.
     ID() gocql.UUID
 
+    // Get the UUID of this device.
+    IDString() string
+
     // Store a Cloud Variable data sample.
     // <value> must have an appropriate dynamic type.  See documentation in
     // cloudvar/cloudvar.go for more details.

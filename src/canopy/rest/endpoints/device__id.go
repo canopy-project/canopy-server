@@ -16,6 +16,7 @@ package endpoints
 import (
     "canopy/pigeon"
     "canopy/rest/adapter"
+    "canopy/datalayer"
     "canopy/rest/rest_errors"
     "github.com/gocql/gocql"
     "net/http"
@@ -53,10 +54,22 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         return nil, rest_errors.NewURLNotFoundError()
     }
 
-    device, err := info.Account.Device(uuid)
-    if err != nil {
-        // TODO: What errors to return here?
-        return nil, rest_errors.NewInternalServerError("Device lookup failed")
+    var device datalayer.Device
+
+    if info.Account != nil {
+        device, err = info.Account.Device(uuid)
+        if err != nil {
+            // TODO: What errors to return here?
+            return nil, rest_errors.NewInternalServerError("Device lookup failed")
+        }
+    } else if info.Device != nil {
+        if deviceIdString != string(info.Device.IDString()) {
+            // TODO: what error to return?
+            return nil, rest_errors.NewInternalServerError("Device mismatch")
+        }
+        device = info.Device
+    } else {
+        return nil, rest_errors.NewNotLoggedInError()
     }
 
     /* Store cloud variable value.  */
@@ -93,7 +106,8 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
     }
     err = gPigeon.SendMessage(deviceIdString, msg, time.Duration(100*time.Millisecond))
     if err != nil {
-        return nil, rest_errors.NewInternalServerError("SendMessage failed")
+        // TODO: Are there certain errors here that shouldn't be ignored?
+        //return nil, rest_errors.NewInternalServerError("SendMessage failed")
     }
 
     return map[string]interface{} {

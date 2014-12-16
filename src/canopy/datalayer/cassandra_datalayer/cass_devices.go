@@ -198,6 +198,9 @@ func (device *CassDevice) ID() gocql.UUID {
     return device.deviceId
 }
 
+func (device *CassDevice) IDString() string{
+    return device.deviceId.String()
+}
 
 func (device *CassDevice) SecretKey() string {
     return device.secretKey

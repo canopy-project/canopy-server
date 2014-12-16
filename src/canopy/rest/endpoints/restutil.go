@@ -211,6 +211,7 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
         "location_note" : device.LocationNote(),
         "connected" : IsDeviceConnected(device.ID().String()),
         "sddl" : nil,
+        "secret_key" : device.SecretKey(),
         "vars" : map[string]interface{} {},
         "notifs" : []interface{} {},
     }
