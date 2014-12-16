@@ -62,13 +62,17 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
 
     canolog.Trace("Sending email")
 
+    activationLink := "http://" + info.Config.OptHostname() + 
+            "/mgr/activate.html?username=" + account.Username() + 
+            "&code=" + account.ActivationCode()
+
     msg := info.Mailer.NewMail();
     msg.AddTo(account.Email(), account.Username())
     msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
     msg.SetReplyTo("no-reply@canopy.link")
     messages.MailMessageCreatedAccount(msg,
         account.Username(), 
-        "http://" + info.Config.OptHostname() + "activate/",
+        activationLink,
         "http://" + info.Config.OptHostname(),
         info.Config.OptHostname(),
     )

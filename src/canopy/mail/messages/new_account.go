@@ -19,7 +19,7 @@ import (
 )
 
 func MailMessageCreatedAccount(msg mail.MailMessage, username, activationLink, manageLink, hostname string) {
-    msg.SetSubject("Your New Canopy Account")
+    msg.SetSubject("Your New Canopy Account (on " + hostname + ")")
 
     msg.SetHTML(`<html>
     <body style='font-family: sans-serif'>
@@ -38,16 +38,6 @@ func MailMessageCreatedAccount(msg mail.MailMessage, username, activationLink, m
         </tr>
         <tr>
             <td bgcolor=#f0f0f0 style='border:4px solid #204080; color:#303030; padding: 16px 16px 16px 16px;'>
-                <p>
-                    Canopy is an open source cloud platform for IoT device
-                    makers.
-                </p>
-                <p>
-                    <ul>
-                        <li>Rapidly develop cloud-enabled products.</li>
-                        <li>Manage device inventory and production runs.</li>
-                    </ul>
-                </p>
                 <h3><br>Activate Your Account</h3>
                 <p>
                     You must activate your account by clicking the link below.

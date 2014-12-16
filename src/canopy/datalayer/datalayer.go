@@ -106,6 +106,12 @@ type Connection interface {
 
 // Account is a user account
 type Account interface {
+    // Get the account's activation code.
+    ActivationCode() string
+
+    // Mark this account as activated, using an activation code.
+    Activate(username, code string) error
+
     // Get all devices that user has access to.
     Devices() ([]Device, error)
 

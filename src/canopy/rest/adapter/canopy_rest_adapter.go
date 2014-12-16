@@ -153,6 +153,8 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
                 canolog.Info("Looking up account: ", username_string)
                 acct, err := conn.LookupAccount(username_string)
                 if err != nil {
+                    info.Session.Values["logged_in_username"] = ""
+                    info.Session.Save(r, w)
                     w.WriteHeader(http.StatusInternalServerError);
                     fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
                     return

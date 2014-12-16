@@ -19,8 +19,7 @@ import(
     "canopy/canolog"
     "canopy/datalayer"
     "canopy/sddl"
-    "crypto/rand"
-    "encoding/base64"
+    "canopy/util/random"
     "fmt"
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
@@ -106,11 +105,16 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
         return nil, err
     }
 
+    activation_code, err := random.Base64String(24)
+    if err != nil {
+        return nil, err
+    }
+
     // TODO: transactionize
     if err := conn.session.Query(`
-            INSERT INTO accounts (username, email, password_hash)
-            VALUES (?, ?, ?)
-    `, username, email, password_hash).Exec(); err != nil {
+            INSERT INTO accounts (username, email, password_hash, activated, activation_code)
+            VALUES (?, ?, ?, ?, ?)
+    `, username, email, password_hash, false, activation_code).Exec(); err != nil {
         canolog.Error("Error creating account:", err)
         return nil, err
     }
@@ -123,16 +127,7 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
         return nil, err
     }
 
-    return &CassAccount{conn, username, email, password_hash}, nil
-}
-
-func randomSecretKey(numChars int) (string, error) {
-    randBytes := make([]byte, numChars)
-    _, err := rand.Read(randBytes)
-    if err != nil {
-        return "", err
-    }
-    return base64.StdEncoding.EncodeToString(randBytes), nil
+    return &CassAccount{conn, username, email, password_hash, false, activation_code}, nil
 }
 
 func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
@@ -146,7 +141,7 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKe
     
     var err error
     if secretKey == "" {
-        secretKey, err = randomSecretKey(24)
+        secretKey, err = random.Base64String(24)
         if err != nil {
             return nil, err
         }
@@ -213,11 +208,11 @@ func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Acc
     var account CassAccount
 
     if err := conn.session.Query(`
-            SELECT username, email, password_hash FROM accounts 
+            SELECT username, email, password_hash, activated, activation_code FROM accounts 
             WHERE username = ?
             LIMIT 1
     `, usernameOrEmail).Consistency(gocql.One).Scan(
-         &account.username, &account.email, &account.password_hash); err != nil {
+         &account.username, &account.email, &account.password_hash, &account.activated, &account.activation_code); err != nil {
             canolog.Error("Error looking up account", err)
             return nil, err
     }

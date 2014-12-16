@@ -257,6 +257,8 @@ var creationQueries []string = []string{
         username text,
         email text,
         password_hash blob,
+        activated boolean,
+        activation_code text,
         PRIMARY KEY(username)
     ) WITH COMPACT STORAGE`,
 

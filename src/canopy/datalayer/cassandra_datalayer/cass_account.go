@@ -17,9 +17,10 @@ package cassandra_datalayer
 
 import (
     "canopy/datalayer"
-    "github.com/gocql/gocql"
-    "errors"
     "code.google.com/p/go.crypto/bcrypt"
+    "errors"
+    "fmt"
+    "github.com/gocql/gocql"
 )
 
 // Salt is added to passwords.  TODO: INSECURE: don't reveal in source code!
@@ -33,7 +34,36 @@ type CassAccount struct {
     username string
     email string
     password_hash []byte
+    activated bool
+    activation_code string
 }
+
+func (account *CassAccount) ActivationCode() string {
+    return account.activation_code
+}
+
+func (account *CassAccount) Activate(username, code string) error {
+    if username != account.Username() {
+        return fmt.Errorf("Incorrect username for activation")
+    }
+
+    if code != account.ActivationCode() {
+        return fmt.Errorf("Incorrect code for activation")
+    }
+
+    err := account.conn.session.Query(`
+            UPDATE accounts
+            SET activated = true
+            WHERE username = ?
+    `, username).Exec()
+    if err != nil {
+        return err;
+    }
+
+    account.activated = true
+    return nil;
+}
+
 
 // Obtain list of devices I have access to.
 func (account *CassAccount) Devices() ([]datalayer.Device, error) {
