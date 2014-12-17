@@ -29,6 +29,7 @@ import(
     "io/ioutil"
     "net/http"
     "strings"
+    "time"
 )
 
 type RestHandlerIn struct {
@@ -145,6 +146,14 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
 
                 info.AuthType = CANOPY_REST_AUTH_DEVICE_BASIC
                 info.Device = device
+
+                // update last_seen for this device
+                canolog.Info("Updating last seen")
+                err = device.UpdateLastSeen(time.Now())
+                if err != nil {
+                    rest_errors.NewInternalServerError("Updating last seen time").WriteTo(w)
+                    return
+                }
                 canolog.Info("Device BASIC auth provided")
             } else {
                 // otherwise, assume user account username/password provided

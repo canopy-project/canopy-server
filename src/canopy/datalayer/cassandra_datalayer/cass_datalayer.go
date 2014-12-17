@@ -226,6 +226,7 @@ var creationQueries []string = []string{
         friendly_name text,
         sddl text,
         public_access_level int,
+        last_seen timestamp,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 

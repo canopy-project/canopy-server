@@ -31,6 +31,7 @@ type CassDevice struct {
     deviceId gocql.UUID
     doc sddl.Document
     docString string
+    last_seen *time.Time
     locationNote string
     name string
     publicAccessLevel datalayer.AccessLevel
@@ -243,6 +244,10 @@ func (device *CassDevice)InsertNotification(notifyType int, t time.Time, msg str
         return err;
     }
     return nil
+}
+
+func (device *CassDevice) LastSeen() *time.Time {
+    return device.last_seen
 }
 
 func (device *CassDevice) insertSensorSample_int(propname string, t time.Time, value int32) error {
@@ -511,6 +516,13 @@ func (device *CassDevice) Name() string {
     return device.name
 }
 
+func (device *CassDevice) OperStatus() datalayer.OperStatus {
+    if device.last_seen == nil {
+        return datalayer.OperStatus_NewlyCreated;
+    }
+    return datalayer.OperStatus_InOperation;
+}
+
 func (device *CassDevice) PublicAccessLevel() datalayer.AccessLevel {
     return device.publicAccessLevel
 }
@@ -565,7 +577,6 @@ func (device *CassDevice) SetSDDLDocument(doc sddl.Document) error {
     if err != nil {
         return err
     }
-    canolog.Info("sddlText: ", sddlText)
 
     err = device.conn.session.Query(`
             UPDATE devices
@@ -578,3 +589,15 @@ func (device *CassDevice) SetSDDLDocument(doc sddl.Document) error {
     return nil;
 }
 
+func (device *CassDevice) UpdateLastSeen(t time.Time) error {
+    err := device.conn.session.Query(`
+            UPDATE devices
+            SET last_seen = ?
+            WHERE device_id = ?
+    `, t, device.ID()).Exec()
+    if err != nil {
+        return err;
+    }
+    device.last_seen = &t
+    return nil;
+}

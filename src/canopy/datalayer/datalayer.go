@@ -51,6 +51,12 @@ const (
     NotificationType_InApp
 )
 
+type OperStatus int
+const (
+    OperStatus_NewlyCreated = iota
+    OperStatus_InOperation
+)
+
 // Datalayer provides an abstracted interface for interacting with Canopy's
 // backend perstistant datastore.
 type Datalayer interface {
@@ -156,6 +162,10 @@ type Device interface {
     // Store a record of a notification.
     InsertNotification(notifyType int, t time.Time, msg string) error
 
+    // Get last time communication occurred with the server
+    // Return nil if device has never been seen
+    LastSeen() *time.Time
+
     // Get latest sample data for a Cloud Variable.
     LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error)
 
@@ -171,6 +181,10 @@ type Device interface {
 
     // Get the user-assigned name for this device.
     Name() string
+
+    // Get the operational status of this device.
+    // Either InOperation or NewlyCreated.
+    OperStatus() OperStatus
 
     // Get the public access level
     PublicAccessLevel() AccessLevel
@@ -201,6 +215,8 @@ type Device interface {
 
     // Set the SDDL class associated with this device.
     SetSDDLDocument(doc sddl.Document) error
+
+    UpdateLastSeen(t time.Time) error
 }
 
 // Notification is a record of a message sent to the device owner originiating

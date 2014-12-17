@@ -24,6 +24,7 @@ import(
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
     "regexp"
+    "time"
 )
 
 type CassConnection struct {
@@ -245,17 +246,27 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
 
     device.deviceId = deviceId
     device.conn = conn
+    var last_seen time.Time;
 
     err := conn.session.Query(`
-        SELECT friendly_name, secret_key, sddl
+        SELECT friendly_name, secret_key, sddl, last_seen
         FROM devices
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
             &device.secretKey,
-            &device.docString)
+            &device.docString,
+            &last_seen)
     if err != nil {
+        canolog.Error(err)
         return nil, err
+    }
+
+    // This scan returns Jan 1, 1970 UTC if last_seen is NULL.
+    if last_seen.Before(time.Unix(1, 0)) {
+        device.last_seen = nil
+    } else {
+        device.last_seen = &last_seen
     }
 
     if device.docString != "" {
