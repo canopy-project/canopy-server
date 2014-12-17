@@ -77,12 +77,12 @@ func keyTokenFromString(s string) (string, int, error) {
     case "datetime":
         return "datatype", int(DATATYPE_DATETIME), nil
 
-    case "bidirectional":
-        return "direction", int(DIRECTION_BIDIRECTIONAL), nil
-    case "inbound":
-        return "direction", int(DIRECTION_INBOUND), nil
-    case "outbound":
-        return "direction", int(DIRECTION_OUTBOUND), nil
+    case "inout":
+        return "direction", int(DIRECTION_INOUT), nil
+    case "in":
+        return "direction", int(DIRECTION_IN), nil
+    case "out":
+        return "direction", int(DIRECTION_OUT), nil
 
     case "optional":
         return "optionality", int(OPTIONALITY_OPTIONAL), nil
@@ -463,6 +463,12 @@ func (doc *SDDLDocument) Extend(jsn map[string]interface{}) error {
 
             doc.RemoveVarDef(varDef.Name()) // If var already exists, remove it first
             doc.vars = append(doc.vars, varDef);
+            
+            // update JSON
+            if doc.jsonObj == nil {
+                doc.jsonObj = map[string]interface{} {}
+            }
+            doc.jsonObj[k] = v
         }
     }
 

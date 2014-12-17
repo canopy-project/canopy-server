@@ -14,10 +14,12 @@
 package endpoints
 
 import (
+    "canopy/canolog"
     "canopy/pigeon"
     "canopy/rest/adapter"
     "canopy/datalayer"
     "canopy/rest/rest_errors"
+    "canopy/sddl"
     "github.com/gocql/gocql"
     "net/http"
     "time"
@@ -56,6 +58,8 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
 
     var device datalayer.Device
 
+    // TODO: support anonymous device creation
+
     if info.Account != nil {
         device, err = info.Account.Device(uuid)
         if err != nil {
@@ -72,32 +76,71 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         return nil, rest_errors.NewNotLoggedInError()
     }
 
-    /* Store cloud variable value.  */
+    // Check for SDDL doc.  If it doesn't exist, then create it.
+    // TODO: should this only be done if the device is reporting?
+    doc := device.SDDLDocument()
+    if doc == nil {
+        // Create SDDL for the device if it doesn't exist.
+        // TODO: should this be automatically done by device.SDDLClass()?
+        newDoc := sddl.Sys.NewEmptyDocument()
+        err = device.SetSDDLDocument(newDoc)
+        if (err != nil) {
+            return nil, rest_errors.NewInternalServerError("Setting new SDDL document")
+        }
+        doc = newDoc;
+    }
+
+    // Parse payload
     for fieldName, value := range info.BodyObj {
-        if (fieldName == "__friendly_name") {
+        switch fieldName {
+        case "__friendly_name":
             friendlyName, ok := value.(string)
             if !ok {
                 continue;
             }
             device.SetName(friendlyName);
-        } else if (fieldName == "__location_note") {
+        case "__location_note":
             locationNote, ok := value.(string)
             if !ok {
                 continue;
             }
             device.SetLocationNote(locationNote);
-        } else {
-            varDef, err := device.LookupVarDef(fieldName)
-            if err != nil {
-                /* TODO: Report warning in response*/
-                continue;
+        case "sddl":
+            sddlJsonObj, ok := value.(map[string]interface{})
+            if !ok {
+                return nil, rest_errors.NewBadInputError("Expected object \"sddl\"")
             }
-            varVal, err := JsonToCloudVarValue(varDef, value)
+            err = device.ExtendSDDL(sddlJsonObj)
             if err != nil {
-                /* TODO: Report warning in response*/
-                continue;
+                return nil, rest_errors.NewBadInputError(err.Error())
             }
-            device.InsertSample(varDef, time.Now(), varVal);
+        }
+    }
+
+    // Handle vars last
+    for fieldName, value := range info.BodyObj {
+        switch fieldName {
+        case "vars":
+            varsJsonObj, ok := value.(map[string]interface{})
+            if !ok {
+                return nil, rest_errors.NewBadInputError("Expected object \"vars\"")
+            }
+            for varName, valueJsonObj := range varsJsonObj {
+                varDef, err := device.LookupVarDef(varName)
+                if err != nil {
+                    canolog.Warn("Cloud variable not found: ", varName)
+                    /* TODO: Report warning in response*/
+                    continue;
+                }
+
+                varVal, err := JsonToCloudVarValue(varDef, valueJsonObj)
+                if err != nil {
+                    canolog.Warn("Cloud variable value parsing problem: ", varName)
+                    /* TODO: Report warning in response*/
+                    continue;
+                }
+                device.InsertSample(varDef, time.Now(), varVal);
+            }
         }
     }
 

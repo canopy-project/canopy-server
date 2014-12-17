@@ -42,9 +42,9 @@ const (
 type DirectionEnum int
 const (
     DIRECTION_INVALID DirectionEnum = iota
-    DIRECTION_BIDIRECTIONAL
-    DIRECTION_OUTBOUND
-    DIRECTION_INBOUND
+    DIRECTION_INOUT
+    DIRECTION_IN
+    DIRECTION_OUT
 )
 
 // OptionalityEnum is the "optionality" of a Cloud Variable -- whether or not

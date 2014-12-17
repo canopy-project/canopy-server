@@ -165,14 +165,13 @@ func (device *CassDevice) getHistoricData_generic(propname string, datatype sddl
 func (device *CassDevice) ExtendSDDL(jsn map[string]interface{}) error {
     // TODO: Race condition?
     doc := device.SDDLDocument()
-    canolog.Info("ExtendClass")
+
     err := doc.Extend(jsn)
     if err != nil {
         canolog.Error("Error extending class ", jsn, err)
         return err
     }
 
-    canolog.Info("Saving SDDLClass")
     // save modified SDDL class to DB
     err = device.SetSDDLDocument(doc)
     if err != nil {
@@ -500,6 +499,7 @@ func (device *CassDevice) LocationNote() string {
 
 func (device *CassDevice) LookupVarDef(varName string) (sddl.VarDef, error) {
     doc := device.SDDLDocument()
+
     if doc == nil {
         return nil, fmt.Errorf("Cannot lookup property %s, device %s has unknown SDDL", varName, device.Name())
     }
