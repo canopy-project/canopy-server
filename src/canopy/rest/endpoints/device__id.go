@@ -26,6 +26,8 @@ import (
 )
 
 func GET_device__id(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    // TODO: Check permissions
+    //
     // Used for anonymous devices
     deviceIdString := info.URLVars["id"]
 

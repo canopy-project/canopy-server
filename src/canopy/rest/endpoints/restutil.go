@@ -216,6 +216,11 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
         "notifs" : []interface{} {},
     }
 
+    sddlDoc := device.SDDLDocument()
+    if sddlDoc != nil {
+        out["sddl"] = sddlDoc.Json()
+    }
+
     outDoc := device.SDDLDocument()
     if outDoc != nil {
         // get most recent value of each sensor/control
