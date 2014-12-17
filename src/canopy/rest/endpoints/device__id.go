@@ -137,7 +137,7 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
 
                 varVal, err := JsonToCloudVarValue(varDef, valueJsonObj)
                 if err != nil {
-                    canolog.Warn("Cloud variable value parsing problem: ", varName)
+                    canolog.Warn("Cloud variable value parsing problem: ", varName, err)
                     /* TODO: Report warning in response*/
                     continue;
                 }

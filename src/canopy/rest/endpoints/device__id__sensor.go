@@ -16,6 +16,7 @@
 package endpoints
 
 import (
+    "canopy/canolog"
     "canopy/datalayer"
     "canopy/rest/adapter"
     "canopy/rest/rest_errors"
@@ -36,32 +37,37 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request, info adapter
         return nil, rest_errors.NewURLNotFoundError()
     }
 
-    if info.Config.OptAllowAnonDevices() && device.PublicAccessLevel() > datalayer.NoAccess {
+    //if info.Config.OptAllowAnonDevices() && device.PublicAccessLevel() > datalayer.NoAccess {
+        canolog.Info("C");
         device, err = info.Conn.LookupDevice(uuid)
         if err != nil {
             // TODO: What errors to return here?
             return nil, rest_errors.NewInternalServerError("Device lookup failed")
         }
         authorized = true
-    } else {
-        if info.Account == nil {
-            return nil, rest_errors.NewNotLoggedInError()
-        }
-
-        device, err = info.Account.Device(uuid)
-        if err != nil {
-            // TODO: What errors to return here?
-            return nil, rest_errors.NewInternalServerError("Device lookup failed")
-        }
-
-        authorized = true
+    //} else {
+    // TODO: fix anon devices
+    canolog.Info("D");
+    if info.Account == nil {
+        return nil, rest_errors.NewNotLoggedInError()
     }
 
+    device, err = info.Account.Device(uuid)
+    if err != nil {
+        // TODO: What errors to return here?
+        return nil, rest_errors.NewInternalServerError("Device lookup failed")
+    }
+
+    authorized = true
+    //}
+
+    canolog.Info("E");
     if !authorized {
         // TODO: What is the correct error for this?
         return nil, rest_errors.NewURLNotFoundError()
     }
 
+    canolog.Info("F");
     doc := device.SDDLDocument()
     if doc == nil {
         w.WriteHeader(http.StatusBadRequest);
@@ -69,6 +75,7 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request, info adapter
         return nil, nil
     }
 
+    canolog.Info("G");
     varDef, err := doc.LookupVarDef(sensorName)
     if err != nil{
         w.WriteHeader(http.StatusBadRequest);
@@ -76,6 +83,7 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request, info adapter
         return nil, nil
     }
 
+    canolog.Info("H");
     samples, err := device.HistoricData(varDef, time.Now(), time.Now())
     if err != nil {
         fmt.Println(err)
@@ -84,6 +92,7 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request, info adapter
         return nil, nil
     }
 
+    canolog.Info("I");
     out, err := samplesToJson(samples)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
@@ -91,6 +100,7 @@ func GET_device__id__sensor(w http.ResponseWriter, r *http.Request, info adapter
         return nil, nil
     }
 
+    canolog.Info("J");
     fmt.Fprintf(w, out);
     return nil, nil
 }
