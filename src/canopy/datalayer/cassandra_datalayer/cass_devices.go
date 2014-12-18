@@ -246,7 +246,7 @@ func (device *CassDevice)InsertNotification(notifyType int, t time.Time, msg str
     return nil
 }
 
-func (device *CassDevice) LastSeen() *time.Time {
+func (device *CassDevice) LastActivityTime() *time.Time {
     return device.last_seen
 }
 
@@ -516,13 +516,6 @@ func (device *CassDevice) Name() string {
     return device.name
 }
 
-func (device *CassDevice) OperStatus() datalayer.OperStatus {
-    if device.last_seen == nil {
-        return datalayer.OperStatus_NewlyCreated;
-    }
-    return datalayer.OperStatus_InOperation;
-}
-
 func (device *CassDevice) PublicAccessLevel() datalayer.AccessLevel {
     return device.publicAccessLevel
 }
@@ -589,7 +582,13 @@ func (device *CassDevice) SetSDDLDocument(doc sddl.Document) error {
     return nil;
 }
 
-func (device *CassDevice) UpdateLastSeen(t time.Time) error {
+func (device *CassDevice) UpdateLastActivityTime(tp *time.Time) error {
+    var t time.Time
+    if tp == nil {
+        t = time.Now()
+    } else {
+        t = *tp
+    }
     err := device.conn.session.Query(`
             UPDATE devices
             SET last_seen = ?

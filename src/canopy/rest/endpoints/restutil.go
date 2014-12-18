@@ -204,25 +204,15 @@ type jsonNotification struct {
     Msg string `json:"msg"`
 }
 
-func operStatusString(operStatus datalayer.OperStatus) string {
-    switch operStatus {
-    case datalayer.OperStatus_NewlyCreated:
-        return "newly_created"
-    default:
-        return "in_operation"
-    }
-}
-
 func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
     statusJsonObj := map[string]interface{} {
-        "oper_status" : operStatusString(device.OperStatus()),
         "ws_connected" : IsDeviceConnected(device.ID().String()),
     }
-    lastSeen := device.LastSeen()
+    lastSeen := device.LastActivityTime()
     if lastSeen == nil {
-        statusJsonObj["last_seen"] = nil
+        statusJsonObj["last_activity_time"] = nil
     } else {
-        statusJsonObj["last_seen"] = *lastSeen
+        statusJsonObj["last_activity_time"] = *lastSeen
     }
 
     out := map[string]interface{}{

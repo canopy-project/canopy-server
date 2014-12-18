@@ -29,7 +29,6 @@ import(
     "io/ioutil"
     "net/http"
     "strings"
-    "time"
 )
 
 type RestHandlerIn struct {
@@ -149,7 +148,7 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
 
                 // update last_seen for this device
                 canolog.Info("Updating last seen")
-                err = device.UpdateLastSeen(time.Now())
+                err = device.UpdateLastActivityTime(nil)
                 if err != nil {
                     rest_errors.NewInternalServerError("Updating last seen time").WriteTo(w)
                     return
