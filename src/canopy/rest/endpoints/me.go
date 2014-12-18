@@ -32,3 +32,45 @@ func GET_me(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo)
     }, nil
 }
 
+func POST_me(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+    if info.Account == nil {
+        return nil, rest_errors.NewNotLoggedInError()
+    }
+
+    for fieldName, value := range info.BodyObj {
+        switch fieldName {
+        case "email":
+            return nil, rest_errors.NewInternalServerError("Changing email not implemented")
+        case "new_password":
+            newPassword, ok := value.(string)
+            if !ok {
+                return nil, rest_errors.NewBadInputError("Expected string \"new_password\"")
+            }
+            oldPasswordObj, ok := info.BodyObj["old_password"]
+            if !ok {
+                return nil, rest_errors.NewBadInputError("Must provide \"old_password\" to change password")
+            }
+            oldPassword, ok := oldPasswordObj.(string)
+            if !ok {
+                return nil, rest_errors.NewBadInputError("Expected string \"old_password\"")
+            }
+            ok = info.Account.VerifyPassword(oldPassword);
+            if (!ok) {
+                return nil, rest_errors.NewBadInputError("Incorrect old password")
+            }
+
+            err := info.Account.SetPassword(newPassword)
+            if err != nil {
+                // TODO: finer-grained error reporting
+                return nil, rest_errors.NewInternalServerError("Problem changing password")
+            }
+        }
+    }
+
+    return map[string]interface{}{
+        "result" : "ok",
+        "username" : info.Account.Username(),
+        "email" : info.Account.Email(),
+    }, nil
+}
+

@@ -118,12 +118,36 @@ func (account *CassAccount) Device(id gocql.UUID) (datalayer.Device, error) {
     return device, nil
 }
 
-func (account* CassAccount)Email() string {
+func (account *CassAccount)Email() string {
     return account.email
 }
 
-func (account* CassAccount)Username() string {
+func (account *CassAccount)Username() string {
     return account.username
+}
+
+func (account *CassAccount) SetPassword(password string) error {
+    err := validatePassword(password)
+    if err != nil {
+        return err
+    }
+
+    password_hash, err := bcrypt.GenerateFromPassword([]byte(password + salt), hashCost)
+    if err != nil {
+        return err
+    }
+
+    err = account.conn.session.Query(`
+            UPDATE accounts
+            SET password_hash = ?
+            WHERE username = ?
+    `, password_hash, account.Username()).Exec()
+    if err != nil {
+        return err;
+    }
+
+    account.password_hash = password_hash;
+    return nil;
 }
 
 func (account* CassAccount)VerifyPassword(password string) bool {

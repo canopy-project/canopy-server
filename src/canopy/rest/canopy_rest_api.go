@@ -53,6 +53,7 @@ func AddRoutes(r *mux.Router, cfg config.Config) error {
     r.HandleFunc("/api/login", adapter.CanopyRestAdapter(endpoints.POST_login, extra)).Methods("POST")
     r.HandleFunc("/api/logout", adapter.CanopyRestAdapter(endpoints.GET_POST_logout, extra))
     r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.GET_me, extra)).Methods("GET")
+    r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.POST_me, extra)).Methods("POST")
     r.HandleFunc("/di/device/{id}", endpoints.POST_di__device__id).Methods("POST")
     r.HandleFunc("/di/device/{id}/notify", endpoints.POST_di__device__id__notify).Methods("POST")
 

@@ -121,6 +121,9 @@ type Account interface {
     // Get user's email address.
     Email() string
 
+    // Set password
+    SetPassword(string) error
+
     // Get user's username.
     Username() string
 
