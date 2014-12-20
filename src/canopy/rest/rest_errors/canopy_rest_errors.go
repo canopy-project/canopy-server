@@ -60,7 +60,7 @@ type IncorrectUsernameOrPasswordError struct {
 }
 func (err IncorrectUsernameOrPasswordError) WriteTo(w http.ResponseWriter) {
     w.WriteHeader(http.StatusUnauthorized);
-    fmt.Fprintf(w, `{"result" : "error", "error_type" : "incorrect_username_or_password"}`, err.msg)
+    fmt.Fprintf(w, `{"result" : "error", "error_type" : "incorrect_username_or_password"}`)
 }
 func NewIncorrectUsernameOrPasswordError() CanopyRestError {
     return &IncorrectUsernameOrPasswordError{}

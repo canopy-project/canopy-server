@@ -26,6 +26,7 @@ func GET_me(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo)
         return nil, rest_errors.NewNotLoggedInError()
     }
     return map[string]interface{}{
+        "activated" : info.Account.IsActivated(),
         "result" : "ok",
         "username" : info.Account.Username(),
         "email" : info.Account.Email(),

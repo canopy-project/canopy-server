@@ -122,6 +122,10 @@ func (account *CassAccount)Email() string {
     return account.email
 }
 
+func (account *CassAccount) IsActivated() bool {
+    return account.activated
+}
+
 func (account *CassAccount)Username() string {
     return account.username
 }

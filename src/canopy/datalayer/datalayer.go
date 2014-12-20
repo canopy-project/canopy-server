@@ -121,6 +121,9 @@ type Account interface {
     // Get user's email address.
     Email() string
 
+    // Has this account been activated?
+    IsActivated() bool
+
     // Set password
     SetPassword(string) error
 

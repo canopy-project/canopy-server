@@ -83,6 +83,7 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
     }
 
     out := map[string]interface{} {
+        "activated" : false,
         "result" : "ok",
         "username" : account.Username(),
         "email" : account.Email(),
