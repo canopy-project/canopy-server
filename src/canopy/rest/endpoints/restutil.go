@@ -16,7 +16,8 @@ package endpoints
 import (
     "canopy/cloudvar"
     "canopy/datalayer"
-    "canopy/sddl"
+    "canopy/pigeon"
+    "canopy/ws"
     "encoding/base64"
     "encoding/json"
     "errors"
@@ -95,84 +96,6 @@ func basicAuthFromRequest(r *http.Request) (username string, password string, er
 // float64               float64 -->    float64
 // datetime              string  -->    time.Time
 //
-func JsonToCloudVarValue(varDef sddl.VarDef, value interface{}) (interface{}, error) {
-    switch varDef.Datatype() {
-    case sddl.DATATYPE_VOID:
-        return nil, nil
-    case sddl.DATATYPE_STRING:
-        v, ok := value.(string)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects string value for %s", varDef.Name())
-        }
-        return v, nil
-    case sddl.DATATYPE_BOOL:
-        v, ok := value.(bool)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects bool value for %s", varDef.Name())
-        }
-        return v, nil
-    case sddl.DATATYPE_INT8:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return int8(v), nil
-    case sddl.DATATYPE_UINT8:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return uint8(v), nil
-    case sddl.DATATYPE_INT16:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return int16(v), nil
-    case sddl.DATATYPE_UINT16:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return uint16(v), nil
-    case sddl.DATATYPE_INT32:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return int32(v), nil
-    case sddl.DATATYPE_UINT32:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return uint32(v), nil
-    case sddl.DATATYPE_FLOAT32:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return float32(v), nil
-    case sddl.DATATYPE_FLOAT64:
-        v, ok := value.(float64)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects number value for %s", varDef.Name())
-        }
-        return v, nil
-    case sddl.DATATYPE_DATETIME:
-        v, ok := value.(string)
-        if !ok {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects string value for %s", varDef.Name())
-        }
-        tval, err := time.Parse(time.RFC3339, v)
-        if err != nil {
-            return nil, fmt.Errorf("JsonToCloudVarValue expects RFC3339 formatted time value for %s", varDef.Name())
-        }
-        return tval, nil
-    default:
-        return nil, fmt.Errorf("InsertSample unsupported datatype ", varDef.Datatype())
-    }
-}
 
 type jsonDevices struct {
     Devices []jsonDevicesItem `json:"devices"`
@@ -202,9 +125,9 @@ type jsonNotification struct {
     Msg string `json:"msg"`
 }
 
-func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
+func deviceToJsonObj(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (map[string]interface{}, error) {
     statusJsonObj := map[string]interface{} {
-        "ws_connected" : IsDeviceConnected(device.ID().String()),
+        "ws_connected" : ws.IsDeviceConnected(pigeonSys, device.ID().String()),
     }
     lastSeen := device.LastActivityTime()
     if lastSeen == nil {
@@ -268,8 +191,8 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
     return out, nil
 
 }
-func deviceToJsonString(device datalayer.Device) (string, error) {
-    out, err := deviceToJsonObj(device)
+func deviceToJsonString(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (string, error) {
+    out, err := deviceToJsonObj(pigeonSys, device)
     if err != nil {
         return "", err;
     }
@@ -281,14 +204,14 @@ func deviceToJsonString(device datalayer.Device) (string, error) {
     return string(jsn), nil
 }
 
-func devicesToJsonObj(devices []datalayer.Device) (map[string]interface{}, error) {
+func devicesToJsonObj(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device) (map[string]interface{}, error) {
 
     out := map[string]interface{} {
         "devices" : []interface{} {},
     }
 
     for _, device := range devices {
-        deviceJsonObj, err := deviceToJsonObj(device)
+        deviceJsonObj, err := deviceToJsonObj(pigeonSys, device)
         if err != nil {
             continue
         }
@@ -299,8 +222,8 @@ func devicesToJsonObj(devices []datalayer.Device) (map[string]interface{}, error
     return out, nil
 }
 
-func devicesToJsonString(devices []datalayer.Device) (string, error) {
-    out, err := devicesToJsonObj(devices)
+func devicesToJsonString(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device) (string, error) {
+    out, err := devicesToJsonObj(pigeonSys, devices)
     if err != nil {
         return "", err;
     }
@@ -327,6 +250,3 @@ func samplesToJson(samples []cloudvar.CloudVarSample) (string, error) {
     return string(jsn), nil
 }
 
-func IsDeviceConnected(deviceIdString string) bool {
-    return (gPigeon.Mailbox(deviceIdString) != nil)
-}

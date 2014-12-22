@@ -52,6 +52,7 @@ import (
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/canolog"
+    "canopy/cloudvar"
     "canopy/sddl"
     "encoding/json"
     "fmt"
@@ -154,7 +155,7 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
 
         // Store property value.
         // Convert value datatype
-        varVal, err := JsonToCloudVarValue(varDef, value)
+        varVal, err := cloudvar.JsonToCloudVarValue(varDef, value)
         if err != nil {
                 canolog.Info("Error converting JSON to property value: ", value)
                 w.WriteHeader(http.StatusInternalServerError);

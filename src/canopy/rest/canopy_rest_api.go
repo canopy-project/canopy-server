@@ -18,6 +18,7 @@ package rest
 import (
     "canopy/config"
     "canopy/mail"
+    "canopy/pigeon"
     "canopy/rest/adapter"
     "canopy/rest/endpoints"
     "github.com/gorilla/mux"
@@ -29,7 +30,7 @@ func rootRedirectHandler(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, "/mgr/index.html", 301);
 }
 
-func AddRoutes(r *mux.Router, cfg config.Config) error {
+func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem) error {
     store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
     
     mailer, err := mail.NewMailClient(cfg)
@@ -41,6 +42,7 @@ func AddRoutes(r *mux.Router, cfg config.Config) error {
         Config: cfg,
         CookieStore: store,
         Mailer: mailer,
+        PigeonSys: pigeonSys,
    }
 
     // TODO: Need to handle allow-origin correctly!

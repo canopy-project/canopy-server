@@ -15,6 +15,7 @@ package endpoints
 
 import (
     "canopy/canolog"
+    "canopy/cloudvar"
     "canopy/pigeon"
     "canopy/rest/adapter"
     "canopy/datalayer"
@@ -41,7 +42,7 @@ func GET_device__id(w http.ResponseWriter, r *http.Request, info adapter.CanopyR
         // TODO: What errors to return here?
         return nil, rest_errors.NewInternalServerError("Device lookup failed")
     }
-    out, err := deviceToJsonObj(device)
+    out, err := deviceToJsonObj(info.PigeonSys, device)
     if err != nil {
         w.WriteHeader(http.StatusInternalServerError);
         return nil, rest_errors.NewInternalServerError("Generating JSON")
@@ -135,7 +136,7 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
                     continue;
                 }
 
-                varVal, err := JsonToCloudVarValue(varDef, valueJsonObj)
+                varVal, err := cloudvar.JsonToCloudVarValue(varDef, valueJsonObj)
                 if err != nil {
                     canolog.Warn("Cloud variable value parsing problem: ", varName, err)
                     /* TODO: Report warning in response*/
@@ -150,7 +151,7 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         Data : info.BodyObj,
     }
     canolog.Info("Sending pigeon message", msg);
-    err = gPigeon.SendMessage(deviceIdString, msg, time.Duration(100*time.Millisecond))
+    err = info.PigeonSys.SendMessage(deviceIdString, msg, time.Duration(100*time.Millisecond))
     if err != nil {
         canolog.Warn("Problem sending WS message! ", err);
         // TODO: Are there certain errors here that shouldn't be ignored?

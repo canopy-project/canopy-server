@@ -29,77 +29,76 @@ import (
     "canopy/service"
 )
 
-var gPigeon = pigeon.InitPigeonSystem()
-
-func IsDeviceConnected(deviceIdString string) bool {
-    return (gPigeon.Mailbox(deviceIdString) != nil)
+func IsDeviceConnected(pigeonSys *pigeon.PigeonSystem, deviceIdString string) bool {
+    return (pigeonSys.Mailbox(deviceIdString) != nil)
 }
 
-// Main websocket server routine.
-// This event loop runs until the websocket connection is broken.
-func CanopyWebsocketServer(ws *websocket.Conn) {
+func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket.Conn) {
+    // Main websocket server routine.
+    // This event loop runs until the websocket connection is broken.
+    return func(ws *websocket.Conn) {
+        canolog.Websocket("Websocket connection established")
 
-    canolog.Websocket("Websocket connection established")
+        var mailbox *pigeon.PigeonMailbox
+        var cnt int32
+        var device datalayer.Device
+        
+        cnt = 0
 
-    var mailbox *pigeon.PigeonMailbox
-    var cnt int32
-    var device datalayer.Device
-    
-    cnt = 0
-
-    // connect to cassandra
-    dl := cassandra_datalayer.NewDatalayer()
-    conn, err := dl.Connect("canopy")
-    if err != nil {
-        canolog.Error("Could not connect to database: ", err)
-        return
-    }
-    defer conn.Close()
-
-    for {
-        var in string
-
-        // check for message from client
-        ws.SetReadDeadline(time.Now().Add(100*time.Millisecond))
-        err := websocket.Message.Receive(ws, &in)
-        if err == nil {
-            // success, payload received
-            cnt++;
-            resp := service.ProcessDeviceComm(conn, device, "", in)
-            if resp.Device == nil{
-                canolog.Error("Error processing device communications: ", resp.Err)
-            } else {
-                device = resp.Device
-                if mailbox == nil {
-                    deviceIdString := device.ID().String()
-                    mailbox = gPigeon.CreateMailbox(deviceIdString)
-                }
-            }
-        } else if err == io.EOF {
-            canolog.Websocket("Websocket connection closed")
-            // connection closed
-            if mailbox != nil {
-                mailbox.Close()
-            }
-            return;
-        } else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
-            // timeout reached, no data for me this time
-        } else {
-            canolog.Error("Unexpected error: ", err)
+        // connect to cassandra
+        dl := cassandra_datalayer.NewDatalayer()
+        conn, err := dl.Connect("canopy")
+        if err != nil {
+            canolog.Error("Could not connect to database: ", err)
+            return
         }
+        defer conn.Close()
 
-        if mailbox != nil {
-            msg, _ := mailbox.RecieveMessage(time.Duration(100*time.Millisecond))
-            if msg != nil {
-                canolog.Info("Message received by WS thread")
-                msgString, err := json.Marshal(msg)
-                if err != nil {
-                    canolog.Error("Unexpected error: ", err)
+        for {
+            var in string
+
+            // check for message from client
+            ws.SetReadDeadline(time.Now().Add(100*time.Millisecond))
+            err := websocket.Message.Receive(ws, &in)
+            if err == nil {
+                // success, payload received
+                cnt++;
+                resp := service.ProcessDeviceComm(conn, device, "", in)
+                if resp.Device == nil{
+                    canolog.Error("Error processing device communications: ", resp.Err)
+                } else {
+                    device = resp.Device
+                    if mailbox == nil {
+                        deviceIdString := device.ID().String()
+                        mailbox = pigeonSys.CreateMailbox(deviceIdString)
+                    }
                 }
-                
-                canolog.Info("Websocket sending", msgString)
-                canolog.Websocket("Websocket sending: ", msgString)
-                websocket.Message.Send(ws, msgString)
+            } else if err == io.EOF {
+                canolog.Websocket("Websocket connection closed")
+                // connection closed
+                if mailbox != nil {
+                    mailbox.Close()
+                }
+                return;
+            } else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
+                // timeout reached, no data for me this time
+            } else {
+                canolog.Error("Unexpected error: ", err)
+            }
+
+            if mailbox != nil {
+                msg, _ := mailbox.RecieveMessage(time.Duration(100*time.Millisecond))
+                if msg != nil {
+                    canolog.Info("Message received by WS thread")
+                    msgString, err := json.Marshal(msg)
+                    if err != nil {
+                        canolog.Error("Unexpected error: ", err)
+                    }
+                    
+                    canolog.Info("Websocket sending", msgString)
+                    canolog.Websocket("Websocket sending: ", msgString)
+                    websocket.Message.Send(ws, msgString)
+                }
             }
         }
     }

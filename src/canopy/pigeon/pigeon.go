@@ -50,8 +50,8 @@ type PigeonMessage struct {
     Data map[string]interface{}
 }
 
-func InitPigeonSystem() *PigeonSystem {
-    return &PigeonSystem{mailboxes: map[string]*PigeonMailbox{}}
+func InitPigeonSystem() (*PigeonSystem, error) {
+    return &PigeonSystem{mailboxes: map[string]*PigeonMailbox{}}, nil
 }
 
 func (pigeon *PigeonSystem)CreateMailbox(mailboxId string) (*PigeonMailbox) {
