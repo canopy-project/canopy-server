@@ -150,8 +150,10 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
     msg := &pigeon.PigeonMessage {
         Data : info.BodyObj,
     }
+    canolog.Info("Sending pigeon message", msg);
     err = info.PigeonSys.SendMessage(deviceIdString, msg, time.Duration(100*time.Millisecond))
     if err != nil {
+        canolog.Warn("Problem sending WS message! ", err);
         // TODO: Are there certain errors here that shouldn't be ignored?
         //return nil, rest_errors.NewInternalServerError("SendMessage failed")
     }

@@ -90,10 +90,12 @@ func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket
                 msg, _ := mailbox.RecieveMessage(time.Duration(100*time.Millisecond))
                 if msg != nil {
                     msgString, err := json.Marshal(msg.Data)
+
                     if err != nil {
                         canolog.Error("Unexpected error: ", err)
                     }
                     
+                    canolog.Info("Websocket sending", msgString)
                     canolog.Websocket("Websocket sending: ", msgString)
                     websocket.Message.Send(ws, msgString)
                 }
