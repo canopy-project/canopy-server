@@ -30,7 +30,7 @@ func GET_devices(w http.ResponseWriter, r *http.Request, info adapter.CanopyRest
     if err != nil {
         return nil, rest_errors.NewInternalServerError("Device lookup failed")
     }
-    out, err := devicesToJsonObj(devices)
+    out, err := devicesToJsonObj(info.PigeonSys, devices)
     if err != nil {
         return nil, rest_errors.NewInternalServerError("Generating JSON")
     }

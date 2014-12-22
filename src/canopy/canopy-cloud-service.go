@@ -25,6 +25,7 @@ import (
     "github.com/gorilla/mux"
     "canopy/canolog"
     "canopy/config"
+    "canopy/pigeon"
     "canopy/rest"
     "canopy/webapp"
     "canopy/ws"
@@ -66,6 +67,12 @@ func main() {
 
     canolog.Info("Starting Canopy Cloud Service")
 
+    pigeonSys, err := pigeon.InitPigeonSystem()
+    if (err != nil) {
+        canolog.Error("Error starting pigeon system")
+        return
+    }
+
     // handle SIGINT & SIGTERM
     defer shutdown()
     c := make (chan os.Signal, 1)
@@ -105,10 +112,10 @@ func main() {
     webManagerPath := cfg.OptWebManagerPath()
     jsClientPath := cfg.OptJavascriptClientPath()
     httpPort := cfg.OptHTTPPort()
-    http.Handle(hostname + "/echo", websocket.Handler(ws.CanopyWebsocketServer))
+    http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(pigeonSys)))
 
     webapp.AddRoutes(r)
-    rest.AddRoutes(r, cfg)
+    rest.AddRoutes(r, cfg, pigeonSys)
 
     http.Handle(hostname + "/", r)
 

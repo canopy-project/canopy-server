@@ -19,6 +19,7 @@ import(
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/mail"
+    "canopy/pigeon"
     "canopy/rest/rest_errors"
     "encoding/base64"
     "errors"
@@ -35,6 +36,7 @@ type RestHandlerIn struct {
     Config config.Config
     CookieStore *sessions.CookieStore
     Mailer mail.MailClient
+    PigeonSys *pigeon.PigeonSystem
 }
 
 // CanopyRestAuthTypeEnum is the type of authentication used in a request
@@ -62,6 +64,7 @@ type CanopyRestInfo struct {
     Device datalayer.Device
     Session *sessions.Session
     Mailer mail.MailClient
+    PigeonSys *pigeon.PigeonSystem
     URLVars map[string]string
 }
 

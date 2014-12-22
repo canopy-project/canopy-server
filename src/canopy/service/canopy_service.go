@@ -17,9 +17,9 @@ package service
 import (
     "encoding/json"
     "canopy/canolog"
+    "canopy/cloudvar"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
-    "canopy/rest/endpoints"
     "canopy/sddl"
     "time"
     "github.com/gocql/gocql"
@@ -261,7 +261,7 @@ func ProcessDeviceComm(
 
             // Store property value.
             // Convert value datatype
-            varVal, err := endpoints.JsonToCloudVarValue(varDef, value)
+            varVal, err := cloudvar.JsonToCloudVarValue(varDef, value)
             if err != nil {
                 return ServiceResponse{
                     HttpCode: http.StatusInternalServerError,
