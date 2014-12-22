@@ -187,6 +187,8 @@ func ProcessDeviceComm(
     }
     out.Device = device
 
+    device.UpdateLastActivityTime(nil)
+
     // If "sddl" is present, create new / reconfigure Cloud Variables.
     _, ok = payloadObj["sddl"]
     if ok {
