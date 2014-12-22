@@ -89,7 +89,7 @@ func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket
             if mailbox != nil {
                 msg, _ := mailbox.RecieveMessage(time.Duration(100*time.Millisecond))
                 if msg != nil {
-                    msgString, err := json.Marshal(msg)
+                    msgString, err := json.Marshal(msg.Data)
                     if err != nil {
                         canolog.Error("Unexpected error: ", err)
                     }
