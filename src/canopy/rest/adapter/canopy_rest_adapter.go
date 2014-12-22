@@ -100,6 +100,7 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
         info := CanopyRestInfo{
             Config: in.Config,
             Mailer: in.Mailer,
+            PigeonSys: in.PigeonSys,
         }
 
         // Log request
