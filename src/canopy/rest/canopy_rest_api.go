@@ -22,7 +22,12 @@ import (
     "canopy/rest/endpoints"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
+    "net/http"
 )
+
+func rootRedirectHandler(w http.ResponseWriter, r *http.Request) {
+    http.Redirect(w, r, "/mgr/index.html", 301);
+}
 
 func AddRoutes(r *mux.Router, cfg config.Config) error {
     store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
@@ -39,6 +44,7 @@ func AddRoutes(r *mux.Router, cfg config.Config) error {
    }
 
     // TODO: Need to handle allow-origin correctly!
+    r.HandleFunc("/", rootRedirectHandler).Methods("GET")
     r.HandleFunc("/api/activate", adapter.CanopyRestAdapter(endpoints.POST_activate, extra)).Methods("POST")
     r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, extra)).Methods("GET")
     r.HandleFunc("/api/create_account", adapter.CanopyRestAdapter(endpoints.POST_create_account, extra)).Methods("POST")
