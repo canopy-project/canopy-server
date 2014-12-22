@@ -91,11 +91,13 @@ func CanopyWebsocketServer(ws *websocket.Conn) {
         if mailbox != nil {
             msg, _ := mailbox.RecieveMessage(time.Duration(100*time.Millisecond))
             if msg != nil {
+                canolog.Info("Message received by WS thread")
                 msgString, err := json.Marshal(msg)
                 if err != nil {
                     canolog.Error("Unexpected error: ", err)
                 }
                 
+                canolog.Info("Websocket sending", msgString)
                 canolog.Websocket("Websocket sending: ", msgString)
                 websocket.Message.Send(ws, msgString)
             }

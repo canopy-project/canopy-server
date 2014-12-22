@@ -16,7 +16,6 @@ package endpoints
 import (
     "canopy/cloudvar"
     "canopy/datalayer"
-    "canopy/pigeon"
     "canopy/sddl"
     "encoding/base64"
     "encoding/json"
@@ -30,7 +29,6 @@ import (
 // TODO: Need to handle allow-origin correctly!
 //var gConfAllowOrigin = "http://74.93.13.249:8080"
 
-var gPigeon = pigeon.InitPigeonSystem()
 func writeDatabaseConnectionError(w http.ResponseWriter) {
     w.WriteHeader(http.StatusInternalServerError);
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "could_not_connect_to_database"}`);
