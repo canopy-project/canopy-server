@@ -24,7 +24,7 @@ all: $(TARGETS)
 
 build/canopy-cloud-service:
 	mkdir -p ~/.canopy/golang
-	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go canopy_cloud.go canopy_json.go
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go
 	mkdir -p build/
 	mv canopy-cloud-service build/
 
@@ -50,7 +50,7 @@ install:
 	cp $(TARGETS) /usr/local/bin
 	cp ../../scripts/canopy-cloud-service /etc/init.d
 	mkdir -p /etc/canopy
-	cp ../../scripts/ccs-env.sh /etc/canopy
+	cp -u ../../scripts/server.conf /etc/canopy
 	../../scripts/create-canopy-group-user.sh
 	mkdir -p /var/log/canopy
 	touch /var/log/canopy/ccs.log
@@ -61,6 +61,12 @@ install:
 	chgrp canopy /var/log/canopy/ccs.log
 	chown canopy /var/log/canopy/ccs-errors.log
 	chgrp canopy /var/log/canopy/ccs-errors.log
+
+.PHONY: update
+update:
+	-/etc/init.d/canopy-cloud-service stop
+	cp $(TARGETS) /usr/local/bin
+	-/etc/init.d/canopy-cloud-service start
 
 .PHONY: clean
 clean:

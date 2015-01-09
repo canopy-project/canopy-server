@@ -16,6 +16,7 @@
 package pigeon
 
 import (
+    "canopy/canolog"
     "errors"
     "time"
 )
@@ -49,8 +50,8 @@ type PigeonMessage struct {
     Data map[string]interface{}
 }
 
-func InitPigeonSystem() *PigeonSystem {
-    return &PigeonSystem{mailboxes: map[string]*PigeonMailbox{}}
+func InitPigeonSystem() (*PigeonSystem, error) {
+    return &PigeonSystem{mailboxes: map[string]*PigeonMailbox{}}, nil
 }
 
 func (pigeon *PigeonSystem)CreateMailbox(mailboxId string) (*PigeonMailbox) {
@@ -68,12 +69,15 @@ func (pigeon *PigeonSystem)SendMessage(mailboxId string, msg *PigeonMessage, tim
     if mailbox != nil {
         select {
             case mailbox.ch <- msg:
+                canolog.Info("Message sent to mailbox");
                 // message transferred
                 return nil
             case <- time.After(timeout):
+                canolog.Warn("SendMessage timed out");
                 return errors.New("SendMessage timed out")
         }
     }
+    canolog.Warn("Mailbox not found");
     return errors.New("Mailbox not found")
 }
 

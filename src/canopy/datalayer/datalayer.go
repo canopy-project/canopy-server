@@ -16,6 +16,7 @@
 package datalayer
 
 import (
+    "canopy/cloudvar"
     "canopy/sddl"
     "github.com/gocql/gocql"
     "time"
@@ -38,6 +39,16 @@ const (
     NoSharing = iota
     SharingAllowed
     ShareRevokeAllowed
+)
+
+type NotificationType int
+const (
+    NotificationType_LowPriority = iota
+    NotificationType_MedPriority
+    NotificationType_HighPriority
+    NotificationType_SMS
+    NotificationType_Email
+    NotificationType_InApp
 )
 
 // Datalayer provides an abstracted interface for interacting with Canopy's
@@ -65,8 +76,10 @@ type Connection interface {
     // Create a new user account in the database.
     CreateAccount(username, email, password string) (Account, error)
 
-    // Create a new device in the database.
-    CreateDevice(name string) (Device, error)
+    // Create a new device in the database.  If <uuid> is nil, then the
+    // implementation will assign a newly created UUID.  If <secretKey> is nil,
+    // then the implementation will assign a newly created Secret Key.
+    CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel AccessLevel) (Device, error)
 
     // Remove a user account from the database.
     DeleteAccount(username string)
@@ -76,7 +89,7 @@ type Connection interface {
 
     // Lookup a user account from the database (with password verification).
     // Returns an error if the account is not found, or if the password is
-    // correct.
+    // incorrect.
     LookupAccountVerifyPassword(usernameOrEmail, password string) (Account, error)
 
     // Lookup a device from the database.
@@ -85,10 +98,20 @@ type Connection interface {
     // Lookup a device from the database, using string representation of its
     // UUID.
     LookupDeviceByStringID(id string) (Device, error)
+
+    // Lookup a device from the database by UUID, creating a new device with
+    // that UUID if none already exists.
+    LookupOrCreateDevice(deviceId gocql.UUID, publicAccessLevel AccessLevel) (Device, error)
 }
 
 // Account is a user account
 type Account interface {
+    // Get the account's activation code.
+    ActivationCode() string
+
+    // Mark this account as activated, using an activation code.
+    Activate(username, code string) error
+
     // Get all devices that user has access to.
     Devices() ([]Device, error)
 
@@ -97,6 +120,12 @@ type Account interface {
 
     // Get user's email address.
     Email() string
+
+    // Has this account been activated?
+    IsActivated() bool
+
+    // Set password
+    SetPassword(string) error
 
     // Get user's username.
     Username() string
@@ -107,47 +136,68 @@ type Account interface {
 
 // Device is a Canopy-enabled device
 type Device interface {
-    // Get historic sample data for a property.
-    // <property> must be an sddl.Control or an sddl.Sensor.
-    HistoricData(property sddl.Property, startTime, endTime time.Time) ([]sddl.PropertySample, error)
+    // Extend the SDDL by adding Cloud Variables
+    ExtendSDDL(jsn map[string]interface{}) error
 
-    // Get historic sample data for a property, by property name.
-    HistoricDataByPropertyName(propertyName string, startTime, endTime time.Time) ([]sddl.PropertySample, error)
+    // Get historic sample data for a Cloud Variable.
+    HistoricData(varDef sddl.VarDef, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
+
+    // Get historic sample data for a Cloud Variable, by name.
+    HistoricDataByName(cloudVarName string, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
+
+    // Get historic notifications originating from this device
+    HistoricNotifications() ([]Notification, error)
 
     // Get the UUID of this device.
     ID() gocql.UUID
 
-    // Store a data sample from a control or sensor.
-    // <property> must be an sddl.Control (with ControlType() == "parameter") or
-    // an sddl.Sensor.
+    // Get the UUID of this device.
+    IDString() string
+
+    // Store a Cloud Variable data sample.
     // <value> must have an appropriate dynamic type.  See documentation in
-    // sddl/sddl_sample.go for more details.
-    InsertSample(property sddl.Property, t time.Time, value interface{}) error
+    // cloudvar/cloudvar.go for more details.
+    InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error
 
-    // Get latest sample data for a property.
-    //
-    // property must be an sddl.Control or an sddl.Sensor.
-    LatestData(property sddl.Property) (*sddl.PropertySample, error)
+    // Store a record of a notification.
+    InsertNotification(notifyType int, t time.Time, msg string) error
 
-    // Get latest sample data for a property, by property name.
-    LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error)
+    // Get last time communication occurred with the server
+    // Return nil if device has never interacted with the server.
+    LastActivityTime() *time.Time
 
-    // Lookup a property by name.  Essentially, shorthand for:
-    //      device.SDDLClass().LookupProperty(propertyName)
-    LookupProperty(propertyName string) (sddl.Property, error)
+    // Get latest sample data for a Cloud Variable.
+    LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error)
+
+    // Get latest sample data for a Cloud Variable, by name.
+    LatestDataByName(cloudVarName string) (*cloudvar.CloudVarSample, error)
+
+    // Get the user-assigned note about device's location
+    LocationNote() string
+
+    // Lookup a Cloud Variable by name.  Essentially, shorthand for:
+    //      device.SDDLDocument().LookupVarDef(cloudVarName)
+    LookupVarDef(cloudVarName string) (sddl.VarDef, error)
 
     // Get the user-assigned name for this device.
     Name() string
 
-    // Get the SDDL class for this device.  Returns nil if class is unknown
-    // (which may happen for newly provisioned devices that haven't sent any
-    // reports yet).
-    SDDLClass() *sddl.Class
+    // Get the public access level
+    PublicAccessLevel() AccessLevel
 
-    // Get the SDDL class for this device, as a marshalled JSON string.
-    // Returns "" if class is unknown (which may happen for newly provisioned
-    // devices that haven't sent any reports yet).
-    SDDLClassString() string
+    // Get the SDDL document for this device.  Returns nil if document is
+    // unknown (which may happen for newly provisioned devices that haven't
+    // sent any reports yet).
+    SDDLDocument() sddl.Document
+
+    // Get the SDDL document for this device, as a marshalled JSON string.
+    // Returns "" if document is unknown (which may happen for newly
+    // provisioned devices that haven't sent any reports yet).
+    SDDLDocumentString() string
+
+    // Get the Secret Key for this device.  The Secret Key is used to
+    // authenticate messages coming from the device.
+    SecretKey() string
 
     // Set the access and sharing permissions that an account has for this
     // device.
@@ -160,5 +210,31 @@ type Device interface {
     SetName(name string) error
 
     // Set the SDDL class associated with this device.
-    SetSDDLClass(class *sddl.Class) error
+    SetSDDLDocument(doc sddl.Document) error
+
+    // Update the last activity timestamp.
+    // If <t> is nil, the current server time is used.  Otherwise, the last
+    // activity timestamp is set to *t.
+    // Saves the data to the database.
+    UpdateLastActivityTime(t *time.Time) error
 }
+
+// Notification is a record of a message sent to the device owner originiating
+// from the device.
+type Notification interface {
+    // Get the date & time that this notification was sent.
+    Datetime() time.Time
+
+    // Mark this notification as dismissed.
+    Dismiss() error
+
+    // Has this notification been dismissed?
+    IsDismissed() bool
+ 
+    // Get the notification message
+    Msg() string
+
+    // Get the requested notification type.
+    NotifyType() int
+}
+

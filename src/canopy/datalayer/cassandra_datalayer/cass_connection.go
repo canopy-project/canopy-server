@@ -19,8 +19,12 @@ import(
     "canopy/canolog"
     "canopy/datalayer"
     "canopy/sddl"
+    "canopy/util/random"
+    "fmt"
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
+    "regexp"
+    "time"
 )
 
 type CassConnection struct {
@@ -51,14 +55,67 @@ func (conn *CassConnection) Close() {
     conn.session.Close()
 }
 
+func validateUsername(username string) error {
+    if username == "leela" {
+        return fmt.Errorf("Username reserved")
+    }
+    if len(username) < 5 {
+        return fmt.Errorf("Username too short")
+    }
+    if len(username) > 24 {
+        return fmt.Errorf("Username too long")
+    }
+    matched, err := regexp.MatchString("[a-zA-Z][a-zA-Z0-9_]+", username)
+    if !matched || err != nil {
+        return fmt.Errorf("Invalid characters in username")
+    }
+
+    return nil
+}
+
+func validatePassword(password string) error {
+    if len(password) < 6 {
+        return fmt.Errorf("Password too short")
+    }
+    if len(password) > 120 {
+        return fmt.Errorf("Password too long")
+    }
+    return nil
+}
+
+func validateEmail(email string) error {
+    // TODO
+    return nil
+}
+
 func (conn *CassConnection) CreateAccount(username, email, password string) (datalayer.Account, error) {
     password_hash, _ := bcrypt.GenerateFromPassword([]byte(password + salt), hashCost)
 
+    err := validateUsername(username)
+    if err != nil {
+        return nil, err
+    }
+
+    err = validateEmail(email)
+    if err != nil {
+        return nil, err
+    }
+
+    err = validatePassword(password)
+    if err != nil {
+        return nil, err
+    }
+
+    activation_code, err := random.Base64String(24)
+    if err != nil {
+        return nil, err
+    }
+
     // TODO: transactionize
     if err := conn.session.Query(`
-            INSERT INTO accounts (username, email, password_hash)
-            VALUES (?, ?, ?)
-    `, username, email, password_hash).Exec(); err != nil {
+            INSERT INTO accounts (username, email, password_hash, activated, activation_code)
+            VALUES (?, ?, ?, ?, ?)
+    `, username, email, password_hash, false, activation_code).Exec(); err != nil {
         canolog.Error("Error creating account:", err)
         return nil, err
     }
@@ -71,16 +128,34 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
         return nil, err
     }
 
-    return &CassAccount{conn, username, email, password_hash}, nil
+    return &CassAccount{conn, username, email, password_hash, false, activation_code}, nil
 }
 
-func (conn *CassConnection) CreateDevice(name string) (datalayer.Device, error) {
-    id := gocql.TimeUUID()
+func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
+    // TODO: validate parameters 
+    var id gocql.UUID
+    var err error
+
+    if uuid == nil {
+        id, err = gocql.RandomUUID()
+        if err != nil {
+            return nil, err
+        }
+    } else {
+        id = *uuid
+    }
     
-    err := conn.session.Query(`
-            INSERT INTO devices (device_id, friendly_name)
-            VALUES (?, ?)
-    `, id, name).Exec()
+    if secretKey == "" {
+        secretKey, err = random.Base64String(24)
+        if err != nil {
+            return nil, err
+        }
+    }
+    
+    err = conn.session.Query(`
+            INSERT INTO devices (device_id, secret_key, friendly_name, public_access_level)
+            VALUES (?, ?, ?, ?)
+    `, id, secretKey, name, publicAccessLevel).Exec()
     if err != nil {
         canolog.Error("Error creating device:", err)
         return nil, err
@@ -88,10 +163,31 @@ func (conn *CassConnection) CreateDevice(name string) (datalayer.Device, error) 
     return &CassDevice{
         conn: conn,
         deviceId: id,
+        secretKey: secretKey,
         name: name,
-        class: nil,         // class gets initialized during first report
-        classString: "",
+        doc: sddl.Sys.NewEmptyDocument(),
+        docString: "",
+        publicAccessLevel: publicAccessLevel,
     }, nil
+}
+
+func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
+    // TODO: improve this implementation.
+    // Fix race conditions?
+    // Fix error paths?
+    
+    device, err := conn.LookupDevice(deviceId)
+    if device != nil {
+        canolog.Info("LookupOrCreateDevice - device ", deviceId, " found")
+        return device, nil
+    }
+
+    device, err = conn.CreateDevice("AnonDevice", &deviceId, "", publicAccessLevel)
+    if err != nil {
+        canolog.Info("LookupOrCreateDevice - device ", deviceId, "error")
+    }
+    canolog.Info("LookupOrCreateDevice - device ", deviceId, " created")
+    return device, err
 }
 
 func (conn *CassConnection) DeleteAccount(username string) {
@@ -117,11 +213,11 @@ func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Acc
     var account CassAccount
 
     if err := conn.session.Query(`
-            SELECT username, email, password_hash FROM accounts 
+            SELECT username, email, password_hash, activated, activation_code FROM accounts 
             WHERE username = ?
             LIMIT 1
     `, usernameOrEmail).Consistency(gocql.One).Scan(
-         &account.username, &account.email, &account.password_hash); err != nil {
+         &account.username, &account.email, &account.password_hash, &account.activated, &account.activation_code); err != nil {
             canolog.Error("Error looking up account", err)
             return nil, err
     }
@@ -150,24 +246,37 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
 
     device.deviceId = deviceId
     device.conn = conn
+    var last_seen time.Time;
 
     err := conn.session.Query(`
-        SELECT friendly_name, sddl
+        SELECT friendly_name, secret_key, sddl, last_seen
         FROM devices
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
-            &device.classString)
+            &device.secretKey,
+            &device.docString,
+            &last_seen)
     if err != nil {
+        canolog.Error(err)
         return nil, err
     }
 
-    if device.classString != "" {
-        device.class, err = sddl.ParseClassString("anonymous", device.classString)
+    // This scan returns Jan 1, 1970 UTC if last_seen is NULL.
+    if last_seen.Before(time.Unix(1, 0)) {
+        device.last_seen = nil
+    } else {
+        device.last_seen = &last_seen
+    }
+
+    if device.docString != "" {
+        device.doc, err = sddl.Sys.ParseDocumentString(device.docString)
         if err != nil {
-            canolog.Error("Error parsing class string for device: ", device.classString, err)
+            canolog.Error("Error parsing class string for device: ", device.docString, err)
             return nil, err
         }
+    } else {
+        device.doc = sddl.Sys.NewEmptyDocument()
     }
 
     return &device, nil

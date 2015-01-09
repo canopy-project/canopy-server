@@ -207,7 +207,7 @@ var creationQueries []string = []string{
         device_id uuid,
         propname text,
         time timestamp,
-        value text
+        value text,
         PRIMARY KEY((device_id, propname), time)
     ) WITH COMPACT STORAGE`,
 
@@ -222,8 +222,11 @@ var creationQueries []string = []string{
 
     `CREATE TABLE devices (
         device_id uuid,
+        secret_key text,
         friendly_name text,
         sddl text,
+        public_access_level int,
+        last_seen timestamp,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 
@@ -255,6 +258,8 @@ var creationQueries []string = []string{
         username text,
         email text,
         password_hash blob,
+        activated boolean,
+        activation_code text,
         PRIMARY KEY(username)
     ) WITH COMPACT STORAGE`,
 
@@ -263,6 +268,15 @@ var creationQueries []string = []string{
         username text,
         PRIMARY KEY(email)
     ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE notifications (
+        device_id uuid,
+        time_issued timestamp,
+        dismissed boolean,
+        msg text,
+        notify_type int,
+        PRIMARY KEY(device_id, time_issued)
+    ) `,
 }
 
 type CassDatalayer struct {
@@ -337,7 +351,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
             // Ignore errors (just print them).
             // This allows PrepDB to be used to add new tables.  Eventually, we
             // should come up with a proper migration strategy.
-            canolog.Warn("(IGNORED) ", err)
+            canolog.Warn("(IGNORED) ", query, ": ", err)
         }
     }
     return nil

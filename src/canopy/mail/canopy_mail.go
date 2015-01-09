@@ -16,6 +16,8 @@
 package mail
 
 import (
+    "canopy/config"
+    "fmt"
     "time"
 )
 
@@ -35,7 +37,15 @@ type MailMessage interface {
     SetDate(date time.Time) error
 }
 
-func NewDefaultMailClient() (MailClient, error) {
-    return NewSendGridMailClient()
+func NewMailClient(cfg config.Config) (MailClient, error) {
+    switch cfg.OptEmailService() {
+    case "none":
+        return NewNoOpMailClient()
+    case "sendgrid":
+        username := cfg.OptSendgridUsername()
+        secret := cfg.OptSendgridSecretKey()
+        return NewSendGridMailClient(username, secret)
+    default:
+        return nil, fmt.Errorf("Unsupported mail service: %s", cfg.OptEmailService())
+    }
 }
-

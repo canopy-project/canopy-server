@@ -20,6 +20,8 @@ import (
     "github.com/gocql/gocql"
     "time"
     "canopy/sddl"
+    "canopy/canolog"
+    "canopy/cloudvar"
     "fmt"
 )
 
@@ -27,10 +29,13 @@ import (
 type CassDevice struct {
     conn *CassConnection
     deviceId gocql.UUID
-    name string
+    doc sddl.Document
+    docString string
+    last_seen *time.Time
     locationNote string
-    class *sddl.Class
-    classString string
+    name string
+    publicAccessLevel datalayer.AccessLevel
+    secretKey string
 }
 
 func tableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
@@ -66,12 +71,12 @@ func tableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
     }
 }
 
-func (device *CassDevice) getHistoricData_generic(propname string, datatype sddl.DatatypeEnum, startTime time.Time, endTime time.Time) ([]sddl.PropertySample, error) {
+func (device *CassDevice) getHistoricData_generic(propname string, datatype sddl.DatatypeEnum, startTime time.Time, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
     var timestamp time.Time
 
     tableName, err := tableNameByDatatype(datatype)
     if err != nil {
-        return []sddl.PropertySample{}, err
+        return []cloudvar.CloudVarSample{}, err
     }
 
     query := device.conn.session.Query(`
@@ -82,105 +87,168 @@ func (device *CassDevice) getHistoricData_generic(propname string, datatype sddl
     `, device.ID(), propname).Consistency(gocql.One)
 
     iter := query.Iter()
-    samples := []sddl.PropertySample{}
+    samples := []cloudvar.CloudVarSample{}
 
     switch datatype {
     case sddl.DATATYPE_VOID:
         var value interface{}
         for iter.Scan(&timestamp) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_STRING:
         var value string
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_BOOL:
         var value bool
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_INT8:
         var value int8
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_UINT8:
         var value uint8
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_INT16:
         var value int16
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_UINT16:
         var value uint16
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_INT32:
         var value int32
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_UINT32:
         var value uint32
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_FLOAT32:
         var value float32
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_FLOAT64:
         var value float64
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_DATETIME:
         var value time.Time
         for iter.Scan(&timestamp, &value) {
-            samples = append(samples, sddl.PropertySample{timestamp, value})
+            samples = append(samples, cloudvar.CloudVarSample{timestamp, value})
         }
     case sddl.DATATYPE_INVALID:
-        return []sddl.PropertySample{}, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
+        return []cloudvar.CloudVarSample{}, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
     default:
-        return []sddl.PropertySample{}, fmt.Errorf("Cannot get property values for datatype %d", datatype);
+        return []cloudvar.CloudVarSample{}, fmt.Errorf("Cannot get property values for datatype %d", datatype);
     }
 
     if err := iter.Close(); err != nil {
-        return []sddl.PropertySample{}, err
+        return []cloudvar.CloudVarSample{}, err
     }
 
     return samples, nil
 }
 
-func (device *CassDevice) HistoricData(property sddl.Property, startTime, endTime time.Time) ([]sddl.PropertySample, error) {
-    switch prop := property.(type) {
-    case *sddl.Control:
-        return device.getHistoricData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
-    case *sddl.Sensor:
-        return device.getHistoricData_generic(prop.Name(), prop.Datatype(), startTime, endTime)
-    default:
-        return []sddl.PropertySample{}, fmt.Errorf("HistoricData expects Sensor or Control")
+func (device *CassDevice) ExtendSDDL(jsn map[string]interface{}) error {
+    // TODO: Race condition?
+    doc := device.SDDLDocument()
+
+    err := doc.Extend(jsn)
+    if err != nil {
+        canolog.Error("Error extending class ", jsn, err)
+        return err
     }
+
+    // save modified SDDL class to DB
+    err = device.SetSDDLDocument(doc)
+    if err != nil {
+        canolog.Error("Error saving SDDL: ", err)
+        return err
+    }
+    return nil
 }
 
-func (device *CassDevice) HistoricDataByPropertyName(propertyName string, startTime, endTime time.Time) ([]sddl.PropertySample, error) {
-    prop, err := device.LookupProperty(propertyName)
+func (device *CassDevice) HistoricData(varDef sddl.VarDef, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
+    return device.getHistoricData_generic(varDef.Name(), varDef.Datatype(), startTime, endTime)
+}
+
+func (device *CassDevice) HistoricDataByName(cloudVarName string, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
+    varDef, err := device.LookupVarDef(cloudVarName)
     if err != nil {
-        return []sddl.PropertySample{}, err
+        return []cloudvar.CloudVarSample{}, err
     }
-    return device.HistoricData(prop, startTime, endTime)
+    return device.HistoricData(varDef, startTime, endTime)
 }
 
 func (device *CassDevice) ID() gocql.UUID {
     return device.deviceId
 }
 
+func (device *CassDevice) IDString() string{
+    return device.deviceId.String()
+}
+
+func (device *CassDevice) SecretKey() string {
+    return device.secretKey
+}
+
+func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, error) {
+    var uuid gocql.UUID
+    var timestamp time.Time
+    var dismissed bool
+    var msg string
+    var notifyType int
+
+    query := device.conn.session.Query(`
+            SELECT device_id, time_issued, dismissed, msg, notify_type
+            FROM notifications
+            WHERE device_id = ?
+    `, device.ID()).Consistency(gocql.One)
+
+    iter := query.Iter()
+    notifications := []datalayer.Notification{}
+
+    for iter.Scan(&uuid, &timestamp, &dismissed, &msg, &notifyType) {
+        notifications = append(notifications, &CassNotification{
+                uuid, timestamp, dismissed, msg, notifyType})
+    }
+
+    if err := iter.Close(); err != nil {
+        return []datalayer.Notification{}, err
+    }
+
+    return notifications, nil
+}
+
+
+func (device *CassDevice)InsertNotification(notifyType int, t time.Time, msg string) error {
+    err := device.conn.session.Query(`
+            INSERT INTO notifications (device_id, time_issued, dismissed, msg, notify_type)
+            VALUES (?, ?, false, ?, ?)
+    `, device.ID(), t, msg, notifyType).Exec()
+    if err != nil {
+        return err;
+    }
+    return nil
+}
+
+func (device *CassDevice) LastActivityTime() *time.Time {
+    return device.last_seen
+}
 
 func (device *CassDevice) insertSensorSample_int(propname string, t time.Time, value int32) error {
     err := device.conn.session.Query(`
@@ -237,6 +305,7 @@ func (device *CassDevice) insertSensorSample_boolean(propname string, t time.Tim
     return nil;
 }
 
+// TODO: rename this routine
 func (device *CassDevice) insertSensorSample_void(propname string, t time.Time) error {
     err := device.conn.session.Query(`
             INSERT INTO propval_void (device_id, propname, time)
@@ -248,6 +317,7 @@ func (device *CassDevice) insertSensorSample_void(propname string, t time.Time) 
     return nil;
 }
 
+// TODO: rename this routine
 func (device *CassDevice) insertSensorSample_string(propname string, t time.Time, value string) error {
     err := device.conn.session.Query(`
             INSERT INTO propval_string (device_id, propname, time, value)
@@ -260,94 +330,86 @@ func (device *CassDevice) insertSensorSample_string(propname string, t time.Time
 }
 
 
-func (device *CassDevice) InsertSample(property sddl.Property, t time.Time, value interface{}) error {
-    var datatype sddl.DatatypeEnum
-    switch prop := property.(type) {
-    case *sddl.Control:
-        datatype = prop.Datatype()
-    case *sddl.Sensor:
-        datatype = prop.Datatype()
-    default:
-        return fmt.Errorf("InsertSample expects control or sensor property")
-    }
-    propname := property.Name()
-    switch datatype {
+func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
+    varname := varDef.Name()
+
+    switch varDef.Datatype() {
     case sddl.DATATYPE_VOID:
-        return device.insertSensorSample_void(propname, t);
+        return device.insertSensorSample_void(varname, t);
     case sddl.DATATYPE_STRING:
         v, ok := value.(string)
         if !ok {
-            return fmt.Errorf("InsertSample expects string value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects string value for %s", varname)
         }
-        return device.insertSensorSample_string(propname, t, v);
+        return device.insertSensorSample_string(varname, t, v);
     case sddl.DATATYPE_BOOL:
         v, ok := value.(bool)
         if !ok {
-            return fmt.Errorf("InsertSample expects bool value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects bool value for %s", varname)
         }
-        return device.insertSensorSample_boolean(propname, t, v);
+        return device.insertSensorSample_boolean(varname, t, v);
     case sddl.DATATYPE_INT8:
         v, ok := value.(int8)
         if !ok {
-            return fmt.Errorf("InsertSample expects int8 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects int8 value for %s", varname)
         }
-        return device.insertSensorSample_int(propname, t, int32(v));
+        return device.insertSensorSample_int(varname, t, int32(v));
     case sddl.DATATYPE_UINT8:
         v, ok := value.(uint8)
         if !ok {
-            return fmt.Errorf("InsertSample expects uint8 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects uint8 value for %s", varname)
         }
-        return device.insertSensorSample_int(propname, t, int32(v));
+        return device.insertSensorSample_int(varname, t, int32(v));
     case sddl.DATATYPE_INT16:
         v, ok := value.(int16)
         if !ok {
-            return fmt.Errorf("InsertSample expects int16 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects int16 value for %s", varname)
         }
-        return device.insertSensorSample_int(propname, t, int32(v));
+        return device.insertSensorSample_int(varname, t, int32(v));
     case sddl.DATATYPE_UINT16:
         v, ok := value.(uint16)
         if !ok {
-            return fmt.Errorf("InsertSample expects uint16 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects uint16 value for %s", varname)
         }
-        return device.insertSensorSample_int(propname, t, int32(v));
+        return device.insertSensorSample_int(varname, t, int32(v));
     case sddl.DATATYPE_INT32:
         v, ok := value.(int32)
         if !ok {
-            return fmt.Errorf("InsertSample expects int32 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects int32 value for %s", varname)
         }
-        return device.insertSensorSample_int(propname, t, v);
+        return device.insertSensorSample_int(varname, t, v);
     case sddl.DATATYPE_UINT32:
         v, ok := value.(uint32)
         if !ok {
-            return fmt.Errorf("InsertSample expects uint32 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects uint32 value for %s", varname)
         }
-        return device.insertSensorSample_int(propname, t, int32(v)) // TODO: verify this works as expected
+        return device.insertSensorSample_int(varname, t, int32(v)) // TODO: verify this works as expected
     case sddl.DATATYPE_FLOAT32:
         v, ok := value.(float32)
         if !ok {
-            return fmt.Errorf("InsertSample expects float32 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects float32 value for %s", varname)
         }
-        return device.insertSensorSample_float(propname, t, v);
+        return device.insertSensorSample_float(varname, t, v);
     case sddl.DATATYPE_FLOAT64:
         v, ok := value.(float64)
         if !ok {
-            return fmt.Errorf("InsertSample expects float64 value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects float64 value for %s", varname)
         }
-        return device.insertSensorSample_double(propname, t, v);
+        return device.insertSensorSample_double(varname, t, v);
     case sddl.DATATYPE_DATETIME:
         v, ok := value.(time.Time)
         if !ok {
-            return fmt.Errorf("InsertSample expects time.Time value for %s", property.Name())
+            return fmt.Errorf("InsertSample expects time.Time value for %s", varname)
         }
-        return device.insertSensorSample_timestamp(propname, t, v);
+        return device.insertSensorSample_timestamp(varname, t, v);
     default:
-        return fmt.Errorf("InsertSample unsupported datatype ", datatype)
+        return fmt.Errorf("InsertSample unsupported datatype ", varDef.Datatype())
     }
 }
 
-func (device *CassDevice) getLatestData_generic(propname string, datatype sddl.DatatypeEnum) (*sddl.PropertySample, error) {
+func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.DatatypeEnum) (*cloudvar.CloudVarSample, error) {
     var timestamp time.Time
-    var sample *sddl.PropertySample
+    var sample *cloudvar.CloudVarSample
 
     tableName, err := tableNameByDatatype(datatype)
     if err != nil {
@@ -360,56 +422,56 @@ func (device *CassDevice) getLatestData_generic(propname string, datatype sddl.D
             WHERE device_id = ?
                 AND propname = ?
             ORDER BY time DESC
-            LIMIT 1`, device.ID(), propname).Consistency(gocql.One)
+            LIMIT 1`, device.ID(), varname).Consistency(gocql.One)
 
     switch datatype {
     case sddl.DATATYPE_VOID:
         err = query.Scan(&timestamp)
-        sample = &sddl.PropertySample{timestamp, nil}
+        sample = &cloudvar.CloudVarSample{timestamp, nil}
     case sddl.DATATYPE_STRING:
         var value string
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_BOOL:
         var value bool
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_INT8:
         var value int8
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_UINT8:
         var value uint8
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_INT16:
         var value int16
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_UINT16:
         var value uint16
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_INT32:
         var value int32
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_UINT32:
         var value uint32
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_FLOAT32:
         var value float32
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_FLOAT64:
         var value float64
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_DATETIME:
         var value time.Time
         err = query.Scan(&timestamp, &value)
-        sample = &sddl.PropertySample{timestamp, value}
+        sample = &cloudvar.CloudVarSample{timestamp, value}
     case sddl.DATATYPE_INVALID:
         return nil, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
     default:
@@ -423,45 +485,47 @@ func (device *CassDevice) getLatestData_generic(propname string, datatype sddl.D
     return sample, nil
 }
 
-func (device *CassDevice) LatestData(property sddl.Property) (*sddl.PropertySample, error) {
-    switch prop := property.(type) {
-    case *sddl.Control:
-        return device.getLatestData_generic(prop.Name(), prop.Datatype())
-    case *sddl.Sensor:
-        return device.getLatestData_generic(prop.Name(), prop.Datatype())
-    default:
-        return nil, fmt.Errorf("LatestData expects Sensor or Control")
-    }
+func (device *CassDevice) LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error) {
+    return device.getLatestData_generic(varDef.Name(), varDef.Datatype())
 }
 
 
-func (device *CassDevice) LatestDataByPropertyName(propertyName string) (*sddl.PropertySample, error) {
-    prop, err := device.LookupProperty(propertyName)
+func (device *CassDevice) LatestDataByName(varName string) (*cloudvar.CloudVarSample, error) {
+    varDef, err := device.LookupVarDef(varName)
     if err != nil {
         return nil, err
     }
-    return device.LatestData(prop)
+    return device.LatestData(varDef)
 }
 
-func (device *CassDevice) LookupProperty(propName string) (sddl.Property, error) {
-    sddlClass := device.SDDLClass()
-    if sddlClass == nil {
-        return nil, fmt.Errorf("Cannot lookup property %s, device %s has unknown SDDL", propName, device.Name())
+func (device *CassDevice) LocationNote() string {
+    return device.locationNote
+}
+
+func (device *CassDevice) LookupVarDef(varName string) (sddl.VarDef, error) {
+    doc := device.SDDLDocument()
+
+    if doc == nil {
+        return nil, fmt.Errorf("Cannot lookup property %s, device %s has unknown SDDL", varName, device.Name())
     }
 
-    return sddlClass.LookupProperty(propName)
+    return doc.LookupVarDef(varName)
 }
 
 func (device *CassDevice) Name() string {
     return device.name
 }
 
-func (device *CassDevice) SDDLClass() *sddl.Class {
-    return device.class
+func (device *CassDevice) PublicAccessLevel() datalayer.AccessLevel {
+    return device.publicAccessLevel
 }
 
-func (device *CassDevice) SDDLClassString() string{
-    return device.classString
+func (device *CassDevice) SDDLDocument() sddl.Document {
+    return device.doc
+}
+
+func (device *CassDevice) SDDLDocumentString() string {
+    return device.docString
 }
 
 func (device *CassDevice) SetAccountAccess(account datalayer.Account, access datalayer.AccessLevel, sharing datalayer.ShareLevel) error {
@@ -501,8 +565,8 @@ func (device *CassDevice) SetName(name string) error {
 }
 
 
-func (device *CassDevice) SetSDDLClass(class *sddl.Class) error {
-    sddlText, err := class.ToString()
+func (device *CassDevice) SetSDDLDocument(doc sddl.Document) error {
+    sddlText, err := doc.ToString()
     if err != nil {
         return err
     }
@@ -518,3 +582,21 @@ func (device *CassDevice) SetSDDLClass(class *sddl.Class) error {
     return nil;
 }
 
+func (device *CassDevice) UpdateLastActivityTime(tp *time.Time) error {
+    var t time.Time
+    if tp == nil {
+        t = time.Now()
+    } else {
+        t = *tp
+    }
+    err := device.conn.session.Query(`
+            UPDATE devices
+            SET last_seen = ?
+            WHERE device_id = ?
+    `, t, device.ID()).Exec()
+    if err != nil {
+        return err;
+    }
+    device.last_seen = &t
+    return nil;
+}
