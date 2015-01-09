@@ -24,6 +24,7 @@ import(
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
     "regexp"
+    "strings"
     "time"
 )
 
@@ -211,17 +212,44 @@ func (conn *CassConnection) DeleteAccount(username string) {
 
 func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Account, error) {
     var account CassAccount
+    var username string
 
-    if err := conn.session.Query(`
+    canolog.Info("Looking up account: ", usernameOrEmail)
+
+    if strings.Contains(usernameOrEmail, "@") {
+        canolog.Info("It is an email address")
+        // email address provided.  Lookup username based on email
+        err := conn.session.Query(`
+                SELECT email, username FROM account_emails
+                WHERE email = ?
+                LIMIT 1
+        `, usernameOrEmail).Consistency(gocql.One).Scan(
+             &account.email, &username);
+        
+        if (err != nil) {
+            canolog.Error("Error looking up account", err)
+            return nil, err
+        }
+    } else {
+        canolog.Info("It is not an email address")
+        username = usernameOrEmail
+    }
+
+    canolog.Info("fetching info for: ", username)
+    // Lookup account info based on username
+    err := conn.session.Query(`
             SELECT username, email, password_hash, activated, activation_code FROM accounts 
             WHERE username = ?
             LIMIT 1
-    `, usernameOrEmail).Consistency(gocql.One).Scan(
-         &account.username, &account.email, &account.password_hash, &account.activated, &account.activation_code); err != nil {
-            canolog.Error("Error looking up account", err)
-            return nil, err
+    `, username).Consistency(gocql.One).Scan(
+         &account.username, &account.email, &account.password_hash, &account.activated, &account.activation_code)
+    
+    if (err != nil) {
+        canolog.Error("Error looking up account", err)
+        return nil, err
     }
-    /* TODO: try email if username not found */
+
+    canolog.Info("Success")
     account.conn = conn
     return &account, nil
 }

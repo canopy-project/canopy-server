@@ -41,11 +41,15 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
 
     account, err := info.Conn.LookupAccount(username)
     if err == nil {
+        // TODO: other errors could have occurred.  Do not necessarily take
+        // (err != nil) as a sign that username is available!
         return nil, rest_errors.NewUsernameTakenError()
     }
 
     account, err = info.Conn.LookupAccount(email)
     if err == nil {
+        // TODO: other errors could have occurred.  Do not necessarily take
+        // (err != nil) as a sign that username is available!
         return nil, rest_errors.NewEmailTakenError()
     }
 
