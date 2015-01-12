@@ -42,6 +42,7 @@ func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket
         var mailbox *pigeon.PigeonMailbox
         var cnt int32
         var device datalayer.Device
+        lastPingTime := time.Now()
         
         cnt = 0
 
@@ -84,6 +85,14 @@ func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket
                 // timeout reached, no data for me this time
             } else {
                 canolog.Error("Unexpected error: ", err)
+            }
+
+
+            // Periodically send blank message
+            if time.Now().After(lastPingTime.Add(30*time.Second)) {
+                websocket.Message.Send(ws, "{}")
+                canolog.Info("Pinging WS")
+                lastPingTime = time.Now()
             }
 
             if mailbox != nil {
