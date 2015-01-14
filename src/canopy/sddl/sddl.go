@@ -531,6 +531,8 @@ func (doc *SDDLDocument) RemoveVarDef(varName string) (bool, error) {
             newVars = append(newVars, varDef);
         } else {
             removed = true
+            // Update JSON
+            delete(doc.jsonObj, varDef.Declaration())
         }
     }
 
