@@ -90,7 +90,15 @@ func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket
 
             // Periodically send blank message
             if time.Now().After(lastPingTime.Add(30*time.Second)) {
-                websocket.Message.Send(ws, "{}")
+                err := websocket.Message.Send(ws, "{}")
+                if err != nil {
+                    canolog.Websocket("Websocket connection closed during ping")
+                    // connection closed
+                    if mailbox != nil {
+                        mailbox.Close()
+                    }
+                    return;
+                }
                 canolog.Info("Pinging WS")
                 lastPingTime = time.Now()
             }
