@@ -211,14 +211,28 @@ var creationQueries []string = []string{
         PRIMARY KEY((device_id, propname), time)
     ) WITH COMPACT STORAGE`,
 
-
-    `CREATE TABLE sensor_data (
+    // var_info
+    // This table stores config and state relating to cloud variables.
+    //  device_id
+    //      Device that owns the cloud variable.
+    //
+    //  vardecl
+    //      Cloud variable declaration, such as "inout float32 humidity".
+    //      The combinatino of (deviceid, vardecl) uniquely identifies the
+    //      cloud variable.
+    //
+    //  sample_count
+    //      Number of samples currently stored for that cloud variable.
+    //
+    //  sample_limit
+    //      Maximum number of samples to keep until we start discarding.
+    `CREATE TABLE var_info (
         device_id uuid,
-        propname text,
-        time timestamp,
-        value double,
-        PRIMARY KEY(device_id, propname, time)
-    ) WITH COMPACT STORAGE`,
+        vardecl text,
+        sample_count int,
+        sample_limit int,
+        PRIMARY KEY(device_id, vardecl)
+    )`,
 
     `CREATE TABLE devices (
         device_id uuid,
