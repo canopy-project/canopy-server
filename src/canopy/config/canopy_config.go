@@ -406,7 +406,7 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             if ok {
                 config.httpPort = int16(port)
             }
-        case "https-cert": 
+        case "https-cert-file": 
             config.httpsCertFile, ok = v.(string)
         case "https-port": 
             port, ok := v.(int)

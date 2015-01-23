@@ -124,29 +124,40 @@ func main() {
         http.Handle(hostname + "/canopy-js-client/", http.StripPrefix("/canopy-js-client/", http.FileServer(http.Dir(jsClientPath))))
     }
 
+    // Run HTTP and HTTPS servers simultaneously (if both are enabled)
+    httpResultChan := make(chan error)
+    httpsResultChan := make(chan error)
     if cfg.OptEnableHTTP() {
-        httpPort := cfg.OptHTTPPort()
-        srv := &http.Server{
-            Addr: fmt.Sprintf(":%d", httpPort),
-            Handler: context.ClearHandler(http.DefaultServeMux),
-        }
-        err = srv.ListenAndServe()
-        if err != nil {
-            canolog.Error(err);
-        }
+        go func() {
+            httpPort := cfg.OptHTTPPort()
+            srv := &http.Server{
+                Addr: fmt.Sprintf(":%d", httpPort),
+                Handler: context.ClearHandler(http.DefaultServeMux),
+            }
+            err = srv.ListenAndServe()
+            httpResultChan <- err
+        }()
     }
     if cfg.OptEnableHTTPS() {
-        httpsPort := cfg.OptHTTPSPort()
-        httpsCertFile := cfg.OptHTTPSCertFile()
-        httpsPrivKeyFile := cfg.OptHTTPSPrivKeyFile()
-        srv := &http.Server{
-            Addr: fmt.Sprintf(":%d", httpsPort),
-            Handler: context.ClearHandler(http.DefaultServeMux),
-        }
-        err := srv.ListenAndServeTLS(httpsCertFile, httpsPrivKeyFile)
-        if err != nil {
+        go func() {
+            httpsPort := cfg.OptHTTPSPort()
+            httpsCertFile := cfg.OptHTTPSCertFile()
+            httpsPrivKeyFile := cfg.OptHTTPSPrivKeyFile()
+            srv := &http.Server{
+                Addr: fmt.Sprintf(":%d", httpsPort),
+                Handler: context.ClearHandler(http.DefaultServeMux),
+            }
+            err := srv.ListenAndServeTLS(httpsCertFile, httpsPrivKeyFile)
+            httpsResultChan <- err
+        }()
+    }
+
+    // Exit if either server has error
+    select {
+        case err := <- httpResultChan:
             canolog.Error(err)
-        }
+        case err := <- httpsResultChan:
+            canolog.Error(err)
     }
 }
 
