@@ -27,9 +27,12 @@ type Config interface {
     OptAllowAnonDevices() bool
     OptAllowOrigin() string
     OptEmailService() string
+    OptEnableHTTP() bool
+    OptEnableHTTPS() bool
     OptForwardOtherHosts() string
     OptHostname() string
     OptHTTPPort() int16
+    OptHTTPSPort() int16
     OptJavascriptClientPath() string
     OptLogFile() string
     OptProductionSecret() string
@@ -40,7 +43,9 @@ type Config interface {
 
 func NewDefaultConfig() Config {
     return &CanopyConfig{
+        enableHTTPS: true,
         httpPort: 80,
+        httpsPort: 443,
         logFile: "/var/log/canopy/canopy-server.log",
     }
 }
