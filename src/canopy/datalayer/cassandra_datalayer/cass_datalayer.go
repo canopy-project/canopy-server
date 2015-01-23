@@ -211,6 +211,12 @@ var creationQueries []string = []string{
         PRIMARY KEY((device_id, propname), time)
     ) WITH COMPACT STORAGE`,
 
+    `CREATE TABLE var_sample_counts (
+        device_id uuid,
+        vardecl text,
+        count counter,
+        PRIMARY KEY(device_id, vardecl)
+    )`,
     // var_info
     // This table stores config and state relating to cloud variables.
     //  device_id
@@ -229,7 +235,7 @@ var creationQueries []string = []string{
     `CREATE TABLE var_info (
         device_id uuid,
         vardecl text,
-        sample_count int,
+        sample_count counter,
         sample_limit int,
         PRIMARY KEY(device_id, vardecl)
     )`,
