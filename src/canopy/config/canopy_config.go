@@ -32,6 +32,8 @@ type CanopyConfig struct {
     forwardOtherHosts string
     hostname string
     httpPort int16
+    httpsCertFile string
+    httpsPrivKeyFile string
     httpsPort int16
     logFile string
     webManagerPath string
@@ -51,7 +53,9 @@ enable-https:        `, config.enableHTTPS, `
 forward-other-hosts: `, config.forwardOtherHosts, `
 hostname:            `, config.hostname, `
 http-port:           `, config.httpPort, `
+https-cert-file:     `, config.httpsCertFile, `
 https-port:          `, config.httpsPort, `
+https-priv-key-file: `, config.httpsPrivKeyFile, `
 js-client-path:      `, config.javascriptClientPath, `
 log-file:            `, config.logFile, `
 sendgrid-username:   `, config.sendgridUsername, `
@@ -68,7 +72,9 @@ func (config *CanopyConfig) ToJsonObject() map[string]interface{}{
         "forward-other-hosts" : config.forwardOtherHosts,
         "hostname" : config.hostname,
         "http-port" : config.httpPort,
+        "https-cert-file" : config.httpsCertFile,
         "https-port" : config.httpsPort,
+        "https-priv-key-file" : config.httpsPrivKeyFile,
         "js-client-path" : config.javascriptClientPath,
         "log-file" : config.logFile,
         "sendgrid-username" : config.sendgridUsername,
@@ -176,6 +182,11 @@ func (config *CanopyConfig) LoadConfigEnv() error {
         config.httpPort = int16(port)
     }
 
+    httpsCertFile := os.Getenv("CCS_HTTPS_CERT_FILE")
+    if httpsCertFile != "" {
+        config.httpsCertFile = httpsCertFile
+    }
+
     httpsPort := os.Getenv("CCS_HTTPS_PORT")
     if httpPort != "" {
         port, err := strconv.ParseInt(httpsPort, 0, 16)
@@ -183,6 +194,11 @@ func (config *CanopyConfig) LoadConfigEnv() error {
             return fmt.Errorf("Invalid value for CCS_HTTPS_PORT: %s",  httpsPort)
         }
         config.httpsPort = int16(port)
+    }
+
+    httpsPrivKeyFile := os.Getenv("CCS_HTTPS_PRIV_KEY_FILE")
+    if httpsPrivKeyFile != "" {
+        config.httpsPrivKeyFile = httpsPrivKeyFile
     }
 
     jsClientPath := os.Getenv("CCS_JS_CLIENT_PATH")
@@ -227,7 +243,9 @@ func (config *CanopyConfig) LoadConfigCLI() error {
     forwardOtherHosts := flag.String("forward-other-hosts", "", "")
     hostname := flag.String("hostname", "", "")
     httpPort := flag.String("http-port", "", "")
+    httpsCertFile := flag.String("https-cert-file", "", "")
     httpsPort := flag.String("https-port", "", "")
+    httpsPrivKeyFile := flag.String("https-priv-key-file", "", "")
     jsClientPath := flag.String("js-client-path", "", "")
     logFile := flag.String("log-file", "", "")
     productionSecret := flag.String("production-secret", "", "")
@@ -294,12 +312,20 @@ func (config *CanopyConfig) LoadConfigCLI() error {
         config.httpPort = int16(port)
     }
 
+    if *httpsCertFile != "" {
+        config.httpsCertFile = *httpsCertFile
+    }
+
     if *httpsPort != "" {
         port, err := strconv.ParseInt(*httpsPort, 0, 16)
         if err != nil {
             return fmt.Errorf("Invalid value for CCS_HTTPS_PORT: %s",  httpsPort)
         }
         config.httpsPort = int16(port)
+    }
+
+    if *httpsPrivKeyFile != "" {
+        config.httpsPrivKeyFile = *httpsPrivKeyFile
     }
 
     if *jsClientPath != "" {
@@ -380,11 +406,15 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             if ok {
                 config.httpPort = int16(port)
             }
+        case "https-cert": 
+            config.httpsCertFile, ok = v.(string)
         case "https-port": 
             port, ok := v.(int)
             if ok {
                 config.httpsPort = int16(port)
             }
+        case "https-priv-key-file": 
+            config.httpsPrivKeyFile, ok = v.(string)
         case "js-client-path": 
             config.javascriptClientPath, ok = v.(string)
         case "log-file": 
@@ -439,8 +469,16 @@ func (config *CanopyConfig) OptHTTPPort() int16 {
     return config.httpPort
 }
 
+func (config *CanopyConfig) OptHTTPSCertFile() string {
+    return config.httpsCertFile
+}
+
 func (config *CanopyConfig) OptHTTPSPort() int16 {
     return config.httpsPort
+}
+
+func (config *CanopyConfig) OptHTTPSPrivKeyFile() string {
+    return config.httpsPrivKeyFile
 }
 
 func (config *CanopyConfig) OptJavascriptClientPath() string {
