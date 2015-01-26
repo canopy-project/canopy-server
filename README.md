@@ -9,34 +9,7 @@ of its responsibilities include:
  - Storing data in a Cassandra database.
  - Serving the Canopy REST API.
 
-
-Building and Installing (Quick-and-easy method, Ubuntu 14.04)
-------------------------------------------------------------------------------
-Install Cassandra and GoLang:
-
-    sudo apt-get install cassandra
-    sudo apt-get install golang
-
-Clone Canopy Cloud Service:
-
-    git clone http://github.com/canopy-project/canopy-cloud
-
-Build Canopy Cloud Service:
-
-    cd canopy-cloud
-    make
-
-Install it:
-
-    sudo make install
-
-Initialize database:
-
-    canodevtool create-db
-
-Start it running:
-
-    sudo /etc/init.d/canopy-cloud-service start
+Setup and installation instructions are available here: http://canopy.link/devzone/ccs/
 
 
 Notes for older systems (specifically: Ubuntu 12.04 LTS):
