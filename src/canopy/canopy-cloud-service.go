@@ -1,18 +1,16 @@
-/*
- * Copyright 2014 Gregory Prisament
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+// Copyright 2014-2015 SimpleThings, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 package main
 
 import (
@@ -111,7 +109,6 @@ func main() {
     hostname := cfg.OptHostname()
     webManagerPath := cfg.OptWebManagerPath()
     jsClientPath := cfg.OptJavascriptClientPath()
-    httpPort := cfg.OptHTTPPort()
     http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(pigeonSys)))
 
     webapp.AddRoutes(r)
@@ -127,16 +124,40 @@ func main() {
         http.Handle(hostname + "/canopy-js-client/", http.StripPrefix("/canopy-js-client/", http.FileServer(http.Dir(jsClientPath))))
     }
 
-    //err := http.ListenAndServeTLS(":8080", "cert.pem", "key.pem", context.ClearHandler(http.DefaultServeMux))
-    srv := &http.Server{
-        Addr: fmt.Sprintf(":%d", httpPort),
-        Handler: context.ClearHandler(http.DefaultServeMux),
-        //ReadTimeout: 10*time.Second,
-        //WriteTimeout: 10*time.Second,
+    // Run HTTP and HTTPS servers simultaneously (if both are enabled)
+    httpResultChan := make(chan error)
+    httpsResultChan := make(chan error)
+    if cfg.OptEnableHTTP() {
+        go func() {
+            httpPort := cfg.OptHTTPPort()
+            srv := &http.Server{
+                Addr: fmt.Sprintf(":%d", httpPort),
+                Handler: context.ClearHandler(http.DefaultServeMux),
+            }
+            err = srv.ListenAndServe()
+            httpResultChan <- err
+        }()
     }
-    err = srv.ListenAndServe()
-    if err != nil {
-        canolog.Error(err);
+    if cfg.OptEnableHTTPS() {
+        go func() {
+            httpsPort := cfg.OptHTTPSPort()
+            httpsCertFile := cfg.OptHTTPSCertFile()
+            httpsPrivKeyFile := cfg.OptHTTPSPrivKeyFile()
+            srv := &http.Server{
+                Addr: fmt.Sprintf(":%d", httpsPort),
+                Handler: context.ClearHandler(http.DefaultServeMux),
+            }
+            err := srv.ListenAndServeTLS(httpsCertFile, httpsPrivKeyFile)
+            httpsResultChan <- err
+        }()
+    }
+
+    // Exit if either server has error
+    select {
+        case err := <- httpResultChan:
+            canolog.Error(err)
+        case err := <- httpsResultChan:
+            canolog.Error(err)
     }
 }
 
