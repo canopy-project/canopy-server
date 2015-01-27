@@ -18,6 +18,7 @@ import (
     "encoding/json"
     "canopy/canolog"
     "canopy/cloudvar"
+    "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/sddl"
@@ -63,6 +64,7 @@ type ServiceResponse struct {
 //
 //  <payload> is a string containing the JSON payload.
 func ProcessDeviceComm(
+        cfg config.Config,
         conn datalayer.Connection, 
         device datalayer.Device, 
         deviceIdString string,
@@ -74,7 +76,7 @@ func ProcessDeviceComm(
     canolog.Info("ProcessDeviceComm STARTED")
     // If conn is nil, open a datalayer connection.
     if conn == nil {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, err = dl.Connect("canopy")
         if err != nil {
             return ServiceResponse{

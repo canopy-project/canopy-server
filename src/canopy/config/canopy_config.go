@@ -37,6 +37,8 @@ type CanopyConfig struct {
     httpsPort int16
     logFile string
     webManagerPath string
+    passwordHashCost int16
+    passwordSecretSalt string
     productionSecret string
     sendgridSecretKey string
     sendgridUsername string
@@ -211,6 +213,20 @@ func (config *CanopyConfig) LoadConfigEnv() error {
         config.logFile = logFile
     }
 
+    passwordHashCost := os.Getenv("CCS_PASSWORD_HASH_COST")
+    if passwordHashCost != "" {
+        hashCost, err := strconv.ParseInt(passwordHashCost, 0, 16)
+        if err != nil {
+            return fmt.Errorf("Invalid value for CCS_PASSWORD_HASH_COST: %s", passwordHashCost)
+        }
+        config.passwordHashCost = int16(hashCost)
+    }
+
+    passwordSecretSalt := os.Getenv("CCS_PASSWORD_SECRET_SALT")
+    if passwordSecretSalt != "" {
+        config.passwordSecretSalt = passwordSecretSalt
+    }
+
     productionSecret := os.Getenv("CCS_PRODUCTION_SECRET")
     if productionSecret != "" {
         config.productionSecret = productionSecret
@@ -248,6 +264,8 @@ func (config *CanopyConfig) LoadConfigCLI() error {
     httpsPrivKeyFile := flag.String("https-priv-key-file", "", "")
     jsClientPath := flag.String("js-client-path", "", "")
     logFile := flag.String("log-file", "", "")
+    passwordHashCost := flag.String("password-hash-cost", "", "")
+    passwordSecretSalt := flag.String("password-secret-salt", "", "")
     productionSecret := flag.String("production-secret", "", "")
     sendgridSecretKey := flag.String("sendgrid-secret-key", "", "")
     sendgridUsername := flag.String("sendgrid-username", "", "")
@@ -271,7 +289,7 @@ func (config *CanopyConfig) LoadConfigCLI() error {
 
     if *emailService != "" {
         if !(*emailService == "none" || *emailService == "sendgrid") {
-            return fmt.Errorf("Unknown email service: %s",  emailService)
+            return fmt.Errorf("Unknown email service: %s",  *emailService)
         }
         config.emailService = *emailService
     }
@@ -307,7 +325,7 @@ func (config *CanopyConfig) LoadConfigCLI() error {
     if *httpPort != "" {
         port, err := strconv.ParseInt(*httpPort, 0, 16)
         if err != nil {
-            return fmt.Errorf("Invalid value for CCS_HTTP_PORT: %s",  httpPort)
+            return fmt.Errorf("Invalid value for --http-port: %s",  *httpPort)
         }
         config.httpPort = int16(port)
     }
@@ -319,7 +337,7 @@ func (config *CanopyConfig) LoadConfigCLI() error {
     if *httpsPort != "" {
         port, err := strconv.ParseInt(*httpsPort, 0, 16)
         if err != nil {
-            return fmt.Errorf("Invalid value for CCS_HTTPS_PORT: %s",  httpsPort)
+            return fmt.Errorf("Invalid value for --http-ports: %s",  *httpsPort)
         }
         config.httpsPort = int16(port)
     }
@@ -334,6 +352,18 @@ func (config *CanopyConfig) LoadConfigCLI() error {
 
     if *logFile != "" {
         config.logFile = *logFile
+    }
+
+    if *passwordHashCost != "" {
+        hashCost, err := strconv.ParseInt(*passwordHashCost, 0, 16)
+        if err != nil {
+            return fmt.Errorf("Invalid value for --password-hash-cost: %s",  *passwordHashCost)
+        }
+        config.passwordHashCost = int16(hashCost)
+    }
+
+    if *passwordSecretSalt != "" {
+        config.passwordSecretSalt = *passwordSecretSalt
     }
 
     if *productionSecret != "" {
@@ -419,6 +449,13 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.javascriptClientPath, ok = v.(string)
         case "log-file": 
             config.logFile, ok = v.(string)
+        case "password-hash-cost": 
+            passwordHashCost, ok := v.(int)
+            if ok {
+                config.passwordHashCost = int16(passwordHashCost)
+            }
+        case "password-secret-salt": 
+            config.passwordSecretSalt, ok = v.(string)
         case "production-secret": 
             config.productionSecret, ok = v.(string)
         case "sendgrid-secret-key": 
@@ -489,8 +526,16 @@ func (config *CanopyConfig) OptLogFile() string {
     return config.logFile
 }
 
+func (config *CanopyConfig) OptPasswordHashCost() int16 {
+    return config.passwordHashCost
+}
+
+func (config *CanopyConfig) OptPasswordSecretSalt() string {
+    return config.passwordSecretSalt
+}
+
 func (config *CanopyConfig) OptProductionSecret() string {
-    return config.logFile
+    return config.productionSecret
 }
 
 func (config *CanopyConfig) OptSendgridUsername() string {

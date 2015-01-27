@@ -45,6 +45,8 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
         PigeonSys: pigeonSys,
    }
 
+    endpoints.SetGlobalConfig(cfg)
+
     // TODO: Need to handle allow-origin correctly!
     r.HandleFunc("/", rootRedirectHandler).Methods("GET")
     r.HandleFunc("/api/activate", adapter.CanopyRestAdapter(endpoints.POST_activate, extra)).Methods("POST")

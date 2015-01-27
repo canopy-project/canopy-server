@@ -23,6 +23,7 @@ import (
     "io"
     "net"
     "canopy/canolog"
+    "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/pigeon"
@@ -33,7 +34,7 @@ func IsDeviceConnected(pigeonSys *pigeon.PigeonSystem, deviceIdString string) bo
     return (pigeonSys.Mailbox(deviceIdString) != nil)
 }
 
-func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket.Conn) {
+func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem) func(ws *websocket.Conn) {
     // Main websocket server routine.
     // This event loop runs until the websocket connection is broken.
     return func(ws *websocket.Conn) {
@@ -47,7 +48,7 @@ func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket
         cnt = 0
 
         // connect to cassandra
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, err := dl.Connect("canopy")
         if err != nil {
             canolog.Error("Could not connect to database: ", err)
@@ -64,7 +65,7 @@ func NewCanopyWebsocketServer(pigeonSys *pigeon.PigeonSystem) func(ws *websocket
             if err == nil {
                 // success, payload received
                 cnt++;
-                resp := service.ProcessDeviceComm(conn, device, "", in)
+                resp := service.ProcessDeviceComm(cfg, conn, device, "", in)
                 if resp.Device == nil{
                     canolog.Error("Error processing device communications: ", resp.Err)
                 } else {

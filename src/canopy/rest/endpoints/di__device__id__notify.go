@@ -72,7 +72,7 @@ func POST_di__device__id__notify(w http.ResponseWriter, r *http.Request) {
     }
 
     // Connect to database
-    dl := cassandra_datalayer.NewDatalayer()
+    dl := cassandra_datalayer.NewDatalayer(GetGlobalConfig())
     conn, err := dl.Connect("canopy")
     if err != nil {
         writeDatabaseConnectionError(w)

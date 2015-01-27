@@ -15,6 +15,10 @@
  */
 package cassandra_datalayer
 
+import (
+    "canopy/config"
+)
+
 //
 // Cassandra stores data in column families (aka tables).  Each column family
 // (table) has multiple rows.  Each row has a row key.  Each row also has an
@@ -300,10 +304,11 @@ var creationQueries []string = []string{
 }
 
 type CassDatalayer struct {
+    cfg config.Config
 }
 
-func NewCassDatalayer() *CassDatalayer {
-    return &CassDatalayer{}
+func NewCassDatalayer(cfg config.Config) *CassDatalayer {
+    return &CassDatalayer{cfg: cfg}
 }
 
 func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) {
@@ -378,6 +383,6 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
 }
 
 
-func NewDatalayer() datalayer.Datalayer {
-    return NewCassDatalayer()
+func NewDatalayer(cfg config.Config) datalayer.Datalayer {
+    return NewCassDatalayer(cfg)
 }

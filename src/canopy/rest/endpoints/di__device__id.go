@@ -53,6 +53,7 @@ import (
     "canopy/datalayer/cassandra_datalayer"
     "canopy/canolog"
     "canopy/cloudvar"
+    "canopy/config"
     "canopy/sddl"
     "encoding/json"
     "fmt"
@@ -62,6 +63,16 @@ import (
     "strings"
     "time"
 )
+
+// This is a bit of a hack to communicate the server's configuration to this
+// endpoint.  Is this endpoint even still used?
+var globalConfig config.Config
+func SetGlobalConfig(cfg config.Config) {
+    globalConfig = cfg
+}
+func GetGlobalConfig() config.Config{
+    return globalConfig
+}
 
 func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
     vars := mux.Vars(r)
@@ -80,7 +91,7 @@ func POST_di__device__id(w http.ResponseWriter, r *http.Request) {
     }
 
     // Connect to database
-    dl := cassandra_datalayer.NewDatalayer()
+    dl := cassandra_datalayer.NewDatalayer(GetGlobalConfig())
     conn, err := dl.Connect("canopy")
     if err != nil {
         writeDatabaseConnectionError(w)

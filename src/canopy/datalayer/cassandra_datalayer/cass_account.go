@@ -23,12 +23,6 @@ import (
     "github.com/gocql/gocql"
 )
 
-// Salt is added to passwords.  TODO: INSECURE: don't reveal in source code!
-var salt = "aik897sipz0Z*@4:zikp"
-
- // Computational cost of between 4 and 31.. 14 takes about 1 sec to compute
-var hashCost = 10
-
 type CassAccount struct {
     conn *CassConnection
     username string
@@ -136,7 +130,10 @@ func (account *CassAccount) SetPassword(password string) error {
         return err
     }
 
-    password_hash, err := bcrypt.GenerateFromPassword([]byte(password + salt), hashCost)
+    salt := account.conn.dl.cfg.OptPasswordSecretSalt()
+    hashCost := account.conn.dl.cfg.OptPasswordHashCost()
+
+    password_hash, err := bcrypt.GenerateFromPassword([]byte(password + salt), int(hashCost))
     if err != nil {
         return err
     }
@@ -155,6 +152,7 @@ func (account *CassAccount) SetPassword(password string) error {
 }
 
 func (account* CassAccount)VerifyPassword(password string) bool {
+    salt := account.conn.dl.cfg.OptPasswordSecretSalt()
     err := bcrypt.CompareHashAndPassword(account.password_hash, []byte(password + salt))
     return (err == nil)
 }

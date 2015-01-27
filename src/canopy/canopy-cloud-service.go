@@ -95,6 +95,10 @@ func main() {
         return
     }
 
+    if (cfg.OptPasswordSecretSalt() == "") {
+        canolog.Error("You must set the configuration option \"password-secret-salt\"")
+        return
+    }
     canolog.Info(cfg.ToString())
 
     if (cfg.OptForwardOtherHosts() != "") {
@@ -109,7 +113,7 @@ func main() {
     hostname := cfg.OptHostname()
     webManagerPath := cfg.OptWebManagerPath()
     jsClientPath := cfg.OptJavascriptClientPath()
-    http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(pigeonSys)))
+    http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(cfg, pigeonSys)))
 
     webapp.AddRoutes(r)
     rest.AddRoutes(r, cfg, pigeonSys)

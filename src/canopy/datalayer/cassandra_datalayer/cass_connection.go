@@ -90,7 +90,10 @@ func validateEmail(email string) error {
 }
 
 func (conn *CassConnection) CreateAccount(username, email, password string) (datalayer.Account, error) {
-    password_hash, _ := bcrypt.GenerateFromPassword([]byte(password + salt), hashCost)
+    salt := conn.dl.cfg.OptPasswordSecretSalt()
+    hashCost := conn.dl.cfg.OptPasswordHashCost()
+
+    password_hash, _ := bcrypt.GenerateFromPassword([]byte(password + salt), int(hashCost))
 
     err := validateUsername(username)
     if err != nil {
