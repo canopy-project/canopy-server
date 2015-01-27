@@ -432,15 +432,18 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
         case "hostname": 
             config.hostname, ok = v.(string)
         case "http-port": 
-            port, ok := v.(int)
+            var port float64
+            port, ok := v.(float64)
             if ok {
                 config.httpPort = int16(port)
             }
         case "https-cert-file": 
             config.httpsCertFile, ok = v.(string)
         case "https-port": 
-            port, ok := v.(int)
+            var port float64
+            port, ok = v.(float64)
             if ok {
+                // TODO: verify integer provided
                 config.httpsPort = int16(port)
             }
         case "https-priv-key-file": 
@@ -450,8 +453,10 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
         case "log-file": 
             config.logFile, ok = v.(string)
         case "password-hash-cost": 
-            passwordHashCost, ok := v.(int)
+            var passwordHashCost float64
+            passwordHashCost, ok = v.(float64)
             if ok {
+                // TODO: verify integer provided
                 config.passwordHashCost = int16(passwordHashCost)
             }
         case "password-secret-salt": 
