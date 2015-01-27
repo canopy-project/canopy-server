@@ -170,7 +170,7 @@ func (account *CassAccount) ResetPassword(code, newPassword string) error {
             SET password_reset_code = ?,
                 password_reset_code_expiry = ?
             WHERE username = ?
-    `, "", pastExpiry).Exec()
+    `, "", pastExpiry, account.Username()).Exec()
     if err != nil {
         return err;
     }
