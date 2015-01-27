@@ -36,7 +36,7 @@ func POST_activate(w http.ResponseWriter, r *http.Request, info adapter.CanopyRe
 
     code, ok := info.BodyObj["code"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"activation_code\" expected")
+        return nil, rest_errors.NewBadInputError("String \"code\" expected")
     }
 
     err := info.Account.Activate(username, code)

@@ -17,9 +17,11 @@ package cassandra_datalayer
 
 import (
     "canopy/datalayer"
+    "canopy/util/random"
     "code.google.com/p/go.crypto/bcrypt"
     "errors"
     "fmt"
+    "time"
     "github.com/gocql/gocql"
 )
 
@@ -30,6 +32,8 @@ type CassAccount struct {
     password_hash []byte
     activated bool
     activation_code string
+    password_reset_code string
+    password_reset_code_expiry time.Time
 }
 
 func (account *CassAccount) ActivationCode() string {
@@ -116,12 +120,63 @@ func (account *CassAccount)Email() string {
     return account.email
 }
 
+func (account *CassAccount)GenResetPasswordCode() (string, error) {
+    // Generate Password Reset Code
+    reset_code, err := random.Base64String(24)
+    if err != nil {
+        return "", err
+    }
+
+    expiry := time.Now().Add(time.Hour*24)
+    
+    err = account.conn.session.Query(`
+            UPDATE accounts
+            SET password_reset_code = ?,
+                password_reset_code_expiry = ?
+            WHERE username = ?
+    `, reset_code, expiry, account.Username()).Exec()
+    if err != nil {
+        return "", err;
+    }
+    account.password_reset_code = reset_code
+    account.password_reset_code_expiry = expiry
+    return reset_code, nil
+}
+
 func (account *CassAccount) IsActivated() bool {
     return account.activated
 }
 
-func (account *CassAccount)Username() string {
-    return account.username
+func (account *CassAccount) ResetPassword(code, newPassword string) error {
+    // Verify the code is valid and not expired.
+    
+    if code == "" || (account.password_reset_code != code) {
+        return errors.New("Invalid or expired password reset code");
+    }
+    if account.password_reset_code_expiry.Before(time.Now()) {
+        return errors.New("Invalid or expired password reset code");
+    }
+
+    err := account.SetPassword(newPassword)
+    if err != nil {
+        return err
+    }
+
+    pastExpiry := time.Now().Add(-time.Hour*24)
+
+    // Invalidate the code
+    err = account.conn.session.Query(`
+            UPDATE accounts
+            SET password_reset_code = ?,
+                password_reset_code_expiry = ?
+            WHERE username = ?
+    `, "", pastExpiry).Exec()
+    if err != nil {
+        return err;
+    }
+    account.password_reset_code = ""
+    account.password_reset_code_expiry = pastExpiry
+    return nil
 }
 
 func (account *CassAccount) SetPassword(password string) error {
@@ -149,6 +204,10 @@ func (account *CassAccount) SetPassword(password string) error {
 
     account.password_hash = password_hash;
     return nil;
+}
+
+func (account *CassAccount)Username() string {
+    return account.username
 }
 
 func (account* CassAccount)VerifyPassword(password string) bool {

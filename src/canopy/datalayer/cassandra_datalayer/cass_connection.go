@@ -115,11 +115,20 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
         return nil, err
     }
 
+    now := time.Now()
+
     // TODO: transactionize
     if err := conn.session.Query(`
-            INSERT INTO accounts (username, email, password_hash, activated, activation_code)
-            VALUES (?, ?, ?, ?, ?)
-    `, username, email, password_hash, false, activation_code).Exec(); err != nil {
+            INSERT INTO accounts (
+                username, 
+                email, 
+                password_hash, 
+                activated, 
+                activation_code,
+                password_reset_code,
+                password_reset_code_expiry)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+    `, username, email, password_hash, false, activation_code, "", now).Exec(); err != nil {
         canolog.Error("Error creating account:", err)
         return nil, err
     }
@@ -132,7 +141,7 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
         return nil, err
     }
 
-    return &CassAccount{conn, username, email, password_hash, false, activation_code}, nil
+    return &CassAccount{conn, username, email, password_hash, false, activation_code, "", now}, nil
 }
 
 func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
@@ -241,11 +250,25 @@ func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Acc
     canolog.Info("fetching info for: ", username)
     // Lookup account info based on username
     err := conn.session.Query(`
-            SELECT username, email, password_hash, activated, activation_code FROM accounts 
+            SELECT 
+                username, 
+                email, 
+                password_hash, 
+                activated, 
+                activation_code, 
+                password_reset_code, 
+                password_reset_code_expiry 
+            FROM accounts 
             WHERE username = ?
             LIMIT 1
     `, username).Consistency(gocql.One).Scan(
-         &account.username, &account.email, &account.password_hash, &account.activated, &account.activation_code)
+         &account.username, 
+         &account.email, 
+         &account.password_hash, 
+         &account.activated, 
+         &account.activation_code,
+         &account.password_reset_code,
+         &account.password_reset_code_expiry)
     
     if (err != nil) {
         canolog.Error("Error looking up account", err)

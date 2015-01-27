@@ -121,8 +121,16 @@ type Account interface {
     // Get user's email address.
     Email() string
 
+    // Generate a new Reset Password Code that expires in 24 hours, replacing
+    // any existing Reset Password Code.  Saves it to the database.
+    GenResetPasswordCode() (code string, err error)
+
     // Has this account been activated?
     IsActivated() bool
+
+    // Reset password.  Like SetPassword but requires a valid Password Reset
+    // Code, and invalidates <code> on success.
+    ResetPassword(code, newPassword string) error
 
     // Set password
     SetPassword(string) error

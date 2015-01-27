@@ -18,8 +18,6 @@ import (
     "canopy/mail/messages"
     "canopy/rest/adapter"
     "canopy/rest/rest_errors"
-    //"canopy/mail"
-    "fmt"
     "net/http"
 )
 
@@ -87,7 +85,6 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
     )
     err = info.Mailer.Send(msg)
     if (err != nil) {
-        fmt.Fprintf(w, "{\"error\" : \"sending_email\"}")
         return nil, rest_errors.NewInternalServerError("Problem sending mail")
     }
 
