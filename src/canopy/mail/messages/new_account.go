@@ -49,7 +49,7 @@ func MailMessageCreatedAccount(msg mail.MailMessage, username, activationLink, m
                 <h3><br>Manage Your Devices</h3>
                 Manage your Canopy-enabled devices by going here:
                 <p>
-                    <a href=` + manageLink + `>http:` + hostname + `</a>
+                    <a href=` + manageLink + `>` + manageLink + `</a>
                 </p>
                 <br>
             </td>
