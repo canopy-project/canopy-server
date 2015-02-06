@@ -65,7 +65,7 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem)
             if err == nil {
                 // success, payload received
                 cnt++;
-                resp := service.ProcessDeviceComm(cfg, conn, device, "", in)
+                resp := service.ProcessDeviceComm(cfg, conn, device, "", "", in)
                 if resp.Device == nil{
                     canolog.Error("Error processing device communications: ", resp.Err)
                 } else {

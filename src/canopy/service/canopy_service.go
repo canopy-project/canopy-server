@@ -62,12 +62,17 @@ type ServiceResponse struct {
 //  This is ignored if <device> is not nil.  If nil, then the payload's
 //  "device_id" will be used.
 //
+//  <secretKey> is the device's secret key. A secret key is required if
+//  <device> is nil.  Either the value of <secretKey> or, as a last resort, the
+//  payload's "secret_key" field will be used.
+//
 //  <payload> is a string containing the JSON payload.
 func ProcessDeviceComm(
         cfg config.Config,
         conn datalayer.Connection, 
         device datalayer.Device, 
         deviceIdString string,
+        secretKey string,
         payload string) ServiceResponse {
     var err error
     var out ServiceResponse
@@ -103,8 +108,8 @@ func ProcessDeviceComm(
 
     // Device can be provided to this routine in one of three ways:
     // 1) <device> parameter
-    // 2) <deviceId> parameter (creates new device if necessary)
-    // 3) "device_id" field in payload (creates new device if necessary)
+    // 2) <deviceId> parameter
+    // 3) "device_id" field in payload
     if device == nil && deviceIdString != "" {
         // Parse UUID
         uuid, err := gocql.ParseUUID(deviceIdString)
@@ -117,12 +122,25 @@ func ProcessDeviceComm(
             }
         }
 
-        // Does device exist?  If not, create an anonymous device.
-        device, err = conn.LookupOrCreateDevice(uuid, datalayer.ReadWriteAccess)
+        // Get secret key from payload if necessary
+        if secretKey == "" {
+            secretKey, ok = payloadObj["secret_key"].(string)
+            if !ok {
+                return ServiceResponse{
+                    HttpCode: http.StatusBadRequest,
+                    Err: fmt.Errorf("\"secret_key\" field must be string"),
+                    Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+                    Device: nil,
+                }
+            }
+        }
+
+        // lookup device
+        device, err = conn.LookupDeviceVerifySecretKey(uuid, secretKey)
         if err != nil {
             return ServiceResponse{
                 HttpCode: http.StatusInternalServerError,
-                Err: fmt.Errorf("Error looking up or creating device: %s", err),
+                Err: fmt.Errorf("Error looking up or verifying device: %s", err),
                 Response: `{"result" : "error", "error_type" : "database_error"}`,
                 Device: nil,
             }
@@ -157,11 +175,26 @@ func ProcessDeviceComm(
         // If not: set it.
         // If so: ensure consistency
         if device == nil {
-            device, err = conn.LookupOrCreateDevice(uuid, datalayer.ReadWriteAccess)
+        
+            // Get secret key from payload if necessary
+            if secretKey == "" {
+                secretKey, ok = payloadObj["secret_key"].(string)
+                if !ok {
+                    return ServiceResponse{
+                        HttpCode: http.StatusBadRequest,
+                        Err: fmt.Errorf("\"secret_key\" field must be string"),
+                        Response: `{"result" : "error", "error_type" : "bad_payload"}`,
+                        Device: nil,
+                    }
+                }
+            }
+
+            // Lookup device
+            device, err = conn.LookupDeviceVerifySecretKey(uuid, secretKey)
             if err != nil {
                 return ServiceResponse{
                     HttpCode: http.StatusInternalServerError,
-                    Err: fmt.Errorf("Error looking up or creating device: %s", err),
+                    Err: fmt.Errorf("Error looking up or verifying device: %s", err),
                     Response: `{"result" : "error", "error_type" : "database_error"}`,
                     Device: nil,
                 }

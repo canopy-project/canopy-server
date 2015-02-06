@@ -45,8 +45,6 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
         PigeonSys: pigeonSys,
    }
 
-    endpoints.SetGlobalConfig(cfg)
-
     // TODO: Need to handle allow-origin correctly!
     r.HandleFunc("/", rootRedirectHandler).Methods("GET")
     r.HandleFunc("/api/activate", adapter.CanopyRestAdapter(endpoints.POST_activate, extra)).Methods("POST")
@@ -65,8 +63,6 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
     r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.GET_me, extra)).Methods("GET")
     r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.POST_me, extra)).Methods("POST")
     r.HandleFunc("/api/reset_password", adapter.CanopyRestAdapter(endpoints.POST_reset_password, extra)).Methods("POST")
-    r.HandleFunc("/di/device/{id}", endpoints.POST_di__device__id).Methods("POST")
-    r.HandleFunc("/di/device/{id}/notify", endpoints.POST_di__device__id__notify).Methods("POST")
 
     return nil
 }

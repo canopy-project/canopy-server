@@ -89,11 +89,16 @@ func validateEmail(email string) error {
     return nil
 }
 
-func (conn *CassConnection) CreateAccount(username, email, password string) (datalayer.Account, error) {
+func (conn *CassConnection) CreateAccount(
+        username, 
+        email, 
+        password string) (datalayer.Account, error) {
+
     salt := conn.dl.cfg.OptPasswordSecretSalt()
     hashCost := conn.dl.cfg.OptPasswordHashCost()
 
-    password_hash, _ := bcrypt.GenerateFromPassword([]byte(password + salt), int(hashCost))
+    password_hash, _ := bcrypt.GenerateFromPassword(
+            []byte(password + salt), int(hashCost))
 
     err := validateUsername(username)
     if err != nil {
@@ -144,7 +149,11 @@ func (conn *CassConnection) CreateAccount(username, email, password string) (dat
     return &CassAccount{conn, username, email, password_hash, false, activation_code, "", now}, nil
 }
 
-func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
+func (conn *CassConnection) CreateDevice(
+        name string, 
+        uuid *gocql.UUID, 
+        secretKey string, 
+        publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
     // TODO: validate parameters 
     var id gocql.UUID
     var err error
@@ -184,25 +193,6 @@ func (conn *CassConnection) CreateDevice(name string, uuid *gocql.UUID, secretKe
     }, nil
 }
 
-func (conn *CassConnection) LookupOrCreateDevice(deviceId gocql.UUID, publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
-    // TODO: improve this implementation.
-    // Fix race conditions?
-    // Fix error paths?
-    
-    device, err := conn.LookupDevice(deviceId)
-    if device != nil {
-        canolog.Info("LookupOrCreateDevice - device ", deviceId, " found")
-        return device, nil
-    }
-
-    device, err = conn.CreateDevice("AnonDevice", &deviceId, "", publicAccessLevel)
-    if err != nil {
-        canolog.Info("LookupOrCreateDevice - device ", deviceId, "error")
-    }
-    canolog.Info("LookupOrCreateDevice - device ", deviceId, " created")
-    return device, err
-}
-
 func (conn *CassConnection) DeleteAccount(username string) {
     account, _ := conn.LookupAccount(username)
     email := account.Email()
@@ -222,7 +212,8 @@ func (conn *CassConnection) DeleteAccount(username string) {
     }
 }
 
-func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Account, error) {
+func (conn *CassConnection) LookupAccount(
+        usernameOrEmail string) (datalayer.Account, error) {
     var account CassAccount
     var username string
 
@@ -280,7 +271,9 @@ func (conn *CassConnection) LookupAccount(usernameOrEmail string) (datalayer.Acc
     return &account, nil
 }
 
-func (conn *CassConnection)LookupAccountVerifyPassword(usernameOrEmail string, password string) (datalayer.Account, error) {
+func (conn *CassConnection) LookupAccountVerifyPassword(
+        usernameOrEmail string, 
+        password string) (datalayer.Account, error) {
     account, err := conn.LookupAccount(usernameOrEmail)
     if err != nil {
         return nil, err
@@ -295,7 +288,8 @@ func (conn *CassConnection)LookupAccountVerifyPassword(usernameOrEmail string, p
     return account, nil
 }
 
-func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device, error) {
+func (conn *CassConnection) LookupDevice(
+        deviceId gocql.UUID) (datalayer.Device, error) {
     var device CassDevice
 
     device.deviceId = deviceId
@@ -335,8 +329,25 @@ func (conn *CassConnection) LookupDevice(deviceId gocql.UUID) (datalayer.Device,
 
     return &device, nil
 }
+func (conn *CassConnection) LookupDeviceVerifySecretKey(
+        deviceId gocql.UUID, 
+        secret string) (datalayer.Device, error) {
 
-func (conn *CassConnection) LookupDeviceByStringID(id string) (datalayer.Device, error) {
+    device, err := conn.LookupDevice(deviceId)
+    if err != nil {
+        return nil, err
+    }
+
+    if device.SecretKey() != secret {
+        return nil, datalayer.InvalidPasswordError
+    }
+
+    return device, nil
+}
+
+func (conn *CassConnection) LookupDeviceByStringID(
+        id string) (datalayer.Device, error) {
+
     deviceId, err := gocql.ParseUUID(id)
     if err != nil {
         canolog.Error(err)
@@ -345,3 +356,14 @@ func (conn *CassConnection) LookupDeviceByStringID(id string) (datalayer.Device,
     return conn.LookupDevice(deviceId)
 }
 
+func (conn *CassConnection) LookupDeviceByStringIDVerifySecretKey(
+        id, 
+        secret string) (datalayer.Device, error) {
+
+    deviceId, err := gocql.ParseUUID(id)
+    if err != nil {
+        canolog.Error(err)
+        return nil, err
+    }
+    return conn.LookupDeviceVerifySecretKey(deviceId, secret)
+}
