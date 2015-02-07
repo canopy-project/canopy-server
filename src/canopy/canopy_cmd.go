@@ -43,28 +43,28 @@ func main() {
     if flag.Arg(0) == "help" {
         fmt.Println("Usage:");
     } else if flag.Arg(0) == "erase-db" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         dl.EraseDb("canopy")
     } else if flag.Arg(0) == "create-db" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         err := dl.PrepDb("canopy")
         if err != nil {
             fmt.Println(err)
         }
     } else if flag.Arg(0) == "create-account" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
         conn.CreateAccount(flag.Arg(1), flag.Arg(2), flag.Arg(3))
     } else if flag.Arg(0) == "delete-account" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
         conn.DeleteAccount(flag.Arg(1))
     } else if flag.Arg(0) == "reset-db" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         dl.EraseDb("canopy")
         dl.PrepDb("canopy")
     } else if flag.Arg(0) == "create-device" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
 
         account, err := conn.LookupAccount(flag.Arg(1))
@@ -85,7 +85,7 @@ func main() {
             return
         }
     } else if flag.Arg(0) == "list-devices" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
 
         account, err := conn.LookupAccount(flag.Arg(1))
@@ -104,7 +104,7 @@ func main() {
         }
         
     } else if flag.Arg(0) == "gen-fake-sensor-data" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
         deviceId, err := gocql.ParseUUID(flag.Arg(1))
         if err != nil {
@@ -125,7 +125,7 @@ func main() {
             //}
         }
     } else if flag.Arg(0) == "clear-sensor-data" {
-        dl := cassandra_datalayer.NewDatalayer()
+        dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
         conn.ClearSensorData();
 

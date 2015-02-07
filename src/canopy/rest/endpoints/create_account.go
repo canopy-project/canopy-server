@@ -18,8 +18,6 @@ import (
     "canopy/mail/messages"
     "canopy/rest/adapter"
     "canopy/rest/rest_errors"
-    //"canopy/mail"
-    "fmt"
     "net/http"
 )
 
@@ -66,7 +64,12 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
 
     canolog.Trace("Sending email")
 
-    activationLink := "http://" + info.Config.OptHostname() + 
+    protocol := "http://"
+    if info.Config.OptEnableHTTPS() {
+        protocol = "https://"
+    }
+
+    activationLink := protocol + info.Config.OptHostname() + 
             "/mgr/activate.html?username=" + account.Username() + 
             "&code=" + account.ActivationCode()
 
@@ -77,12 +80,11 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
     messages.MailMessageCreatedAccount(msg,
         account.Username(), 
         activationLink,
-        "http://" + info.Config.OptHostname(),
+        protocol + info.Config.OptHostname(),
         info.Config.OptHostname(),
     )
     err = info.Mailer.Send(msg)
     if (err != nil) {
-        fmt.Fprintf(w, "{\"error\" : \"sending_email\"}")
         return nil, rest_errors.NewInternalServerError("Problem sending mail")
     }
 

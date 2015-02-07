@@ -18,8 +18,8 @@ import (
     "canopy/mail"
 )
 
-func MailMessageCreatedAccount(msg mail.MailMessage, username, activationLink, manageLink, hostname string) {
-    msg.SetSubject("Your New Canopy Account (on " + hostname + ")")
+func MailMessageResetPassword(msg mail.MailMessage, username, resetLink, manageLink, hostname string) {
+    msg.SetSubject("Reset your Canopy password (on " + hostname + ")")
 
     msg.SetHTML(`<html>
     <body style='font-family: sans-serif'>
@@ -30,24 +30,29 @@ func MailMessageCreatedAccount(msg mail.MailMessage, username, activationLink, m
                     Hi <b>` + username + `</b>,
                 </p>
                 <p>
-                    <font size=6><b>Welcome to Canopy</b></font>
+                    <font size=6><b>Canopy Password Reset</b></font>
                 </p>
-                <p>The open cloud for IoT.</p>
                 <br>
             </td>
         </tr>
         <tr>
             <td bgcolor=#f0f0f0 style='border:4px solid #204080; color:#303030; padding: 16px 16px 16px 16px;'>
-                <h3><br>Activate Your Account</h3>
                 <p>
-                    You must activate your account by clicking the link below.
+                    <br><i>If you believe you have received this email in error
+                    then simply disregard this message.</i>
+                </p>
+                <h3><br>Reset Password</h3>
+                <p>
+                    To reset your Canopy password, click the link below.  The
+                    link will expire in 24 hours.
                 </p>
 
                 <p>
-                    <a href=` + activationLink + `>Activate your account.</a>
+                    <a href=` + resetLink + `>Reset your password.</a>
                 </p>
                 <h3><br>Manage Your Devices</h3>
-                Manage your Canopy-enabled devices by going here:
+                After resetting your password, you can manage your
+                Canopy-enabled devices by going here:
                 <p>
                     <a href=` + manageLink + `>` + manageLink + `</a>
                 </p>
@@ -56,9 +61,9 @@ func MailMessageCreatedAccount(msg mail.MailMessage, username, activationLink, m
         </tr>
         <tr>
             <td bgcolor=#ffff80 style='border:4px solid #204080; color:#303030; padding: 16px 16px 16px 16px;'>
-                <b>Note</b>: This account is only for
+                <b>Note</b>: This is only for
                 <b>` + hostname + `</b>.  Other deployments of the Canopy
-                Server require separate accounts.
+                Server have separate accounts.
             </td>
         </tr>
         <tr>

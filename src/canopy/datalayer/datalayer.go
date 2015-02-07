@@ -92,16 +92,19 @@ type Connection interface {
     // incorrect.
     LookupAccountVerifyPassword(usernameOrEmail, password string) (Account, error)
 
-    // Lookup a device from the database.
+    // Lookup a device from the database (without secret key verification).
     LookupDevice(deviceId gocql.UUID) (Device, error)
 
+    // Lookup a device from the database and verify the secret key
+    LookupDeviceVerifySecretKey(deviceId gocql.UUID, secret string) (Device, error)
+
     // Lookup a device from the database, using string representation of its
-    // UUID.
+    // UUID (without secret key verification).
     LookupDeviceByStringID(id string) (Device, error)
 
-    // Lookup a device from the database by UUID, creating a new device with
-    // that UUID if none already exists.
-    LookupOrCreateDevice(deviceId gocql.UUID, publicAccessLevel AccessLevel) (Device, error)
+    // Lookup a device from the database, using string representation of its
+    // UUID, and verify the secret key.
+    LookupDeviceByStringIDVerifySecretKey(id, secret string) (Device, error)
 }
 
 // Account is a user account
@@ -121,8 +124,16 @@ type Account interface {
     // Get user's email address.
     Email() string
 
+    // Generate a new Reset Password Code that expires in 24 hours, replacing
+    // any existing Reset Password Code.  Saves it to the database.
+    GenResetPasswordCode() (code string, err error)
+
     // Has this account been activated?
     IsActivated() bool
+
+    // Reset password.  Like SetPassword but requires a valid Password Reset
+    // Code, and invalidates <code> on success.
+    ResetPassword(code, newPassword string) error
 
     // Set password
     SetPassword(string) error

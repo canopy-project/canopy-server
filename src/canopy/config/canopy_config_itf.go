@@ -37,6 +37,8 @@ type Config interface {
     OptHTTPSPort() int16
     OptJavascriptClientPath() string
     OptLogFile() string
+    OptPasswordHashCost() int16
+    OptPasswordSecretSalt() string
     OptProductionSecret() string
     OptSendgridUsername() string
     OptSendgridSecretKey() string
@@ -49,6 +51,7 @@ func NewDefaultConfig() Config {
         httpPort: 80,
         httpsPort: 443,
         logFile: "/var/log/canopy/canopy-server.log",
+        passwordHashCost: 10,
     }
 }
 
