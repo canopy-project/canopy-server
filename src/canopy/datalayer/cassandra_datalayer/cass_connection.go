@@ -339,6 +339,7 @@ func (conn *CassConnection) LookupDeviceVerifySecretKey(
     }
 
     if device.SecretKey() != secret {
+        canolog.Error("Invalid secret key")
         return nil, datalayer.InvalidPasswordError
     }
 
