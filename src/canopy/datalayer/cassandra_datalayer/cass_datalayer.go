@@ -393,9 +393,10 @@ func (dl *CassDatalayer) migrateNext(session *gocql.Session, startVersion string
     return  startVersion, fmt.Errorf("Unknown DB version %s", startVersion)
 }
 
-func (dl *CassDatalayer) MigrateDB(startVersion, endVersion string) error {
+func (dl *CassDatalayer) MigrateDB(keyspace, startVersion, endVersion string) error {
     var err error
     cluster := gocql.NewCluster("127.0.0.1")
+    cluster.Keyspace = keyspace
 
     session, err := cluster.CreateSession()
     if err != nil {

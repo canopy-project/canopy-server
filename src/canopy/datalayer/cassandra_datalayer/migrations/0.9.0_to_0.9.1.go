@@ -42,6 +42,7 @@ var migrationQueries []string = []string{
 func Migrate_0_9_0_to_0_9_1(session *gocql.Session) error {
     // Perform all migration queries.
     for _, query := range migrationQueries {
+        canolog.Info(query)
         if err := session.Query(query).Exec(); err != nil {
             // Ignore errors (just print them).
             canolog.Warn(query, ": ", err)

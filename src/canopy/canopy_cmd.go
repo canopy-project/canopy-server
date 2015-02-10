@@ -156,13 +156,13 @@ func main() {
             fmt.Println("<startVersion> required")
             return
         }
-        endVersion := flag.Arg(1)
+        endVersion := flag.Arg(2)
         if endVersion == "" {
             fmt.Println("<endVersion> required")
             return
         }
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        dl.MigrateDB(startVersion, endVersion)
+        dl.MigrateDB("canopy", startVersion, endVersion)
     } else {
         fmt.Println("Unknown command: ", flag.Arg(0))
     }
