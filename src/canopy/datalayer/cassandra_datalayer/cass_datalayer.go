@@ -16,7 +16,12 @@
 package cassandra_datalayer
 
 import (
+    "canopy/canolog"
     "canopy/config"
+    "canopy/datalayer"
+    "canopy/datalayer/cassandra_datalayer/migrations"
+    "fmt"
+    "github.com/gocql/gocql"
 )
 
 //
@@ -135,11 +140,6 @@ import (
 //
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
-import (
-    "canopy/canolog"
-    "canopy/datalayer"
-    "github.com/gocql/gocql"
-)
 var creationQueries []string = []string{
     // used for:
     //  uint8
@@ -380,6 +380,41 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
     return nil
 }
 
+// Migrate to next version of database
+// Returns version of DB after migration
+func (dl *CassDatalayer) migrateNext(session *gocql.Session, startVersion string) (string, error) {
+    if startVersion == "0.9.0" {
+        err := migrations.Migrate_0_9_0_to_0_9_1(session)
+        if err != nil {
+            return startVersion, err
+        }
+        return "0.9.1", nil
+    }
+    return  startVersion, fmt.Errorf("Unknown DB version %s", startVersion)
+}
+
+func (dl *CassDatalayer) MigrateDB(startVersion, endVersion string) error {
+    var err error
+    cluster := gocql.NewCluster("127.0.0.1")
+
+    session, err := cluster.CreateSession()
+    if err != nil {
+        canolog.Error("Error creating DB session: ", err)
+        return err
+    }
+
+    curVersion := startVersion
+    for curVersion != endVersion {
+        canolog.Info("Migrating from %s to next version", curVersion)
+        curVersion, err = dl.migrateNext(session, startVersion)
+        if err != nil {
+            canolog.Error("Failed migrating from %s:", curVersion, err)
+            return err
+        }
+    }
+    canolog.Info("Migration complete!  DB is now version: %s", curVersion)
+    return nil
+}
 
 func NewDatalayer(cfg config.Config) datalayer.Datalayer {
     return NewCassDatalayer(cfg)

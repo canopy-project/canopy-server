@@ -62,6 +62,9 @@ type Datalayer interface {
 
     // Prepare (i.e., create) a new database named <keyspace>.
     PrepDb(keyspace string) error
+
+    // Migrate database from one version to another
+    MigrateDB(startVersion, endVersion string) error
 }
 
 // Connection is a connection to the database.
