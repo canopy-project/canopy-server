@@ -150,6 +150,19 @@ func main() {
             return
         }
         fmt.Println("Email sent.")
+    } else if flag.Arg(0) == "migrate-db" {
+        startVersion := flag.Arg(1)
+        if startVersion == "" {
+            fmt.Println("<startVersion> required")
+            return
+        }
+        endVersion := flag.Arg(1)
+        if endVersion == "" {
+            fmt.Println("<endVersion> required")
+            return
+        }
+        dl := cassandra_datalayer.NewDatalayer(cfg)
+        dl.MigrateDB(startVersion, endVersion)
     } else {
         fmt.Println("Unknown command: ", flag.Arg(0))
     }
