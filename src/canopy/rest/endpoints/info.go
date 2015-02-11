@@ -25,7 +25,7 @@ func GET_info(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInf
     return map[string]interface{}{
         "result" : "ok",
         "service-name" : "Canopy Cloud Service",
-        "version" : "0.9.1-beta",
+        "version" : "0.9.2-beta",
         "config" : info.Config.ToJsonObject(),
     }, nil
 }
