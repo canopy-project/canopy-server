@@ -1,4 +1,4 @@
-// Copyright 2014 SimpleThings, Inc.
+// Copyright 2014-2015 SimpleThings, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -21,11 +21,17 @@ import (
     "io/ioutil"
     "os"
     "strconv"
+    "strings"
 )
 
 type CanopyConfig struct {
     allowAnonDevices bool
     allowOrigin string
+    cassandraClusterHosts []string
+    cassandraKeyspace string
+    cassandraReplicationFactors map[string]int32
+    cassandraReadConsistency string
+    cassandraWriteConsistency string
     emailService string
     enableHTTP bool
     enableHTTPS bool
@@ -47,27 +53,37 @@ type CanopyConfig struct {
 
 func (config *CanopyConfig) ToString() string {
     return fmt.Sprint(`SERVER CONFIG SETTINGS:
-allow-anon-devices:  `, config.allowAnonDevices, `
-allow-origin:        `, config.allowOrigin, `
-email-service:       `, config.emailService, `
-enable-http:         `, config.enableHTTP, `
-enable-https:        `, config.enableHTTPS, `
-forward-other-hosts: `, config.forwardOtherHosts, `
-hostname:            `, config.hostname, `
-http-port:           `, config.httpPort, `
-https-cert-file:     `, config.httpsCertFile, `
-https-port:          `, config.httpsPort, `
-https-priv-key-file: `, config.httpsPrivKeyFile, `
-js-client-path:      `, config.javascriptClientPath, `
-log-file:            `, config.logFile, `
-sendgrid-username:   `, config.sendgridUsername, `
-web-manager-path:    `, config.webManagerPath)
+allow-anon-devices:           `, config.allowAnonDevices, `
+allow-origin:                 `, config.allowOrigin, `
+cassandra-cluster-hosts:      `, config.cassandraClusterHosts, `
+cassandra-keyspace:           `, config.cassandraKeyspace, `
+cassandra-replication-factors `, config.cassandraReplicationFactors, `
+cassandra-read-consistency    `, config.cassandraReadConsistency, `
+cassandra-write-consistency   `, config.cassandraWriteConsistency, `
+email-service:                `, config.emailService, `
+enable-http:                  `, config.enableHTTP, `
+enable-https:                 `, config.enableHTTPS, `
+forward-other-hosts:          `, config.forwardOtherHosts, `
+hostname:                     `, config.hostname, `
+http-port:                    `, config.httpPort, `
+https-cert-file:              `, config.httpsCertFile, `
+https-port:                   `, config.httpsPort, `
+https-priv-key-file:          `, config.httpsPrivKeyFile, `
+js-client-path:               `, config.javascriptClientPath, `
+log-file:                     `, config.logFile, `
+sendgrid-username:            `, config.sendgridUsername, `
+web-manager-path:             `, config.webManagerPath)
 }
 
 func (config *CanopyConfig) ToJsonObject() map[string]interface{}{
     return map[string]interface{} {
         "allow-anon-devices" : config.allowAnonDevices,
         "allow-origin" : config.allowOrigin,
+        "cassandra-cluster-hosts" : config.cassandraClusterHosts,
+        "cassandra-keyspace" : config.cassandraKeyspace,
+        "cassandra-replication-factors" : config.cassandraReplicationFactors,
+        "cassandra-read-consistency" : config.cassandraReadConsistency,
+        "cassandra-write-consistency" : config.cassandraWriteConsistency,
         "email-service" : config.emailService,
         "enable-http" : config.enableHTTP,
         "enable-https" : config.enableHTTPS,
@@ -137,6 +153,64 @@ func (config *CanopyConfig) LoadConfigEnv() error {
     allowOrigin := os.Getenv("CCS_ALLOW_ORIGIN")
     if allowOrigin != "" {
         config.allowOrigin = allowOrigin
+    }
+
+    cassandraClusterHosts := os.Getenv("CCS_CASSANDRA_CLUSTER_HOSTS")
+    if cassandraClusterHosts != "" {
+        config.cassandraClusterHosts = strings.Split(cassandraClusterHosts, ",")
+    }
+
+    cassandraKeyspace := os.Getenv("CCS_CASSANDRA_KEYSPACE")
+    if cassandraKeyspace != "" {
+        config.cassandraKeyspace = cassandraKeyspace
+    }
+
+    cassandraReplicationFactors := os.Getenv("CCS_CASSANDRA_REPLICATION_FACTORS")
+    if cassandraReplicationFactors != "" {
+        pairs := strings.Split(cassandraReplicationFactors, ",")
+        config.cassandraReplicationFactors = map[string]int32{}
+        for _, pair := range pairs {
+            parts := strings.Split(pair, ":")
+            if len(parts) != 2 {
+                return fmt.Errorf("Expected DC:RF for CCS_CASSANDRA_REPLICATION_FACTORS: %s",  cassandraReplicationFactors)
+            }
+            rf, err := strconv.ParseInt(parts[1], 10, 32)
+            if err != nil {
+                return fmt.Errorf("Expected int for RF in CCS_CASSANDRA_REPLICATION_FACTORS: %s",  cassandraReplicationFactors)
+            }
+            config.cassandraReplicationFactors[parts[0]] = int32(rf)
+        }
+    }
+
+    cassandraReadConsistency := os.Getenv("CCS_CASSANDRA_READ_CONSISTENCY")
+    if cassandraReadConsistency != "" {
+        if !(cassandraReadConsistency == "ALL" || 
+                cassandraReadConsistency == "EACH_QUORUM" ||
+                cassandraReadConsistency == "QUORUM" ||
+                cassandraReadConsistency == "LOCAL_QUORUM" ||
+                cassandraReadConsistency == "ONE" ||
+                cassandraReadConsistency == "TWO" ||
+                cassandraReadConsistency == "THREE" ||
+                cassandraReadConsistency == "LOCAL_ONE") {
+            return fmt.Errorf("Unknown cassandra read consistency level: %s",  cassandraReadConsistency)
+        }
+        config.cassandraReadConsistency = cassandraReadConsistency
+    }
+
+    cassandraWriteConsistency := os.Getenv("CCS_CASSANDRA_WRITE_CONSISTENCY")
+    if cassandraWriteConsistency != "" {
+        if !(cassandraWriteConsistency == "ALL" || 
+                cassandraWriteConsistency == "EACH_QUORUM" ||
+                cassandraWriteConsistency == "QUORUM" ||
+                cassandraWriteConsistency == "LOCAL_QUORUM" ||
+                cassandraWriteConsistency == "ONE" ||
+                cassandraWriteConsistency == "TWO" ||
+                cassandraWriteConsistency == "THREE" ||
+                cassandraWriteConsistency == "LOCAL_ONE" ||
+                cassandraWriteConsistency == "ANY") {
+            return fmt.Errorf("Unknown cassandra write consistency level: %s",  cassandraWriteConsistency)
+        }
+        config.cassandraWriteConsistency = cassandraWriteConsistency
     }
 
     emailService := os.Getenv("CCS_EMAIL_SERVICE")
@@ -253,6 +327,11 @@ func (config *CanopyConfig) LoadConfigEnv() error {
 func (config *CanopyConfig) LoadConfigCLI() error {
     allowAnonDevices := flag.String("allow-anon-devices", "", "")
     allowOrigin := flag.String("allow-origin", "", "")
+    cassandraClusterHosts := flag.String("cassandra-cluster-hosts", "", "")
+    cassandraKeyspace := flag.String("cassandra-keyspace", "", "")
+    cassandraReplicationFactors := flag.String("cassandra-replication-factors", "", "")
+    cassandraReadConsistency := flag.String("cassandra-read-consistency", "", "")
+    cassandraWriteConsistency := flag.String("cassandra-write-consistency", "", "")
     emailService := flag.String("email-service", "", "")
     enableHTTP := flag.String("enable-http", "", "")
     enableHTTPS := flag.String("enable-https", "", "")
@@ -285,6 +364,60 @@ func (config *CanopyConfig) LoadConfigCLI() error {
 
     if *allowOrigin != "" {
         config.allowOrigin = *allowOrigin
+    }
+
+    if *cassandraClusterHosts != "" {
+        // TODO: split on :
+        config.cassandraClusterHosts = strings.Split(*cassandraClusterHosts, ",")
+    }
+
+    if *cassandraKeyspace != "" {
+        config.cassandraKeyspace = *cassandraKeyspace
+    }
+
+    if *cassandraReplicationFactors != "" {
+        pairs := strings.Split(*cassandraReplicationFactors, ",")
+        config.cassandraReplicationFactors = map[string]int32{}
+        for _, pair := range pairs {
+            parts := strings.Split(pair, ":")
+            if len(parts) != 2 {
+                return fmt.Errorf("Expected DC:RF for CCS_CASSANDRA_REPLICATION_FACTORS: %s",  *cassandraReplicationFactors)
+            }
+            rf, err := strconv.ParseInt(parts[1], 10, 32)
+            if err != nil {
+                return fmt.Errorf("Expected int for RF in CCS_CASSANDRA_REPLICATION_FACTORS: %s",  *cassandraReplicationFactors)
+            }
+            config.cassandraReplicationFactors[parts[0]] = int32(rf)
+        }
+    }
+
+    if *cassandraReadConsistency != "" {
+        if !(*cassandraReadConsistency == "ALL" || 
+                *cassandraReadConsistency == "EACH_QUORUM" ||
+                *cassandraReadConsistency == "QUORUM" ||
+                *cassandraReadConsistency == "LOCAL_QUORUM" ||
+                *cassandraReadConsistency == "ONE" ||
+                *cassandraReadConsistency == "TWO" ||
+                *cassandraReadConsistency == "THREE" ||
+                *cassandraReadConsistency == "LOCAL_ONE") {
+            return fmt.Errorf("Invalid value for --cassandra-read-consistency: %s",  *cassandraReadConsistency)
+        }
+        config.cassandraReadConsistency = *cassandraReadConsistency
+    }
+
+    if *cassandraWriteConsistency != "" {
+        if !(*cassandraWriteConsistency == "ALL" || 
+                *cassandraWriteConsistency == "EACH_QUORUM" ||
+                *cassandraWriteConsistency == "QUORUM" ||
+                *cassandraWriteConsistency == "LOCAL_QUORUM" ||
+                *cassandraWriteConsistency == "ONE" ||
+                *cassandraWriteConsistency == "TWO" ||
+                *cassandraWriteConsistency == "THREE" ||
+                *cassandraWriteConsistency == "LOCAL_ONE" ||
+                *cassandraWriteConsistency == "ANY") {
+            return fmt.Errorf("Invalid value for --cassandra-write-consistency: %s",  *cassandraWriteConsistency)
+        }
+        config.cassandraWriteConsistency = *cassandraWriteConsistency
     }
 
     if *emailService != "" {
@@ -416,6 +549,52 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.allowAnonDevices, ok = v.(bool)
         case "allow-origin":
             config.allowOrigin, ok = v.(string)
+        case "cassandra-cluster-hosts":
+            config.cassandraClusterHosts = []string{}
+            var cassandraClusterHosts []interface{}
+            cassandraClusterHosts, ok = v.([]interface{})
+            if ok {
+                for _, hostItf := range cassandraClusterHosts {
+                    host, ok2 := hostItf.(string)
+                    if !ok2 {
+                        return fmt.Errorf("Expected string for cassandraClusterHost")
+                    }
+                    config.cassandraClusterHosts = append(config.cassandraClusterHosts, host)
+                }
+            }
+        case "cassandra-keyspace":
+            config.cassandraKeyspace, ok = v.(string)
+        case "cassandra-replication-factors":
+            config.cassandraReplicationFactors, ok = v.(map[string]int32)
+        case "cassandra-read-consistency":
+            var cassandraReadConsistency string
+            cassandraReadConsistency, ok = v.(string)
+            if !(cassandraReadConsistency == "ALL" || 
+                    cassandraReadConsistency == "EACH_QUORUM" ||
+                    cassandraReadConsistency == "QUORUM" ||
+                    cassandraReadConsistency == "LOCAL_QUORUM" ||
+                    cassandraReadConsistency == "ONE" ||
+                    cassandraReadConsistency == "TWO" ||
+                    cassandraReadConsistency == "THREE" ||
+                    cassandraReadConsistency == "LOCAL_ONE") {
+                return fmt.Errorf("Unknown cassandra read consistency level: %s",  cassandraReadConsistency)
+            }
+            config.cassandraReadConsistency = cassandraReadConsistency
+        case "cassandra-write-consistency":
+            var cassandraWriteConsistency string
+            cassandraWriteConsistency, ok = v.(string)
+            if !(cassandraWriteConsistency == "ALL" || 
+                    cassandraWriteConsistency == "EACH_QUORUM" ||
+                    cassandraWriteConsistency == "QUORUM" ||
+                    cassandraWriteConsistency == "LOCAL_QUORUM" ||
+                    cassandraWriteConsistency == "ONE" ||
+                    cassandraWriteConsistency == "TWO" ||
+                    cassandraWriteConsistency == "THREE" ||
+                    cassandraWriteConsistency == "LOCAL_ONE" ||
+                    cassandraWriteConsistency == "ANY") {
+                return fmt.Errorf("Unknown cassandra write consistency level: %s",  cassandraWriteConsistency)
+            }
+            config.cassandraWriteConsistency = cassandraWriteConsistency
         case "email-service":
             var emailService string
             emailService, ok = v.(string)
@@ -485,6 +664,26 @@ func (config *CanopyConfig) OptAllowAnonDevices() bool {
 
 func (config *CanopyConfig) OptAllowOrigin() string {
     return config.allowOrigin
+}
+
+func (config *CanopyConfig) OptCassandraClusterHosts() []string {
+    return config.cassandraClusterHosts
+}
+
+func (config *CanopyConfig) OptCassandraKeyspace() string {
+    return config.cassandraKeyspace
+}
+
+func (config *CanopyConfig) OptCassandraReplicationFactors() map[string]int32 {
+    return config.cassandraReplicationFactors
+}
+
+func (config *CanopyConfig) OptCassandraReadConsistency() string {
+    return config.cassandraReadConsistency
+}
+
+func (config *CanopyConfig) OptCassandraWriteConsistency() string {
+    return config.cassandraWriteConsistency
 }
 
 func (config *CanopyConfig) OptEmailService() string {

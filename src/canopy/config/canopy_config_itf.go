@@ -26,6 +26,11 @@ type Config interface {
 
     OptAllowAnonDevices() bool
     OptAllowOrigin() string
+    OptCassandraClusterHosts() []string
+    OptCassandraKeyspace() string
+    OptCassandraReplicationFactors() map[string]int32
+    OptCassandraWriteConsistency() string
+    OptCassandraReadConsistency() string
     OptEmailService() string
     OptEnableHTTP() bool
     OptEnableHTTPS() bool
@@ -47,6 +52,11 @@ type Config interface {
 
 func NewDefaultConfig() Config {
     return &CanopyConfig{
+        cassandraClusterHosts: []string{"127.0.0.1"},
+        cassandraKeyspace: "canopy",
+        cassandraReplicationFactors: map[string]int32{"dc1" : 1},
+        cassandraReadConsistency: "ONE",
+        cassandraWriteConsistency: "ONE",
         enableHTTPS: true,
         httpPort: 80,
         httpsPort: 443,

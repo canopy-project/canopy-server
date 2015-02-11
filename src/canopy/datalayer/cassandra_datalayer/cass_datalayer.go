@@ -351,7 +351,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
     // Create keyspace.
     err = session.Query(`
             CREATE KEYSPACE ` + keyspace + `
-            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
+            WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'dc1' : 2}
     `).Exec()
     if err != nil {
         // Ignore errors (just log them).
