@@ -43,29 +43,29 @@ func main() {
     if flag.Arg(0) == "help" {
         fmt.Println("Usage:");
     } else if flag.Arg(0) == "erase-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
         dl.EraseDb("canopy")
     } else if flag.Arg(0) == "create-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
         err := dl.PrepDb("canopy")
         if err != nil {
             fmt.Println(err)
         }
     } else if flag.Arg(0) == "create-account" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
+        conn, _ := dl.Connect(cfg.OptCassandraKeyspace())
         conn.CreateAccount(flag.Arg(1), flag.Arg(2), flag.Arg(3))
     } else if flag.Arg(0) == "delete-account" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
+        conn, _ := dl.Connect(cfg.OptCassandraKeyspace())
         conn.DeleteAccount(flag.Arg(1))
     } else if flag.Arg(0) == "reset-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
         dl.EraseDb("canopy")
         dl.PrepDb("canopy")
     } else if flag.Arg(0) == "create-device" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
+        conn, _ := dl.Connect(cfg.OptCassandraKeyspace())
 
         account, err := conn.LookupAccount(flag.Arg(1))
         if err != nil {
@@ -85,8 +85,8 @@ func main() {
             return
         }
     } else if flag.Arg(0) == "list-devices" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
+        conn, _ := dl.Connect(cfg.OptCassandraKeyspace())
 
         account, err := conn.LookupAccount(flag.Arg(1))
         if err != nil {
@@ -104,8 +104,8 @@ func main() {
         }
         
     } else if flag.Arg(0) == "gen-fake-sensor-data" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
+        conn, _ := dl.Connect(cfg.OptCassandraKeyspace())
         deviceId, err := gocql.ParseUUID(flag.Arg(1))
         if err != nil {
             fmt.Println("Error parsing UUID: ", flag.Arg(1), ":", err)
@@ -125,8 +125,8 @@ func main() {
             //}
         }
     } else if flag.Arg(0) == "clear-sensor-data" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
+        conn, _ := dl.Connect(cfg.OptCassandraKeyspace())
         conn.ClearSensorData();
 
     } else if flag.Arg(0) == "test-email" {
@@ -161,8 +161,8 @@ func main() {
             fmt.Println("<endVersion> required")
             return
         }
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        dl.MigrateDB("canopy", startVersion, endVersion)
+        dl, _ := cassandra_datalayer.NewDatalayer(cfg)
+        dl.MigrateDB(cfg.OptCassandraKeyspace(), startVersion, endVersion)
     } else {
         fmt.Println("Unknown command: ", flag.Arg(0))
     }

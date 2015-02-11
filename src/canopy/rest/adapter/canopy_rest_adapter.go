@@ -110,8 +110,7 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
         info.URLVars = mux.Vars(r)
 
         // Connect to the database
-        dl := cassandra_datalayer.NewDatalayer(in.Config)
-        conn, err := dl.Connect("canopy")
+        conn, err := cassandra_datalayer.NewDatalayerConnection(in.Config)
         if err != nil {
             rest_errors.NewDatabaseConnectionError().WriteTo(w)
             return

@@ -226,7 +226,7 @@ func (conn *CassConnection) LookupAccount(
                 SELECT email, username FROM account_emails
                 WHERE email = ?
                 LIMIT 1
-        `, usernameOrEmail).Consistency(gocql.One).Scan(
+        `, usernameOrEmail).Consistency(conn.dl.readConsistency).Scan(
              &account.email, &username);
         
         if (err != nil) {
@@ -252,7 +252,7 @@ func (conn *CassConnection) LookupAccount(
             FROM accounts 
             WHERE username = ?
             LIMIT 1
-    `, username).Consistency(gocql.One).Scan(
+    `, username).Consistency(conn.dl.readConsistency).Scan(
          &account.username, 
          &account.email, 
          &account.password_hash, 
@@ -300,7 +300,7 @@ func (conn *CassConnection) LookupDevice(
         SELECT friendly_name, secret_key, sddl, last_seen
         FROM devices
         WHERE device_id = ?
-        LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
+        LIMIT 1`, deviceId).Consistency(conn.dl.readConsistency).Scan(
             &device.name,
             &device.secretKey,
             &device.docString,

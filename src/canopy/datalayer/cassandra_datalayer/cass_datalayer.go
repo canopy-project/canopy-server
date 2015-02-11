@@ -303,20 +303,70 @@ var creationQueries []string = []string{
 
 type CassDatalayer struct {
     cfg config.Config
+    readConsistency gocql.Consistency
+    writeConsistency gocql.Consistency
 }
 
-func NewCassDatalayer(cfg config.Config) *CassDatalayer {
-    return &CassDatalayer{cfg: cfg}
+func NewCassDatalayer(cfg config.Config) (*CassDatalayer, error) {
+    readConsistency, ok := convertConsistencyString(cfg.OptCassandraReadConsistency())
+    if !ok {
+        return nil, fmt.Errorf("Invalid read consistency value: %s", cfg.OptCassandraReadConsistency())
+    }
+
+    writeConsistency, ok := convertConsistencyString(cfg.OptCassandraWriteConsistency())
+    if !ok {
+        return nil, fmt.Errorf("Invalid write consistency value: %s", cfg.OptCassandraWriteConsistency())
+    }
+
+    return &CassDatalayer{
+        cfg: cfg,
+        readConsistency: readConsistency,
+        writeConsistency: writeConsistency,
+    }, nil
 }
 
-func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) {
-    cluster := gocql.NewCluster("127.0.0.1")
+func convertConsistencyString(level string) (gocql.Consistency, bool) {
+    v, ok := map[string]gocql.Consistency{
+        "ANY" : gocql.Any,
+        "ONE" : gocql.One,
+        "TWO" : gocql.Two,
+        "THREE" : gocql.Three,
+        "QUORUM" : gocql.Quorum,
+        "ALL" : gocql.All,
+        "LOCAL_QUORUM" : gocql.LocalQuorum,
+        "EACH_QUORUM" : gocql.EachQuorum,
+        "SERIAL" : gocql.Serial,
+        "LOCAL_SERIAL" : gocql.LocalSerial,
+    }[level]
+    return v, ok
+}
+
+func (dl *CassDatalayer)newCluster(keyspace string) (*gocql.ClusterConfig, error) {
+    cluster := gocql.NewCluster(dl.cfg.OptCassandraClusterHosts()...)
     cluster.Keyspace = keyspace
-    cluster.Consistency = gocql.Any
+    cluster.Consistency = dl.writeConsistency
+    return cluster, nil
+}
+
+func (dl *CassDatalayer)newSession(keyspace string) (*gocql.Session, error) {
+    cluster, err := dl.newCluster(keyspace)
+    if err != nil {
+        canolog.Error("Error creating DB cluster: ", err)
+        return nil, err
+    }
 
     session, err := cluster.CreateSession()
     if err != nil {
         canolog.Error("Error creating DB session: ", err)
+        return nil, err
+    }
+
+    return session, nil
+}
+
+func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) {
+    session, err := dl.newSession(keyspace)
+    if err != nil {
         return nil, err
     }
 
@@ -327,11 +377,8 @@ func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) 
 }
 
 func (dl *CassDatalayer) EraseDb(keyspace string) error {
-    cluster := gocql.NewCluster("127.0.0.1")
-
-    session, err := cluster.CreateSession()
+    session, err := dl.newSession("")
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
@@ -340,11 +387,8 @@ func (dl *CassDatalayer) EraseDb(keyspace string) error {
 }
 
 func (dl *CassDatalayer) PrepDb(keyspace string) error {
-    cluster := gocql.NewCluster("127.0.0.1")
-
-    session, err := cluster.CreateSession()
+    session, err := dl.newSession("")
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
@@ -359,12 +403,8 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
     }
 
     // Create a new session connecting to that keyspace.
-    cluster = gocql.NewCluster("127.0.0.1")
-    cluster.Keyspace = keyspace
-    cluster.Consistency = gocql.Quorum
-    session, err = cluster.CreateSession()
+    session, err = dl.newSession(keyspace)
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
@@ -395,12 +435,8 @@ func (dl *CassDatalayer) migrateNext(session *gocql.Session, startVersion string
 
 func (dl *CassDatalayer) MigrateDB(keyspace, startVersion, endVersion string) error {
     var err error
-    cluster := gocql.NewCluster("127.0.0.1")
-    cluster.Keyspace = keyspace
-
-    session, err := cluster.CreateSession()
+    session, err := dl.newSession("")
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
@@ -417,6 +453,16 @@ func (dl *CassDatalayer) MigrateDB(keyspace, startVersion, endVersion string) er
     return nil
 }
 
-func NewDatalayer(cfg config.Config) datalayer.Datalayer {
+func NewDatalayer(cfg config.Config) (datalayer.Datalayer, error) {
     return NewCassDatalayer(cfg)
+}
+
+func NewDatalayerConnection(cfg config.Config) (datalayer.Connection, error) {
+    dl, err := NewCassDatalayer(cfg)
+    if err != nil {
+        return nil, err
+    }
+
+    return dl.Connect(cfg.OptCassandraKeyspace())
+    
 }

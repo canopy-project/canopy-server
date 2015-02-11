@@ -48,8 +48,7 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem)
         cnt = 0
 
         // connect to cassandra
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, err := dl.Connect("canopy")
+        conn, err := cassandra_datalayer.NewDatalayerConnection(cfg)
         if err != nil {
             canolog.Error("Could not connect to database: ", err)
             return

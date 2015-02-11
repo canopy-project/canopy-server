@@ -84,7 +84,7 @@ func (device *CassDevice) getHistoricData_generic(propname string, datatype sddl
             FROM ` + tableName + `
             WHERE device_id = ?
                 AND propname = ?
-    `, device.ID(), propname).Consistency(gocql.One)
+    `, device.ID(), propname).Consistency(device.conn.dl.readConsistency)
 
     iter := query.Iter()
     samples := []cloudvar.CloudVarSample{}
@@ -217,7 +217,7 @@ func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, err
             SELECT device_id, time_issued, dismissed, msg, notify_type
             FROM notifications
             WHERE device_id = ?
-    `, device.ID()).Consistency(gocql.One)
+    `, device.ID()).Consistency(device.conn.dl.readConsistency)
 
     iter := query.Iter()
     notifications := []datalayer.Notification{}
@@ -422,7 +422,7 @@ func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.Da
             WHERE device_id = ?
                 AND propname = ?
             ORDER BY time DESC
-            LIMIT 1`, device.ID(), varname).Consistency(gocql.One)
+            LIMIT 1`, device.ID(), varname).Consistency(device.conn.dl.readConsistency)
 
     switch datatype {
     case sddl.DATATYPE_VOID:

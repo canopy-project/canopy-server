@@ -81,8 +81,7 @@ func ProcessDeviceComm(
     canolog.Info("ProcessDeviceComm STARTED")
     // If conn is nil, open a datalayer connection.
     if conn == nil {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, err = dl.Connect("canopy")
+        conn, err := cassandra_datalayer.NewDatalayerConnection(cfg)
         if err != nil {
             return ServiceResponse{
                 HttpCode: http.StatusInternalServerError,

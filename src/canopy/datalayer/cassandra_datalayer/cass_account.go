@@ -72,7 +72,7 @@ func (account *CassAccount) Devices() ([]datalayer.Device, error) {
     query := account.conn.session.Query(`
             SELECT device_id, access_level FROM device_permissions 
             WHERE username = ?
-    `, account.Username()).Consistency(gocql.One)
+    `, account.Username()).Consistency(account.conn.dl.readConsistency)
     iter := query.Iter()
     for iter.Scan(&deviceId, &accessLevel) {
         if accessLevel > 0 {
@@ -99,7 +99,7 @@ func (account *CassAccount) Device(id gocql.UUID) (datalayer.Device, error) {
         SELECT access_level FROM device_permissions
         WHERE username = ? AND device_id = ?
         LIMIT 1
-    `, account.Username(), id).Consistency(gocql.One).Scan(
+    `, account.Username(), id).Consistency(account.conn.dl.readConsistency).Scan(
         &accessLevel); err != nil {
             return nil, err
     }
