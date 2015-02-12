@@ -392,10 +392,17 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
         return err
     }
 
+    // Generate replication string
+    replString := "{'class': 'NetworkTopologyStrategy'" 
+    for dc, rf := range dl.cfg.OptCassandraReplicationFactors() {
+        replString += fmt.Sprintf(", '%s' : %d", dc, rf)
+    }
+    replString += "}"
+
     // Create keyspace.
     err = session.Query(`
             CREATE KEYSPACE ` + keyspace + `
-            WITH REPLICATION = {'class' : 'NetworkTopologyStrategy', 'dc1' : 2}
+            WITH REPLICATION = ` + replString + `
     `).Exec()
     if err != nil {
         // Ignore errors (just log them).

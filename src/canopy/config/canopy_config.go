@@ -565,7 +565,18 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
         case "cassandra-keyspace":
             config.cassandraKeyspace, ok = v.(string)
         case "cassandra-replication-factors":
-            config.cassandraReplicationFactors, ok = v.(map[string]int32)
+            config.cassandraReplicationFactors = map[string]int32{}
+            var cassandraReplicationFactors map[string]interface{}
+            cassandraReplicationFactors, ok = v.(map[string]interface{})
+            if ok {
+                for key, value := range cassandraReplicationFactors {
+                    val_f64, ok2 := value.(float64)
+                    if !ok2 {
+                        return fmt.Errorf("Expected int for replication factor")
+                    }
+                    config.cassandraReplicationFactors[key] = int32(val_f64)
+                }
+            }
         case "cassandra-read-consistency":
             var cassandraReadConsistency string
             cassandraReadConsistency, ok = v.(string)
