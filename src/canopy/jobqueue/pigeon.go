@@ -12,6 +12,13 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+package jobqueue
+
+import (
+    "canopy/datalayer"
+    "fmt"
+)
+
 /*func (pigeon *CanopyPigeon) Listen(
     name string, 
     func acceptFunc(payload map[string]interface{}) (response map[string]interface{}, error)) {
@@ -32,33 +39,29 @@ func (pigeon *CanopyPigeon) Launch(name string, payload map[string]inteface{}) {
 }
 */
 
-type PigoeonSystem struct {
+type PigeonSystem struct {
     dl datalayer.PigeonSystem
 }
 
-type PigoeonWorker struct {
-    sys *PigeonSystem
-    hostname string
-}
-
 func (pigeon *PigeonSystem) StartWorker(hostname string) (Worker, error) {
-    err := pigeon.dl.AddWorker(hostname)
-    if err != nil
+    err := pigeon.dl.RegisterWorker(hostname)
+    if err != nil {
         return nil, err
-
-    worker := &PigeonWorker{
-        hostname: hostname
     }
 
-    return err
+    worker := &PigeonWorker{
+        hostname: hostname,
+    }
+
+    return worker, err
 }
 
 func (pigeon *PigeonSystem) Worker(hostname string) (Worker, error) {
     worker := &PigeonWorker{
-        hostname: hostname
+        hostname: hostname,
     }
 
-    return err
+    return worker, nil
 }
 
 func (pigeon *PigeonSystem) Workers() ([]Worker, error) {

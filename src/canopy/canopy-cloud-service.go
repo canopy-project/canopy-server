@@ -24,6 +24,7 @@ import (
     "canopy/canolog"
     "canopy/config"
     "canopy/pigeon"
+    "canopy/jobqueue"
     "canopy/rest"
     "canopy/webapp"
     "canopy/ws"
@@ -163,6 +164,7 @@ func main() {
         case err := <- httpsResultChan:
             canolog.Error(err)
     }
+
 }
 
 /*

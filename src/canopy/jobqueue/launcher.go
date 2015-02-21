@@ -12,20 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-func (launcher *PigeonLauncher) send(hostname string, payload map[string]interface{}) error {
-    // Dial the server
-    client, err := rpc.DialHTTP("tcp", hostname)
-    if err != nil {
-        return fmt.Sprint("Pigeon: (dialing) ", err)
-    }
+package jobqueue
 
-    client.Call("PigeonRPC.Request", payload, response)
-    if err != nil {
-        return fmt.Sprint("Pigeon: (calling) ", err)
-    }
+import (
+    "fmt"
+    "net/rpc"
+    "math/rand"
+    "canopy/util/random"
+)
+
+type PigeonLauncher struct {
+    sys *PigeonSystem
+    timeoutms uint32
 }
 
-func (launcher *PigoenLauncher) Broadcast(key string, payload map[string]interface{}) error {
+type PigeonResponse struct {
+}
+
+func (launcher *PigeonLauncher) send(hostname string, payload map[string]interface{}) error {
+    // Dial the server
+    //client, err := rpc.DialHTTP("tcp", hostname)
+    _, err := rpc.DialHTTP("tcp", hostname)
+    if err != nil {
+        return fmt.Errorf("Pigeon: (dialing) %s", err.Error())
+    }
+
+    //client.Call("PigeonRPC.Request", payload, response)
+    //if err != nil {
+        //return fmt.Errorf("Pigeon: (calling) %s", err.Error())
+    //}
+    
+    return nil
+}
+
+func (launcher *PigeonLauncher) Broadcast(key string, payload map[string]interface{}) error {
     // Get list of all workers interested in these keys
     workerHosts, err := launcher.sys.dl.GetListeners(key)
     if err != nil {
@@ -36,9 +56,11 @@ func (launcher *PigoenLauncher) Broadcast(key string, payload map[string]interfa
     for _, workerHost := range workerHosts {
         launcher.send(workerHost, payload)
     }
+
+    return nil
 }
 
-func (launcher *PigeonLauncher) Launch(key string, payload map[string]inteface{}) <-chan PigeonResponse, error {
+func (launcher *PigeonLauncher) Launch(key string, payload map[string]interface{}) (<-chan PigeonResponse, error) {
     // Get list of all workers interested in these keys
     workerHosts, err := launcher.sys.dl.GetListeners(key)
     if err != nil {
@@ -46,16 +68,17 @@ func (launcher *PigeonLauncher) Launch(key string, payload map[string]inteface{}
     }
 
     if len(workerHosts) == 0 {
-        return nil, fmt.Errorf("Pigeon: No listeners found for %s", name)
+        return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
     }
 
     // For now, pick one at random
-    workerHost = workerHosts[rand.Intn(len(workerHosts))]
+    workerHost := workerHosts[rand.Intn(len(workerHosts))]
 
-    return launcher.send(workerHost, payload)
+    launcher.send(workerHost, payload)
+    return nil, nil
 }
 
-func (launcher *PigeonLauncher) LaunchIdempotent(key string, numParallel int, payload map[string]inteface{}) <-chan PigeonResponse, error {
+func (launcher *PigeonLauncher) LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan PigeonResponse, error) {
     // Get list of all workers interested in these keys
     workerHosts, err := launcher.sys.dl.GetListeners(key)
     if err != nil {
@@ -63,16 +86,16 @@ func (launcher *PigeonLauncher) LaunchIdempotent(key string, numParallel int, pa
     }
 
     if len(workerHosts) == 0 {
-        return nil, fmt.Errorf("Pigeon: No listeners found for %s", name)
+        return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
     }
 
     // For now, pick a random subset of numParallel workers
-    workerHostsSubset := random.Subset(workerHosts, numParallel)
+    workerHostsSubset := random.SelectionStrings(workerHosts, numParallel)
 
     // Send payload to each of the workers
     for _, worker := range workerHostsSubset {
         // TODO: take response of first responder
-        launcher.send(workerHost, payload)
+        launcher.send(worker, payload)
     }
 
     return nil, fmt.Errorf("Not fully implemented")

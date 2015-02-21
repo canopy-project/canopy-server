@@ -252,3 +252,8 @@ type Notification interface {
     NotifyType() int
 }
 
+type PigeonSystem interface {
+    GetListeners(key string) ([]string, error)
+    RegisterListener(hostname, key string) error
+    RegisterWorker(hostname string) error
+}

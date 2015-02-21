@@ -15,15 +15,42 @@ package random
 
 import (
     "encoding/base64"
-    "crypto/rand"
+    cryptorand "crypto/rand"
+    mathrand "math/rand"
 )
 
 func Base64String(numChars int) (string, error) {
     randBytes := make([]byte, numChars)
-    _, err := rand.Read(randBytes)
+    _, err := cryptorand.Read(randBytes)
     if err != nil {
         return "", err
     }
     return base64.StdEncoding.EncodeToString(randBytes), nil
 }
 
+// Given a slice, returns a random selection of elements from the slice,
+// without replacement.
+//
+// The number of items returned is:
+//      MIN(count, len(in))
+func Selection(in []interface{}, count uint32) []interface{} {
+    out := []interface{}{}
+
+    perm := mathrand.Perm(len(in))
+    
+    for i := uint32(0); i < count && i < uint32(len(in)); i++ {
+        out = append(out, in[perm[i]])
+    }
+    return out
+}
+
+func SelectionStrings(in []string, count uint32) []string {
+    out := []string{}
+
+    perm := mathrand.Perm(len(in))
+    
+    for i := uint32(0); i < count && i < uint32(len(in)); i++ {
+        out = append(out, in[perm[i]])
+    }
+    return out
+}

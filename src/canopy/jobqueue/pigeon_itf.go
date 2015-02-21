@@ -65,7 +65,7 @@
 //
 //      response := <-responseChan
 //
-
+package jobqueue
 
 // StatusEnum is the status of a Worker
 type StatusEnum int
@@ -99,16 +99,16 @@ type System interface {
 
 type Launcher interface {
     // Broadcast a payload to every listener interested in these messages
-    Broadcast(key string, payload map[string]inteface{}) error
+    Broadcast(key string, payload map[string]interface{}) error
 
     // Launches a work item that will be consumed by exactly one listener
-    Launch(key string, payload map[string]inteface{}) <-chan PigeonResponse
+    Launch(key string, payload map[string]interface{}) <-chan PigeonResponse
     
     // Launches a work item that is idemponent and can be consumed by multiple
     // listeners without ill effect.  This allows the job to be sent to
     // multiple consumers simultaneously, for low latency response (whoever
     // responds first wins).
-    LaunchIdempotent(key string, int numParallel, payload map[string]inteface{}) <-chan PigeonResponse
+    LaunchIdempotent(key string, numParallel int, payload map[string]interface{}) <-chan PigeonResponse
 
     // Set the timeout for non-broadcast requests.
     SetTimeoutms(timeout uint32)
@@ -117,11 +117,11 @@ type Launcher interface {
 type Worker interface {
     // Listen for requests that match <key>.
     // This is the low-level interface for listening for requests.
-    Listen(key string, request <-chan Request, response ->chan Response) error
+    Listen(key string, request <-chan Request, response <-chan Response) error
 
     // Listen for requests that match <key>, triggering a handle function each
     // time a request is recieved.
-    ListenHandler(key string, func handler(req Request) resp Response) error
+    //ListenHandler(key string, func handler(Request) (Response)) error
 
     // Set the worker's status to "active".  Does nothing if worker is already
     // "active".
@@ -144,6 +144,6 @@ type Request interface {
 }
 
 type Response interface {
-    Error() err
+    Error() error
     Body() map[string]interface{}
 }
