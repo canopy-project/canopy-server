@@ -12,7 +12,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-func (pigeon *CanopyPigeon) Listen(
+/*func (pigeon *CanopyPigeon) Listen(
     name string, 
     func acceptFunc(payload map[string]interface{}) (response map[string]interface{}, error)) {
 }
@@ -30,4 +30,37 @@ func (pigeon *CanopyPigeon) Launch(name string, payload map[string]inteface{}) {
     
     candidate.Receive()
 }
+*/
 
+type PigoeonSystem struct {
+    dl datalayer.PigeonSystem
+}
+
+type PigoeonWorker struct {
+    sys *PigeonSystem
+    hostname string
+}
+
+func (pigeon *PigeonSystem) StartWorker(hostname string) (Worker, error) {
+    err := pigeon.dl.AddWorker(hostname)
+    if err != nil
+        return nil, err
+
+    worker := &PigeonWorker{
+        hostname: hostname
+    }
+
+    return err
+}
+
+func (pigeon *PigeonSystem) Worker(hostname string) (Worker, error) {
+    worker := &PigeonWorker{
+        hostname: hostname
+    }
+
+    return err
+}
+
+func (pigeon *PigeonSystem) Workers() ([]Worker, error) {
+    return nil, fmt.Errorf("Not Implemented")
+}

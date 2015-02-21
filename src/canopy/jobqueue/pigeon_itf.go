@@ -46,7 +46,7 @@
 //  All data about workers including their status and what they are listening
 //  for are stored in the DB.
 //
-// LAUNCHERS
+// LAUNCHING REQUESTS
 //
 //  To send a message you must first create a Launcher object.  A Launcher
 //  contains the settings that will be used to send the request.
@@ -55,7 +55,6 @@
 //
 //  You can then set options:
 //
-//      launcher.SetProtocol(pigeon.GO_CHANNEL, pigeon.HTTP)
 //      launcher.SetTimeoutms(1000)
 //
 //  To send a request that should be consumed by exactly one Worker:
@@ -86,8 +85,8 @@ const (
 )
 
 type System interface {
-    // Adds worker to the DB, if not already present, and sets its
-    // status to "active".
+    // Starts RPC server, adds worker to the DB, if not already present, and
+    // sets its status to "active".
     StartWorker(hostname string) (Worker, error)
 
     // Lookup a specific worker by hostname.
@@ -100,7 +99,7 @@ type System interface {
 
 type Launcher interface {
     // Broadcast a payload to every listener interested in these messages
-    Broadcast(name string, payload map[string]inteface{})
+    Broadcast(key string, payload map[string]inteface{}) error
 
     // Launches a work item that will be consumed by exactly one listener
     Launch(key string, payload map[string]inteface{}) <-chan PigeonResponse
@@ -111,16 +110,8 @@ type Launcher interface {
     // responds first wins).
     LaunchIdempotent(key string, int numParallel, payload map[string]inteface{}) <-chan PigeonResponse
 
-    // Set the protocols to use.  Use pigeon.AUTO to let the implementation
-    // decide.
-    // <localProtocol> is the protocol to use when the hostname matches the
-    // local system's.
-    // <globalProtocol> is the protocol to use when the hostname is for a
-    // remote server.
-    SetProtocol(localProtocol ProtocolEnum, remoteProtocol ProtocolEnum)
-
     // Set the timeout for non-broadcast requests.
-    SetTimeoutMilliseconds(timeout uint32)
+    SetTimeoutms(timeout uint32)
 }
 
 type Worker interface {
@@ -149,7 +140,7 @@ type Worker interface {
 }
 
 type Request interface {
-    Body map[string]interface{}
+    Body() map[string]interface{}
 }
 
 type Response interface {
