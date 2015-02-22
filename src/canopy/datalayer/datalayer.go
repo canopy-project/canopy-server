@@ -108,6 +108,9 @@ type Connection interface {
     // Lookup a device from the database, using string representation of its
     // UUID, and verify the secret key.
     LookupDeviceByStringIDVerifySecretKey(id, secret string) (Device, error)
+
+    // Get the datalayer interface for the Pigeon system
+    PigeonSystem() PigeonSystem
 }
 
 // Account is a user account
@@ -253,7 +256,13 @@ type Notification interface {
 }
 
 type PigeonSystem interface {
+    // List all workers that are listening for <key>.
+    // Returns list of hostnames
     GetListeners(key string) ([]string, error)
+    
+    // Register that a worker is listening for <key>.
     RegisterListener(hostname, key string) error
+
+    // Register that a worker exists
     RegisterWorker(hostname string) error
 }

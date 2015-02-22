@@ -147,3 +147,7 @@ type Response interface {
     Error() error
     Body() map[string]interface{}
 }
+
+func GetPigeonSystem() System {
+    return &PigeonSystem{}
+}

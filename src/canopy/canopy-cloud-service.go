@@ -91,6 +91,11 @@ func main() {
         os.Exit(1)
     }()
 
+    // Register worker
+    pigeonSys2 := jobqueue.GetPigeonSystem()
+    pigeonSys2.StartWorker("localhost")
+    // ---
+
     if (cfg.OptHostname() == "") {
         canolog.Error("You must set the configuration option \"hostname\"")
         return

@@ -299,6 +299,18 @@ var creationQueries []string = []string{
         notify_type int,
         PRIMARY KEY(device_id, time_issued)
     ) `,
+
+    `CREATE TABLE workers (
+        name text,
+        status text,
+        PRIMARY KEY(name)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE listeners (
+        key text
+        workers set<text>,
+        PRIMARY KEY(key)
+    ) `,
 }
 
 type CassDatalayer struct {
