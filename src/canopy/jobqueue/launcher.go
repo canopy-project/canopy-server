@@ -26,21 +26,21 @@ type PigeonLauncher struct {
     timeoutms uint32
 }
 
-type PigeonResponse struct {
-}
-
 func (launcher *PigeonLauncher) send(hostname string, payload map[string]interface{}) error {
+    response := PigeonResponse{}
+
     // Dial the server
-    //client, err := rpc.DialHTTP("tcp", hostname)
-    _, err := rpc.DialHTTP("tcp", hostname)
+    client, err := rpc.DialHTTP("tcp", hostname)
     if err != nil {
         return fmt.Errorf("Pigeon: (dialing) %s", err.Error())
     }
+    defer client.Close()
 
-    //client.Call("PigeonRPC.Request", payload, response)
-    //if err != nil {
-        //return fmt.Errorf("Pigeon: (calling) %s", err.Error())
-    //}
+    // Make the call
+    client.Call("PigeonRPC.Request", payload, &response)
+    if err != nil {
+        return fmt.Errorf("Pigeon: (calling) %s", err.Error())
+    }
     
     return nil
 }

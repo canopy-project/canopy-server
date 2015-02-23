@@ -50,6 +50,7 @@ func (pigeon *PigeonSystem) StartWorker(hostname string) (Worker, error) {
     }
 
     worker := &PigeonWorker{
+        sys : pigeon,
         hostname: hostname,
     }
 
@@ -66,4 +67,16 @@ func (pigeon *PigeonSystem) Worker(hostname string) (Worker, error) {
 
 func (pigeon *PigeonSystem) Workers() ([]Worker, error) {
     return nil, fmt.Errorf("Not Implemented")
+}
+
+func (resp *PigeonResponse) Body() map[string]interface{} {
+    return resp.body
+}
+
+func (resp *PigeonResponse) Error() error {
+    return resp.err
+}
+
+func (req *PigeonRequest) Body() map[string]interface{} {
+    return req.body
 }

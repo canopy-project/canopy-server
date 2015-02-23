@@ -370,5 +370,5 @@ func (conn *CassConnection) LookupDeviceByStringIDVerifySecretKey(
 }
 
 func (conn *CassConnection) PigeonSystem() datalayer.PigeonSystem {
-    return &CassPigeonSystem{}
+    return &CassPigeonSystem{conn}
 }

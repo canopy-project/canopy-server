@@ -91,11 +91,6 @@ func main() {
         os.Exit(1)
     }()
 
-    // Register worker
-    pigeonSys2 := jobqueue.GetPigeonSystem()
-    pigeonSys2.StartWorker("localhost")
-    // ---
-
     if (cfg.OptHostname() == "") {
         canolog.Error("You must set the configuration option \"hostname\"")
         return
@@ -106,6 +101,20 @@ func main() {
         return
     }
     canolog.Info(cfg.ToString())
+
+    // Register worker
+    pigeonSys2, err := jobqueue.NewPigeonSystem(cfg)
+    if err != nil {
+        canolog.Error(err.Error())
+        return
+    }
+    worker, _ := pigeonSys2.StartWorker("localhost")
+    err = worker.Listen("generic", nil, nil)
+    if err != nil {
+        canolog.Error(err.Error())
+        return
+    }
+    // ---
 
     if (cfg.OptForwardOtherHosts() != "") {
         canolog.Info("Requests to hosts other than ", cfg.OptHostname(), " will be forwarded to ", cfg.OptForwardOtherHosts())

@@ -38,11 +38,12 @@ func (pigeonsys *CassPigeonSystem) GetListeners(key string) ([]string, error) {
 }
 
 func (pigeonsys *CassPigeonSystem) RegisterListener(hostname, key string) error {
+    // TODO: sanitize inputs
     err := pigeonsys.conn.session.Query(`
             UPDATE listeners
-            SET workers = workers + {?}
+            SET workers = workers + {'` + hostname + `'}
             WHERE key = ?
-    `, hostname, key).Exec()
+    `, key).Exec()
     if err != nil {
         return err;
     }
