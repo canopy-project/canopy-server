@@ -42,19 +42,30 @@ func (pigeon *CanopyPigeon) Launch(name string, payload map[string]inteface{}) {
 type PigeonSystem struct {
     dl datalayer.PigeonSystem
 }
+func (pigeon *PigeonSystem) NewLauncher() Launcher {
+    return &PigeonLauncher{
+        sys: pigeon,
+        timeoutms: -1,
+    }
+}
+
+func (pigeon *PigeonSystem) NewResponse() Response {
+    return &PigeonResponse{}
+}
 
 func (pigeon *PigeonSystem) StartWorker(hostname string) (Worker, error) {
-    err := pigeon.dl.RegisterWorker(hostname)
+    worker := &PigeonWorker{
+        sys : pigeon,
+        hostname: hostname,
+        listeners : map[string]PigeonListener{},
+    }
+
+    err := worker.Start()
     if err != nil {
         return nil, err
     }
 
-    worker := &PigeonWorker{
-        sys : pigeon,
-        hostname: hostname,
-    }
-
-    return worker, err
+    return worker, nil
 }
 
 func (pigeon *PigeonSystem) Worker(hostname string) (Worker, error) {
@@ -70,13 +81,22 @@ func (pigeon *PigeonSystem) Workers() ([]Worker, error) {
 }
 
 func (resp *PigeonResponse) Body() map[string]interface{} {
-    return resp.body
+    return resp.RespBody
 }
 
 func (resp *PigeonResponse) Error() error {
-    return resp.err
+    return resp.RespErr
+}
+
+func (resp *PigeonResponse) SetBody(body map[string]interface{}) {
+    resp.RespBody = body
+}
+
+func (resp *PigeonResponse) SetError(err error) {
+    resp.RespErr = err
 }
 
 func (req *PigeonRequest) Body() map[string]interface{} {
-    return req.body
+    return req.ReqBody
 }
+

@@ -16,6 +16,8 @@
 package cassandra_datalayer
 
 import (
+    "canopy/canolog"
+    "fmt"
     "github.com/gocql/gocql"
 )
 
@@ -25,15 +27,17 @@ type CassPigeonSystem struct {
 
 func (pigeonsys *CassPigeonSystem) GetListeners(key string) ([]string, error) {
     var workers []string
-    err := pigeonsys.conn.session.Query(`
-            SELECT key, workers FROM listeners
+    rows, err := pigeonsys.conn.session.Query(`
+            SELECT * FROM listeners
             WHERE key = ?
-            LIMIT 1
-    `, key).Consistency(gocql.One).Scan(
-         &key, &workers);
+    `, key).Consistency(gocql.One).Iter().SliceMap();
     if err != nil {
-        return nil, err
+        canolog.Error(err)
     }
+    if len(rows) != 1 {
+        return nil, fmt.Errorf("Expected 1 DB row for listener ", key)
+    }
+    workers = rows[0]["workers"].([]string)
     return workers, nil
 }
 

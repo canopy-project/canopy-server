@@ -90,6 +90,12 @@ const (
 )
 
 type System interface {
+    // Create a new empty response object.
+    NewLauncher() Launcher
+
+    // Create a new empty response object.
+    NewResponse() Response
+
     // Starts RPC server, adds worker to the DB, if not already present, and
     // sets its status to "active".
     StartWorker(hostname string) (Worker, error)
@@ -99,7 +105,6 @@ type System interface {
 
     // Obtain list of workers from the DB.
     Workers() ([]Worker, error)
-
 }
 
 type Launcher interface {
@@ -107,16 +112,17 @@ type Launcher interface {
     Broadcast(key string, payload map[string]interface{}) error
 
     // Launches a work item that will be consumed by exactly one listener
-    Launch(key string, payload map[string]interface{}) <-chan Response
+    Launch(key string, payload map[string]interface{}) (<-chan Response, error)
     
     // Launches a work item that is idemponent and can be consumed by multiple
     // listeners without ill effect.  This allows the job to be sent to
     // multiple consumers simultaneously, for low latency response (whoever
     // responds first wins).
-    LaunchIdempotent(key string, numParallel int, payload map[string]interface{}) <-chan Response
+    LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error)
 
     // Set the timeout for non-broadcast requests.
-    SetTimeoutms(timeout uint32)
+    // Use <0 for no timeout
+    SetTimeoutms(timeout int32)
 }
 
 type Worker interface {
@@ -151,6 +157,8 @@ type Request interface {
 type Response interface {
     Error() error
     Body() map[string]interface{}
+    SetBody(body map[string]interface{}) 
+    SetError(err error) 
 }
 
 func NewPigeonSystem(cfg config.Config) (System, error) {

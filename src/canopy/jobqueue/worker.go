@@ -15,6 +15,7 @@
 package jobqueue
 
 import (
+    "canopy/canolog"
     "fmt"
     "net"
     "net/rpc"
@@ -28,12 +29,16 @@ type PigeonWorker struct {
 }
 
 type PigeonRequest struct {
-    body map[string]interface{}
+    // job key
+    ReqKey string
+
+    // payload
+    ReqBody map[string]interface{}
 }
 
 type PigeonResponse struct {
-    err error
-    body map[string]interface{}
+    RespErr error
+    RespBody map[string]interface{}
 }
 
 type PigeonListener struct {
@@ -41,50 +46,51 @@ type PigeonListener struct {
     requestChan chan<- Request
     responseChan <-chan Response
 }
-func (worker *PigeonWorker) HandleRequest(request map[string]interface{}, response *PigeonResponse) error {
-    // Get job key from request
-    key, ok := request["key"].(string)
-    if !ok {
-        return fmt.Errorf("Pigeon Worker: Expected string \"key\" in request")
-    }
-
+func (worker *PigeonWorker) HandleRequest(request *PigeonRequest, response *PigeonResponse) error {
+    canolog.Info("Pigeon Worker RPC: Request recieved: ", request)
     // Lookup the listener for that job type
-    listener, ok := worker.listeners[key]
+    listener, ok := worker.listeners[request.ReqKey]
     if !ok {
         // NOT FOUND
-        return fmt.Errorf("Pigeon Worker: No handler for job key %s on worker %s", key, worker.hostname)
+        return fmt.Errorf("Pigeon Worker: No handler for job key %s on worker %s", request.ReqKey, worker.hostname)
     }
+    canolog.Info("Pigeon Worker RPC: Listener found")
 
-    // Post to the request to the listener's channel
-    req := &PigeonRequest{
-        body: request,
-    }
-
-    listener.requestChan <- req
-
+    listener.requestChan <- request
+    
     // Wait for response
-    response, ok = (<-listener.responseChan).(*PigeonResponse)
+    resp, ok := (<-listener.responseChan).(*PigeonResponse)
     if !ok {
         return fmt.Errorf("Pigeon Worker: Expected PigeonResponse from response handler)")
     }
+    response.RespErr = resp.RespErr
+    response.RespBody = resp.RespBody
 
     return nil
 }
 
 func (worker *PigeonWorker) serveRPC() error {
     PIGEON_RPC_PORT := ":1888"
+    canolog.Info("REgistering Worker")
     rpc.Register(worker)
+    canolog.Info("Handling HTTP")
     rpc.HandleHTTP()
+    canolog.Info("Listening on port 1888")
     l, err := net.Listen("tcp", PIGEON_RPC_PORT)
     if err != nil {
+        canolog.Error(err)
         return err
     }
+    canolog.Info("Start Serving")
     go http.Serve(l, nil)
     return nil
 }
 
 func (worker *PigeonWorker) Listen(key string, requestChan chan<- Request, responseChan <-chan Response) error {
     err := worker.sys.dl.RegisterListener(worker.hostname, key)
+    if err != nil {
+        return err
+    }
 
     listener := PigeonListener{
         worker: worker,
@@ -94,10 +100,11 @@ func (worker *PigeonWorker) Listen(key string, requestChan chan<- Request, respo
 
     worker.listeners[key] = listener
 
-    return err
+    return nil
 }
 
 func (worker *PigeonWorker) Start() error {
+    canolog.Info("Starting Worker")
     err := worker.sys.dl.RegisterWorker(worker.hostname)
     if err != nil {
         return err

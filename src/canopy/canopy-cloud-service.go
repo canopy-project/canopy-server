@@ -39,6 +39,30 @@ func shutdown() {
     canolog.Shutdown()
 }
 
+func handleHelloWorld(sys jobqueue.System, worker jobqueue.Worker) {
+    canolog.Info("Handler Start")
+    reqChan := make(chan jobqueue.Request)
+    respChan := make(chan jobqueue.Response)
+    canolog.Info("Handler Listening")
+    err := worker.Listen("generic", reqChan, respChan)
+    if err != nil {
+        canolog.Error(err.Error())
+        return
+    }
+
+    canolog.Info("Handler done listening")
+    req := <-reqChan
+    canolog.Info("hello4")
+    if (req.Body()["msg"] == "hello") {
+        resp := sys.NewResponse()
+        resp.SetBody(map[string]interface{}{"msg" : "world"})
+        canolog.Info("hello5")
+        respChan <- resp
+        canolog.Info("hello6")
+    }
+    canolog.Info("hello7")
+}
+
 func main() {
     r := mux.NewRouter()
 
@@ -103,17 +127,24 @@ func main() {
     canolog.Info(cfg.ToString())
 
     // Register worker
+    canolog.Info("Init Pigeon Sys: ")
     pigeonSys2, err := jobqueue.NewPigeonSystem(cfg)
     if err != nil {
         canolog.Error(err.Error())
         return
     }
+    canolog.Info("Create worker")
     worker, _ := pigeonSys2.StartWorker("localhost")
-    err = worker.Listen("generic", nil, nil)
-    if err != nil {
-        canolog.Error(err.Error())
-        return
-    }
+    canolog.Info("Handle hello msg")
+    go handleHelloWorld(pigeonSys2, worker)
+
+    launcher := pigeonSys2.NewLauncher()
+    canolog.Info("Launch hello message")
+    respChan, err := launcher.Launch("generic", map[string]interface{}{"msg" : "hello"})
+    canolog.Info("Waiting for response")
+    resp := <-respChan
+   
+    canolog.Info("Response: ", resp)
     // ---
 
     if (cfg.OptForwardOtherHosts() != "") {

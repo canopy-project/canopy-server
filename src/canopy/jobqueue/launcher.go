@@ -15,93 +15,119 @@
 package jobqueue
 
 import (
+    "canopy/canolog"
     "fmt"
     "net/rpc"
     "math/rand"
-    "canopy/util/random"
+    //"canopy/util/random"
 )
 
 type PigeonLauncher struct {
     sys *PigeonSystem
-    timeoutms uint32
+    timeoutms int32
 }
 
-func (launcher *PigeonLauncher) send(hostname string, payload map[string]interface{}) error {
-    response := PigeonResponse{}
+func (launcher *PigeonLauncher) send(hostname string, request *PigeonRequest, respChan chan<- Response) error {
+    response := &PigeonResponse{}
 
     // Dial the server
-    client, err := rpc.DialHTTP("tcp", hostname)
+    canolog.Info("Pigeon Launcher: Dialing: ")
+    client, err := rpc.DialHTTP("tcp", hostname + ":1888")
     if err != nil {
+        canolog.Error(err)
         return fmt.Errorf("Pigeon: (dialing) %s", err.Error())
     }
     defer client.Close()
 
     // Make the call
-    client.Call("PigeonRPC.Request", payload, &response)
+    canolog.Info("Pigeon Launcher: Calling ")
+    err = client.Call("PigeonWorker.HandleRequest", request, response)
     if err != nil {
+        canolog.Error("Pigeon: (calling) %s", err)
         return fmt.Errorf("Pigeon: (calling) %s", err.Error())
     }
+    canolog.Info("Pigeon Launcher: Call returned ")
+
+    // Send response to channel
+    canolog.Info("Pigeon Launcher: Forwarding response")
+    respChan <- response
+    canolog.Info("Pigeon Launcher: All done")
     
     return nil
 }
 
 func (launcher *PigeonLauncher) Broadcast(key string, payload map[string]interface{}) error {
     // Get list of all workers interested in these keys
-    workerHosts, err := launcher.sys.dl.GetListeners(key)
-    if err != nil {
-        return err
-    }
+    //workerHosts, err := launcher.sys.dl.GetListeners(key)
+    //if err != nil {
+    //    return err
+    //}
 
     // Send message to each worker
-    for _, workerHost := range workerHosts {
-        launcher.send(workerHost, payload)
-    }
+    //for _, workerHost := range workerHosts {
+        //launcher.send(workerHost, payload)
+    //}
 
     return nil
 }
 
-func (launcher *PigeonLauncher) Launch(key string, payload map[string]interface{}) (<-chan PigeonResponse, error) {
+func (launcher *PigeonLauncher) Launch(key string, payload map[string]interface{}) (<-chan Response, error) {
+
+    req := PigeonRequest {
+        ReqKey: key,
+        ReqBody: payload,
+    }
+
     // Get list of all workers interested in these keys
+    canolog.Info("Pigoen Launcher: Get listeners for", key, launcher, launcher.sys, launcher.sys.dl)
     workerHosts, err := launcher.sys.dl.GetListeners(key)
+    canolog.Info("Done")
     if err != nil {
+        canolog.Info(err)
         return nil, err
     }
 
     if len(workerHosts) == 0 {
+        canolog.Info("Pigeon: No listeners found for %s ", key)
         return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
     }
 
     // For now, pick one at random
+    canolog.Info("a")
     workerHost := workerHosts[rand.Intn(len(workerHosts))]
+    canolog.Info("b")
 
-    launcher.send(workerHost, payload)
-    return nil, nil
+    respChan := make(chan Response)
+    canolog.Info("Pigoen Launcher: send", key)
+    go launcher.send(workerHost, &req, respChan)
+
+    return respChan, nil
 }
 
-func (launcher *PigeonLauncher) LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan PigeonResponse, error) {
+func (launcher *PigeonLauncher) LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error) {
     // Get list of all workers interested in these keys
-    workerHosts, err := launcher.sys.dl.GetListeners(key)
-    if err != nil {
-        return nil, err
-    }
+    //workerHosts, err := launcher.sys.dl.GetListeners(key)
+    //if err != nil {
+    //    return nil, err
+    //}
 
-    if len(workerHosts) == 0 {
-        return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
-    }
+    //if len(workerHosts) == 0 {
+    //    return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
+    //}
 
     // For now, pick a random subset of numParallel workers
-    workerHostsSubset := random.SelectionStrings(workerHosts, numParallel)
+    //workerHostsSubset := random.SelectionStrings(workerHosts, numParallel)
 
     // Send payload to each of the workers
-    for _, worker := range workerHostsSubset {
+    //for _, worker := range workerHostsSubset {
         // TODO: take response of first responder
-        launcher.send(worker, payload)
-    }
+        //launcher.send(worker, payload)
+    //}
 
     return nil, fmt.Errorf("Not fully implemented")
 }
 
-func (launcher *PigeonLauncher) SetTimeoutms(timeout uint32) {
+func (launcher *PigeonLauncher) SetTimeoutms(timeout int32) {
     launcher.timeoutms = timeout
 }
 
