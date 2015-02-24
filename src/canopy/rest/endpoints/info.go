@@ -22,11 +22,15 @@ import (
 )
 
 func GET_info(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
-    return map[string]interface{}{
-        "result" : "ok",
-        "service-name" : "Canopy Cloud Service",
-        "version" : "0.9.1-beta",
-        "config" : info.Config.ToJsonObject(),
-    }, nil
-}
 
+    respChan, err := info.PigeonClient.Launch("api/info", map[string]interface{}{})
+    if err != nil {
+        return nil,  rest_errors.NewInternalServerError("Error launching api/info job: " + err.Error())
+    }
+    
+    resp := <-respChan
+    if resp.Error() != nil {
+        return nil,  rest_errors.NewInternalServerError("Error from api/info job: " + resp.Error().Error())
+    }
+    return resp.Body(), nil
+}

@@ -21,6 +21,7 @@ import (
     "canopy/pigeon"
     "canopy/rest/adapter"
     "canopy/rest/endpoints"
+    "canopy/jobqueue"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
     "net/http"
@@ -38,11 +39,17 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
         return err
     }
 
+    pig, err := jobqueue.NewPigeonSystem(cfg)
+    if err != nil {
+        return err
+    }
+
     extra := adapter.RestHandlerIn{
         Config: cfg,
         CookieStore: store,
         Mailer: mailer,
         PigeonSys: pigeonSys,
+        PigeonClient: pig.NewClient(),
    }
 
     // TODO: Need to handle allow-origin correctly!

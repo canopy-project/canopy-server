@@ -18,6 +18,7 @@ import(
     "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
+    "canopy/jobqueue"
     "canopy/mail"
     "canopy/pigeon"
     "canopy/rest/rest_errors"
@@ -37,6 +38,7 @@ type RestHandlerIn struct {
     CookieStore *sessions.CookieStore
     Mailer mail.MailClient
     PigeonSys *pigeon.PigeonSystem
+    PigeonClient jobqueue.Client
 }
 
 // CanopyRestAuthTypeEnum is the type of authentication used in a request
@@ -65,6 +67,7 @@ type CanopyRestInfo struct {
     Session *sessions.Session
     Mailer mail.MailClient
     PigeonSys *pigeon.PigeonSystem
+    PigeonClient jobqueue.Client
     URLVars map[string]string
 }
 
@@ -101,6 +104,7 @@ func CanopyRestAdapter(fn CanopyRestHandler, in RestHandlerIn) http.HandlerFunc 
             Config: in.Config,
             Mailer: in.Mailer,
             PigeonSys: in.PigeonSys,
+            PigeonClient: in.PigeonClient,
         }
 
         // Log request
