@@ -30,6 +30,7 @@ import (
     "net/url"
     "os"
     "os/signal"
+    "runtime"
     "syscall"
 )
 
@@ -40,6 +41,7 @@ func shutdown() {
 }
 
 func main() {
+
     r := mux.NewRouter()
 
     cfg := config.NewDefaultConfig()
@@ -73,7 +75,16 @@ func main() {
     }
 
     // handle SIGINT & SIGTERM
-    defer shutdown()
+    defer func() {
+        r := recover()
+        if r != nil {
+        var buf [4096]byte
+            runtime.Stack(buf[:], false)
+            canolog.Error("PANIC ", r, string(buf[:]))
+            panic(r)
+        }
+        shutdown()
+    }()
     c := make (chan os.Signal, 1)
     c2 := make (chan os.Signal, 1)
     signal.Notify(c, os.Interrupt)
