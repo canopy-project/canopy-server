@@ -14,22 +14,51 @@
 
 package jobs
 
-func ApiInfoHandler(req pigeon.Request, resp pigeon.Response) {
+import (
+    "canopy/canolog"
+    "canopy/config"
+    "canopy/jobqueue"
+)
+
+func ApiInfoHandler(req jobqueue.Request, resp jobqueue.Response) {
     resp.SetBody(map[string]interface{}{
         "result" : "ok",
         "service-name" : "Canopy Cloud Service",
         "version" : "0.9.2-beta",
-        "config" : info.Config.ToJsonObject(),
     })
 }
 
 func InitJobServer(cfg config.Config) error {
-    pigeon, err = jobqueue.NewPigeonSystem(cfg)
+    pigeon, err := jobqueue.NewPigeonSystem(cfg)
     if err != nil {
         return err
     }
 
-    worker, err = pigeon.StartWorker("localhost") // TODO use configured hostname
+    server, err := pigeon.StartServer("localhost") // TODO use configured hostname
+    if err != nil {
+        return err
+    }
 
-    worker.ListenHandlerFunc("api/info", ApiInfoHandler)
+    err = server.Handle("api/info", ApiInfoHandler)
+    if err != nil {
+        return err
+    }
+    return nil
 }
+
+func InitJobClient(cfg config.Config) error {
+    pigeon, err := jobqueue.NewPigeonSystem(cfg)
+    if err != nil {
+        return err
+    }
+
+    client := pigeon.NewClient()
+
+    respChan, err := client.Launch("api/info", map[string]interface{}{"hi" : "there"})
+
+    resp := <-respChan
+    canolog.Info(resp)
+
+    return nil
+}
+    

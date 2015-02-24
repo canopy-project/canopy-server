@@ -14,19 +14,20 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
-    "net/http/httputil"
-    "net/url"
-    "code.google.com/p/go.net/websocket"
-    "github.com/gorilla/context"
-    "github.com/gorilla/mux"
     "canopy/canolog"
     "canopy/config"
+    "canopy/jobs"
     "canopy/pigeon"
     "canopy/rest"
     "canopy/webapp"
     "canopy/ws"
+    "code.google.com/p/go.net/websocket"
+    "fmt"
+    "github.com/gorilla/context"
+    "github.com/gorilla/mux"
+    "net/http"
+    "net/http/httputil"
+    "net/url"
     "os"
     "os/signal"
     "syscall"
@@ -100,6 +101,17 @@ func main() {
         return
     }
     canolog.Info(cfg.ToString())
+
+    err = jobs.InitJobServer(cfg)
+    if err != nil {
+        canolog.Error("Unable to initialize Job Server")
+        return
+    }
+    err = jobs.InitJobClient(cfg)
+    if err != nil {
+        canolog.Error("Unable to initialize Job Client")
+        return
+    }
 
     if (cfg.OptForwardOtherHosts() != "") {
         canolog.Info("Requests to hosts other than ", cfg.OptHostname(), " will be forwarded to ", cfg.OptForwardOtherHosts())

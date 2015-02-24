@@ -14,52 +14,64 @@
 
 // OVERVIEW
 //
-//  Pigeon is Canopy's message passing system.  Its flexible design allows
-//  it to be used for a variety of distributed computing tasks.
+//  Pigeon is Canopy's message passing system.  It follows a client/server
+//  model, although most nodes will act as both a server and a client.  The
+//  process goes something like this:
 //
-//  A "Worker" is a server that can listen for Requests.
+//  1) The Server registers which jobs it can handle.  These are identified by
+//  "job key" strings.
+//  2) The Client launches (or broadcasts) a request.
+//  2) The Pigeon system determines which server(s) to send the request to.
+//  3) The Server receives, processes the request (perhaps by launching further
+//  requests), and generates a response.
+//  4) The Pigeon system reports the Server's response to the Client.
 //
-//  A "Launcher" is an object used for sending Requests to workers.
+//  Pigeon's flexible design allows it to be used for a variety of distributed
+//  computing tasks.
 //
-//  A "Request" consists of a string name (key) and a JSON payload.
+//  A "Server" listens for Requests.
+//
+//  A "Client" issues Requests.
+//
+//  A "Request" consists of a string name ("job key") and a JSON payload.
 //
 //  A "Response" consists of a JSON payload and an optional error object.
 //
 // SERVERS
 //
-//  A Worker is identified by IP Address or Hostname.  Information about each
-//  Worker is stored in the database.
+//  A Server is identified by IP Address or Hostname.  Information about each
+//  Server is stored in the database.
 //
-//  To register a new Worker, use:
+//  To register a new Server, use:
 //
-//      worker, err := pigeonSys.StartWorker(hostname)
+//      server, err := pigeonSys.StartServer(hostname)
 //
 //  You can then start listening for requests that match a desired key:
 //
-//      err = worker.ListenHandler("generic", myHandlerFunc)
+//      err = server.Handle("myJobKey", myHandlerFunc)
 //
-//  Before your program quits, we advise that you Stop the worker.  Otherwise,
+//  Before your program quits, we advise that you Stop the server.  Otherwise,
 //  requests will continue to be sent to it and will time out.
 //
-//      err = worker.Stop()
+//      err = server.Stop()
 //
-//  All data about workers including their status and what they are listening
+//  All data about Servers including their status and what they are listening
 //  for are stored in the DB.
 //
 // LAUNCHING REQUESTS
 //
-//  To send a message you must first create a Launcher object.  A Launcher
-//  contains the settings that will be used to send the request.
+//  To send a message you must first create a Client object.  A Client contains
+//  the settings that will be used to send the request.
 //
-//      launcher := pigeonSys.NewLauncher()
+//      client := pigeonSys.NewClient()
 //
 //  You can then set options:
 //
-//      launcher.SetTimeoutms(1000)
+//      client.SetTimeoutms(1000)
 //
-//  To send a request that should be consumed by exactly one Worker:
+//  To send a request that should be consumed by exactly one Server:
 //
-//      responseChan := launcher.Launch("generic", myPayload)
+//      responseChan := client.Launch("generic", myPayload)
 //
 //  To block waiting for the response:
 //
@@ -89,68 +101,65 @@ const (
     UNRESPONSIVE
 )
 
+type HandlerFunc func(Request, Response)
+
 type System interface {
     // Create a new empty response object.
-    NewLauncher() Launcher
+    NewClient() Client
 
     // Create a new empty response object.
     NewResponse() Response
 
     // Starts RPC server, adds worker to the DB, if not already present, and
     // sets its status to "active".
-    StartWorker(hostname string) (Worker, error)
+    StartServer(hostname string) (Server, error)
 
-    // Lookup a specific worker by hostname.
-    Worker(hostname string) (Worker, error)
+    // Lookup a specific Server by hostname.
+    Server(hostname string) (Server, error)
 
-    // Obtain list of workers from the DB.
-    Workers() ([]Worker, error)
+    // Obtain list of Servers from the DB.
+    Servers() ([]Server, error)
 }
 
-type Launcher interface {
-    // Broadcast a payload to every listener interested in these messages
-    Broadcast(key string, payload map[string]interface{}) error
+type Client interface {
+    // Broadcast a request to every Server interested
+    Broadcast(jobKey string, payload map[string]interface{}) error
 
-    // Launches a work item that will be consumed by exactly one listener
-    Launch(key string, payload map[string]interface{}) (<-chan Response, error)
+    // Launches a request that will be handled by exactly one Server
+    Launch(jobKey string, payload map[string]interface{}) (<-chan Response, error)
     
-    // Launches a work item that is idemponent and can be consumed by multiple
-    // listeners without ill effect.  This allows the job to be sent to
+    // Launches a request that is idemponent and can be consumed by multiple
+    // Servers without ill effect.  This allows the job to be sent to
     // multiple consumers simultaneously, for low latency response (whoever
     // responds first wins).
-    LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error)
+    LaunchIdempotent(jobKey string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error)
 
     // Set the timeout for non-broadcast requests.
-    // Use <0 for no timeout
+    // Use a negative value for no timeout.
     SetTimeoutms(timeout int32)
 }
 
-type Worker interface {
-    // Listen for requests that match <key>.
-    // This is the low-level interface for listening for requests.
-    // This returns imemdiately, but sets up <requestChan> to recieve requests.
-    // Each time a request is recieved, the caller should send a response to
-    // <responseChan>.
-    Listen(key string, requestChan chan<- Request, responseChan <-chan Response) error
+type Server interface {
+    // Listen for requests that match <key>, triggering a handler function each
+    // time such a request is recieved.
+    // Registers that this Server can handle jobs named <jobKey> in the
+    // database.
+    Handle(jobKey string, fn HandlerFunc) error
 
-    // Listen for requests that match <key>, triggering a handle function each
-    // time a request is recieved.
-    ListenHandlerFunc(key string, func handlerFunc(Request, Response))
-
-    // Set the worker's status to "active".  Does nothing if worker is already
+    // Set the Server's status to "active".  Does nothing if server is already
     // "active".
     Start() error
 
-    // Get the worker's status
+    // Get the Server's status
     Status() error
 
-    // Set the worker's status to "stopped".  It will no longer recieve
+    // Set the Server's status to "stopped".  It will no longer recieve
     // requests until started again.  Does nothing if worker is already
     // "stopped".
     Stop() error
 
-    // Stop listening for a specific <key>.
-    StopListening(key string) error
+    // Stop listening for a specific <jobKey>.
+    StopHandling(jobKey string) error
 }
 
 type Request interface {

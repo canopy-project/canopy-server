@@ -21,23 +21,23 @@ import (
     //"canopy/util/random"
 )
 
-type PigeonLauncher struct {
+type PigeonClient struct {
     sys *PigeonSystem
     timeoutms int32
 }
 
-func (launcher *PigeonLauncher) send(hostname string, request *PigeonRequest, respChan chan<- Response) error {
+func (client *PigeonClient) send(hostname string, request *PigeonRequest, respChan chan<- Response) error {
     response := &PigeonResponse{}
 
     // Dial the server
-    client, err := rpc.DialHTTP("tcp", hostname + ":1888")
+    rpcClient, err := rpc.DialHTTP("tcp", hostname + ":1888")
     if err != nil {
         return fmt.Errorf("Pigeon: (dialing) %s", err.Error())
     }
-    defer client.Close()
+    defer rpcClient.Close()
 
     // Make the call
-    err = client.Call("PigeonWorker.HandleRequest", request, response)
+    err = rpcClient.Call("PigeonServer.RPCHandleRequest", request, response)
     if err != nil {
         return fmt.Errorf("Pigeon: (calling) %s", err.Error())
     }
@@ -48,7 +48,7 @@ func (launcher *PigeonLauncher) send(hostname string, request *PigeonRequest, re
     return nil
 }
 
-func (launcher *PigeonLauncher) Broadcast(key string, payload map[string]interface{}) error {
+func (client *PigeonClient) Broadcast(key string, payload map[string]interface{}) error {
     // Get list of all workers interested in these keys
     //workerHosts, err := launcher.sys.dl.GetListeners(key)
     //if err != nil {
@@ -63,35 +63,35 @@ func (launcher *PigeonLauncher) Broadcast(key string, payload map[string]interfa
     return nil
 }
 
-func (launcher *PigeonLauncher) Launch(key string, payload map[string]interface{}) (<-chan Response, error) {
+func (client *PigeonClient) Launch(key string, payload map[string]interface{}) (<-chan Response, error) {
 
     req := PigeonRequest {
-        ReqKey: key,
+        ReqJobKey: key,
         ReqBody: payload,
     }
 
     // Get list of all workers interested in these keys
-    workerHosts, err := launcher.sys.dl.GetListeners(key)
+    serverHosts, err := client.sys.dl.GetListeners(key)
     if err != nil {
         return nil, err
     }
 
-    if len(workerHosts) == 0 {
+    if len(serverHosts) == 0 {
         return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
     }
 
     // For now, pick one at random
-    workerHost := workerHosts[rand.Intn(len(workerHosts))]
+    serverHost := serverHosts[rand.Intn(len(serverHosts))]
 
     respChan := make(chan Response)
-    go launcher.send(workerHost, &req, respChan)
+    go client.send(serverHost, &req, respChan)
 
     return respChan, nil
 }
 
-func (launcher *PigeonLauncher) LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error) {
+func (client *PigeonClient) LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error) {
     // Get list of all workers interested in these keys
-    //workerHosts, err := launcher.sys.dl.GetListeners(key)
+    //workerHosts, err := client.sys.dl.GetListeners(key)
     //if err != nil {
     //    return nil, err
     //}
@@ -106,13 +106,13 @@ func (launcher *PigeonLauncher) LaunchIdempotent(key string, numParallel uint32,
     // Send payload to each of the workers
     //for _, worker := range workerHostsSubset {
         // TODO: take response of first responder
-        //launcher.send(worker, payload)
+        //client.send(worker, payload)
     //}
 
     return nil, fmt.Errorf("Not fully implemented")
 }
 
-func (launcher *PigeonLauncher) SetTimeoutms(timeout int32) {
-    launcher.timeoutms = timeout
+func (client *PigeonClient) SetTimeoutms(timeout int32) {
+    client.timeoutms = timeout
 }
 

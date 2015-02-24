@@ -19,31 +19,11 @@ import (
     "fmt"
 )
 
-/*func (pigeon *CanopyPigeon) Listen(
-    name string, 
-    func acceptFunc(payload map[string]interface{}) (response map[string]interface{}, error)) {
-}
-
-func (pigeon *CanopyPigeon) Launch(name string, payload map[string]inteface{}) {
-    // Launch picks a single listener to recieve the job
-
-    // For now, pick a random listener among the candidates to send the paylaod
-    // to.
-    candidates := pigeon.FilterListeners(string)
-    if len(candidates) == 0 {
-        return fmt.Errorf("Pigeon: No listeners found for %s", name)
-    }
-    listenerIdx = rand.Intn(len(candidates))
-    
-    candidate.Receive()
-}
-*/
-
 type PigeonSystem struct {
     dl datalayer.PigeonSystem
 }
-func (pigeon *PigeonSystem) NewLauncher() Launcher {
-    return &PigeonLauncher{
+func (pigeon *PigeonSystem) NewClient() Client {
+    return &PigeonClient{
         sys: pigeon,
         timeoutms: -1,
     }
@@ -53,30 +33,26 @@ func (pigeon *PigeonSystem) NewResponse() Response {
     return &PigeonResponse{}
 }
 
-func (pigeon *PigeonSystem) StartWorker(hostname string) (Worker, error) {
-    worker := &PigeonWorker{
+func (pigeon *PigeonSystem) StartServer(hostname string) (Server, error) {
+    server := &PigeonServer{
         sys : pigeon,
         hostname: hostname,
-        listeners : map[string]PigeonListener{},
+        handlers : map[string]HandlerFunc{},
     }
 
-    err := worker.Start()
+    err := server.Start()
     if err != nil {
         return nil, err
     }
 
-    return worker, nil
+    return server, nil
 }
 
-func (pigeon *PigeonSystem) Worker(hostname string) (Worker, error) {
-    worker := &PigeonWorker{
-        hostname: hostname,
-    }
-
-    return worker, nil
+func (pigeon *PigeonSystem) Server(hostname string) (Server, error) {
+    return nil, fmt.Errorf("Not Implemented")
 }
 
-func (pigeon *PigeonSystem) Workers() ([]Worker, error) {
+func (pigeon *PigeonSystem) Servers() ([]Server, error) {
     return nil, fmt.Errorf("Not Implemented")
 }
 
