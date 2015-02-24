@@ -15,7 +15,6 @@
 package jobqueue
 
 import (
-    "canopy/canolog"
     "fmt"
     "net/rpc"
     "math/rand"
@@ -31,27 +30,20 @@ func (launcher *PigeonLauncher) send(hostname string, request *PigeonRequest, re
     response := &PigeonResponse{}
 
     // Dial the server
-    canolog.Info("Pigeon Launcher: Dialing: ")
     client, err := rpc.DialHTTP("tcp", hostname + ":1888")
     if err != nil {
-        canolog.Error(err)
         return fmt.Errorf("Pigeon: (dialing) %s", err.Error())
     }
     defer client.Close()
 
     // Make the call
-    canolog.Info("Pigeon Launcher: Calling ")
     err = client.Call("PigeonWorker.HandleRequest", request, response)
     if err != nil {
-        canolog.Error("Pigeon: (calling) %s", err)
         return fmt.Errorf("Pigeon: (calling) %s", err.Error())
     }
-    canolog.Info("Pigeon Launcher: Call returned ")
 
     // Send response to channel
-    canolog.Info("Pigeon Launcher: Forwarding response")
     respChan <- response
-    canolog.Info("Pigeon Launcher: All done")
     
     return nil
 }
@@ -79,26 +71,19 @@ func (launcher *PigeonLauncher) Launch(key string, payload map[string]interface{
     }
 
     // Get list of all workers interested in these keys
-    canolog.Info("Pigoen Launcher: Get listeners for", key, launcher, launcher.sys, launcher.sys.dl)
     workerHosts, err := launcher.sys.dl.GetListeners(key)
-    canolog.Info("Done")
     if err != nil {
-        canolog.Info(err)
         return nil, err
     }
 
     if len(workerHosts) == 0 {
-        canolog.Info("Pigeon: No listeners found for %s ", key)
         return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
     }
 
     // For now, pick one at random
-    canolog.Info("a")
     workerHost := workerHosts[rand.Intn(len(workerHosts))]
-    canolog.Info("b")
 
     respChan := make(chan Response)
-    canolog.Info("Pigoen Launcher: send", key)
     go launcher.send(workerHost, &req, respChan)
 
     return respChan, nil
