@@ -25,7 +25,7 @@
 //
 //  A "Response" consists of a JSON payload and an optional error object.
 //
-// WORKERS
+// SERVERS
 //
 //  A Worker is identified by IP Address or Hostname.  Information about each
 //  Worker is stored in the database.
@@ -128,11 +128,14 @@ type Launcher interface {
 type Worker interface {
     // Listen for requests that match <key>.
     // This is the low-level interface for listening for requests.
-    Listen(key string, request chan<- Request, response <-chan Response) error
+    // This returns imemdiately, but sets up <requestChan> to recieve requests.
+    // Each time a request is recieved, the caller should send a response to
+    // <responseChan>.
+    Listen(key string, requestChan chan<- Request, responseChan <-chan Response) error
 
     // Listen for requests that match <key>, triggering a handle function each
     // time a request is recieved.
-    //ListenHandler(key string, func handler(Request) (Response)) error
+    ListenHandlerFunc(key string, func handlerFunc(Request, Response))
 
     // Set the worker's status to "active".  Does nothing if worker is already
     // "active".

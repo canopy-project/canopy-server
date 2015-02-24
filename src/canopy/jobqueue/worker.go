@@ -45,7 +45,7 @@ type PigeonListener struct {
     requestChan chan<- Request
     responseChan <-chan Response
 }
-func (worker *PigeonWorker) HandleRequest(request *PigeonRequest, response *PigeonResponse) error {
+func (worker *PigeonWorker) HandleRPCRequest(request *PigeonRequest, response *PigeonResponse) error {
     // Lookup the listener for that job type
     listener, ok := worker.listeners[request.ReqKey]
     if !ok {
@@ -93,6 +93,30 @@ func (worker *PigeonWorker) Listen(key string, requestChan chan<- Request, respo
     worker.listeners[key] = listener
 
     return nil
+}
+
+
+func (worker *PigeonWorker) goListenHandlerFunc(key string, requestChan chan Request, responseChan chan Response, func handlerFunc(Request, Response)) {
+    for {
+        // Wait for request to come in
+        req := <-requestChan
+        resp := worker.sys.NewResponse()
+
+        // spawn goroutine 
+        go func(req Request, resp Response) <-chan bool {
+            handlerFunc(req, resp)
+        }
+        handlerFunc(req, resp)
+    }
+}
+
+func (worker *PigeonWorker) ListenHandlerFunc(key string, func handlerFunc(Request, Response)) {
+    // Create channels
+    requestChan := make(chan Request)
+    responseChan := make(chan Response)
+
+    worker.Listen(key, requestChan, responseChan)
+    go goListenHandlerFunc(key, requestChan, responseChan, handlerFunc)
 }
 
 func (worker *PigeonWorker) Start() error {
