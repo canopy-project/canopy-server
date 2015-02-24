@@ -27,7 +27,7 @@ type PigeonClient struct {
 }
 
 func (client *PigeonClient) send(hostname string, request *PigeonRequest, respChan chan<- Response) error {
-    response := &PigeonResponse{}
+    resp := &PigeonResponse{}
 
     // Dial the server
     rpcClient, err := rpc.DialHTTP("tcp", hostname + ":1888")
@@ -37,13 +37,13 @@ func (client *PigeonClient) send(hostname string, request *PigeonRequest, respCh
     defer rpcClient.Close()
 
     // Make the call
-    err = rpcClient.Call("PigeonServer.RPCHandleRequest", request, response)
+    err = rpcClient.Call("PigeonServer.RPCHandleRequest", request, resp)
     if err != nil {
         return fmt.Errorf("Pigeon: (calling) %s", err.Error())
     }
 
     // Send response to channel
-    respChan <- response
+    respChan <- resp
     
     return nil
 }

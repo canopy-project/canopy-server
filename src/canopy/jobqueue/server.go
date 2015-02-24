@@ -15,6 +15,7 @@
 package jobqueue
 
 import (
+    "encoding/gob"
     "fmt"
     "net"
     "net/rpc"
@@ -26,7 +27,7 @@ type PigeonServer struct {
     hostname string
     
     // mapping from jobKey to HandlerFunc
-    handlers map[string]HandlerFunc
+    handlers map[string]*pigeonHandler
 }
 
 type PigeonRequest struct {
@@ -37,6 +38,11 @@ type PigeonRequest struct {
 type PigeonResponse struct {
     RespErr error
     RespBody map[string]interface{}
+}
+
+type pigeonHandler struct {
+    fn HandlerFunc
+    userCtx map[string]interface{}
 }
 
 // RPC entrypoint
@@ -50,15 +56,19 @@ func (server *PigeonServer) RPCHandleRequest(req *PigeonRequest, resp *PigeonRes
     }
 
     // Call the handler
-    handler(req, resp)
+    handler.fn(handler.userCtx, req, resp)
 
     return nil
 }
 
 func (server *PigeonServer) serveRPC() error {
     // TODO: Use direct TCP instead of HTML
+    gob.Register(map[string]interface{}{})
     PIGEON_RPC_PORT := ":1888"
-    rpc.Register(server)
+    err := rpc.Register(server)
+    if err != nil {
+        return err
+    }
     rpc.HandleHTTP()
     l, err := net.Listen("tcp", PIGEON_RPC_PORT)
     if err != nil {
@@ -68,7 +78,7 @@ func (server *PigeonServer) serveRPC() error {
     return nil
 }
 
-func (server *PigeonServer) Handle(jobKey string, fn HandlerFunc) error {
+func (server *PigeonServer) Handle(jobKey string, fn HandlerFunc, userCtx map[string]interface{}) error {
     // Register this handler in the DB
     err := server.sys.dl.RegisterListener(server.hostname, jobKey)
     if err != nil {
@@ -76,7 +86,10 @@ func (server *PigeonServer) Handle(jobKey string, fn HandlerFunc) error {
     }
 
     // Associate the handler function with the jobKey
-    server.handlers[jobKey] = fn
+    server.handlers[jobKey] = &pigeonHandler{
+        fn: fn,
+        userCtx: userCtx,
+    }
     return nil
 }
 

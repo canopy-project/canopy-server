@@ -18,15 +18,8 @@ import (
     "canopy/canolog"
     "canopy/config"
     "canopy/jobqueue"
+    "canopy/jobs/rest"
 )
-
-func ApiInfoHandler(req jobqueue.Request, resp jobqueue.Response) {
-    resp.SetBody(map[string]interface{}{
-        "result" : "ok",
-        "service-name" : "Canopy Cloud Service",
-        "version" : "0.9.2-beta",
-    })
-}
 
 func InitJobServer(cfg config.Config) error {
     pigeon, err := jobqueue.NewPigeonSystem(cfg)
@@ -34,12 +27,16 @@ func InitJobServer(cfg config.Config) error {
         return err
     }
 
+    userCtx := map[string]interface{}{
+        "cfg" : cfg,
+    }
+
     server, err := pigeon.StartServer("localhost") // TODO use configured hostname
     if err != nil {
         return err
     }
 
-    err = server.Handle("api/info", ApiInfoHandler)
+    err = server.Handle("api/info", rest.ApiInfoHandler, userCtx)
     if err != nil {
         return err
     }

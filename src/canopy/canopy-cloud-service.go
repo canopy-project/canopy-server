@@ -104,7 +104,7 @@ func main() {
 
     err = jobs.InitJobServer(cfg)
     if err != nil {
-        canolog.Error("Unable to initialize Job Server")
+        canolog.Error("Unable to initialize Job Server", err)
         return
     }
     err = jobs.InitJobClient(cfg)

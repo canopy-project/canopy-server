@@ -37,7 +37,7 @@ func (pigeon *PigeonSystem) StartServer(hostname string) (Server, error) {
     server := &PigeonServer{
         sys : pigeon,
         hostname: hostname,
-        handlers : map[string]HandlerFunc{},
+        handlers : map[string]*pigeonHandler{},
     }
 
     err := server.Start()

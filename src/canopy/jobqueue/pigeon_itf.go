@@ -101,7 +101,7 @@ const (
     UNRESPONSIVE
 )
 
-type HandlerFunc func(Request, Response)
+type HandlerFunc func(map[string]interface{}, Request, Response)
 
 type System interface {
     // Create a new empty response object.
@@ -144,7 +144,9 @@ type Server interface {
     // time such a request is recieved.
     // Registers that this Server can handle jobs named <jobKey> in the
     // database.
-    Handle(jobKey string, fn HandlerFunc) error
+    // <userCtx> is optional user-provided data that will be passed to the
+    //      handler as req.UserContext().
+    Handle(jobKey string, fn HandlerFunc, userCtx map[string]interface{}) error
 
     // Set the Server's status to "active".  Does nothing if server is already
     // "active".
