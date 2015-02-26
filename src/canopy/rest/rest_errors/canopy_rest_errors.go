@@ -62,7 +62,10 @@ func (err IncorrectUsernameOrPasswordError) WriteTo(w http.ResponseWriter) {
     w.WriteHeader(http.StatusUnauthorized);
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "incorrect_username_or_password"}`)
 }
-func NewIncorrectUsernameOrPasswordError() CanopyRestError {
+func (IncorrectUsernameOrPasswordError) Error() string {
+    return "401 NOT AUTHORIZED - Incorrect Username or Password"
+}
+func NewIncorrectUsernameOrPasswordError() *IncorrectUsernameOrPasswordError {
     return &IncorrectUsernameOrPasswordError{}
 }
 
@@ -74,8 +77,11 @@ func (err InternalServerError) WriteTo(w http.ResponseWriter) {
     w.WriteHeader(http.StatusInternalServerError);
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "internal_error", "error_msg" : "%s"}`, err.msg)
 }
-func NewInternalServerError(msg string) CanopyRestError {
-    return &BadInputError{msg}
+func (err InternalServerError) Error() string {
+    return "500 INTERNAL SERVER ERROR - " + err.msg
+}
+func NewInternalServerError(msg string) *InternalServerError {
+    return &InternalServerError{msg}
 }
 
 // NotLoggedInError
@@ -94,6 +100,9 @@ func (URLNotFoundError) WriteTo(w http.ResponseWriter) {
     w.WriteHeader(http.StatusNotFound);
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "url_not_found"}`)
 }
+func (URLNotFoundError) Error() string {
+    return "404 NOT FOUND"
+}
 func NewURLNotFoundError() CanopyRestError {
     return &URLNotFoundError{}
 }
@@ -103,6 +112,9 @@ type UsernameTakenError struct {}
 func (UsernameTakenError) WriteTo(w http.ResponseWriter) {
     w.WriteHeader(http.StatusBadRequest);
     fmt.Fprintf(w, `{"result" : "error", "error_type" : "username_taken"}`)
+}
+func (UsernameTakenError) Error() string {
+    return "400 BAD REQUEST"
 }
 func NewUsernameTakenError() CanopyRestError {
     return &UsernameTakenError{}

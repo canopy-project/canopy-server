@@ -17,6 +17,7 @@ package jobs
 import (
     "canopy/canolog"
     "canopy/config"
+    "canopy/datalayer/cassandra_datalayer"
     "canopy/jobqueue"
     "canopy/jobs/rest"
 )
@@ -36,12 +37,22 @@ func InitJobServer(cfg config.Config) error {
         return err
     }
 
+    dl := cassandra_datalayer.NewDatalayer(cfg)
+    conn, err := dl.Connect("canopy")
+    if err != nil {
+        return err
+    }
+    userCtx["db-conn"] = conn
+
     err = server.Handle("api/info", rest.ApiInfoHandler, userCtx)
     if err != nil {
         return err
     }
-
     err = server.Handle("api/activate", rest.RestJobWrapper(rest.ApiActivateHandler), userCtx)
+    if err != nil {
+        return err
+    }
+    err = server.Handle("api/me", rest.RestJobWrapper(rest.ApiMeHandler), userCtx)
     if err != nil {
         return err
     }

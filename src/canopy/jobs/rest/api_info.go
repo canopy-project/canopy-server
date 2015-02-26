@@ -17,7 +17,6 @@ package rest
 import (
     "canopy/config"
     "canopy/jobqueue"
-    "fmt"
 )
 
 // Constructs the response body for the /api/info REST endpoint
@@ -25,7 +24,7 @@ func ApiInfoHandler(jobKey string, userCtx map[string]interface{}, req jobqueue.
 
     cfg, ok := userCtx["cfg"].(config.Config)
     if !ok {
-        resp.SetError(fmt.Errorf("Internal error: expected 'cfg' in UserContext"))
+        //resp.SetError(fmt.Errorf("Internal error: expected 'cfg' in UserContext"))
         return
     }
 

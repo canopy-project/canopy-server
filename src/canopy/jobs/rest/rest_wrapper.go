@@ -22,9 +22,14 @@ import (
     "encoding/base64"
     "encoding/json"
     "errors"
-    "fmt"
+    "net/http"
     "strings"
 )
+
+type RestJobHandler func(
+        info *CanopyRestInfo,
+        req jobqueue.Request,
+        resp jobqueue.Response)
 
 // CanopyRestAuthTypeEnum is the type of authentication used in a request
 type CanopyRestAuthTypeEnum int
@@ -55,11 +60,11 @@ type CanopyRestInfo struct {
     UserCtx map[string]interface{}
 }
 
-func parseBasicAuth(authHeader string) (username string, password string, err error) {
+func parseBasicAuth(authHeader []string) (username string, password string, err error) {
     if len(authHeader) == 0 {
         return "", "", errors.New("Authorization header not set")
     }
-    parts := strings.SplitN(authHeader, " ", 2)
+    parts := strings.SplitN(authHeader[0], " ", 2)
     if len(parts) != 2 {
         return "", "", errors.New("Authentication header malformed")
     }
@@ -78,11 +83,12 @@ func parseBasicAuth(authHeader string) (username string, password string, err er
     return parts[0], parts[1], nil
 }
 
-type RestJobHandler func(
-        info *CanopyRestInfo,
-        req jobqueue.Request,
-        resp jobqueue.Response)
-
+func RestSetError(resp jobqueue.Response, statusCode int, msg string) {
+    resp.SetBody(map[string]interface{}{
+        "http-status" : statusCode,
+        "http-body" : "{\"result\" : \"error\", \"error_msg\" : \"" + msg + "\"}",
+    })
+}
 
 // Wrapper for handling pigeon requests that originated from
 // CanopyRestJobForwarder
@@ -106,7 +112,7 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         // Get URL vars from job request
         info.URLVars, ok = body["url-vars"].(map[string]string)
         if !ok {
-            resp.SetError(fmt.Errorf("Expected map[string]string for 'url-vars'"))
+            RestSetError(resp, http.StatusInternalServerError, "Expected map[string]string for 'url-vars'")
             return
         }
 
@@ -114,14 +120,14 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         info.Conn, ok = userCtx["db-conn"].(datalayer.Connection)
         conn := info.Conn
         if !ok {
-            resp.SetError(fmt.Errorf("Expected datalayer.Connection for 'db-conn'"))
+            RestSetError(resp, http.StatusInternalServerError, "Expected datalayer.Connection for 'db-conn'")
             return
         }
 
         // Check for BASIC AUTH
-        authHeader, ok := body["auth-header"].(string)
+        authHeader, ok := body["auth-header"].([]string)
         if !ok {
-            resp.SetError(fmt.Errorf("Expected string for 'auth-header'"))
+            RestSetError(resp, http.StatusInternalServerError, "Expected []string for 'auth-header'")
             return
         }
         username_string, password, err := parseBasicAuth(authHeader)
@@ -130,16 +136,12 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
             if len(username_string) == 36 {
                 device, err := info.Conn.LookupDeviceByStringID(username_string)
                 if err != nil {
-                    resp.SetError(fmt.Errorf("Incorrect username or password"))
-                    //w.WriteHeader(http.StatusUnauthorized)
-                    //fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
+                    RestSetError(resp, http.StatusUnauthorized, "Incorrect username or password")
                     return
                 }
                 
                 if device.SecretKey() != password {
-                    resp.SetError(fmt.Errorf("Incorrect username or password"))
-                    //w.WriteHeader(http.StatusUnauthorized)
-                    //fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
+                    RestSetError(resp, http.StatusUnauthorized, "Incorrect username or password")
                     return
                 }
 
@@ -149,8 +151,7 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
                 // update last_seen for this device
                 err = device.UpdateLastActivityTime(nil)
                 if err != nil {
-                    resp.SetError(fmt.Errorf("Updating last seen time: %s", err.Error()))
-                    //rest_errors.NewInternalServerError("Updating last seen time").WriteTo(w)
+                    RestSetError(resp, http.StatusInternalServerError, "Updating last seen time " + err.Error())
                     return
                 }
                 canolog.Info("Device BASIC auth provided")
@@ -159,14 +160,10 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
                 acct, err := conn.LookupAccountVerifyPassword(username_string, password)
                 if err != nil {
                     if err == datalayer.InvalidPasswordError {
-                        resp.SetError(fmt.Errorf("Incorrect username or password"))
-                        //w.WriteHeader(http.StatusUnauthorized)
-                        //fmt.Fprintf(w, "{\"error\" : \"incorrect_username_or_password\"}")
+                        RestSetError(resp, http.StatusUnauthorized, "Incorrect username or password")
                         return
                     } else {
-                        resp.SetError(fmt.Errorf("Account lookup failed"))
-                        //w.WriteHeader(http.StatusInternalServerError);
-                        //fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
+                        RestSetError(resp, http.StatusInternalServerError, "Account lookup failed")
                         return
                     }
                 }
@@ -181,7 +178,7 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         info.Cookies = make(map[string]string)
         info.Cookies["username"], ok = body["cookie-username"].(string)
         if !ok {
-            resp.SetError(fmt.Errorf("Expected string for 'cookie-username'"))
+            RestSetError(resp, http.StatusInternalServerError, "Expected string for 'cookie-username'")
             return
         }
 
@@ -193,9 +190,7 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
                 // TODO: Do this Logout logic
                 //info.Session.Values["logged_in_username"] = ""
                 //info.Session.Save(r, w)
-                //w.WriteHeader(http.StatusInternalServerError);
-                //fmt.Fprintf(w, "{\"error\" : \"account_lookup_failed\"}");
-                resp.SetError(fmt.Errorf("Account lookup failed"))
+                RestSetError(resp, http.StatusInternalServerError, "Account lookup failed")
                 return
             }
 
@@ -206,7 +201,7 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
 
         httpBody, ok := body["http-body"].(string)
         if !ok {
-            resp.SetError(fmt.Errorf("Expected string for 'http-body'"))
+            RestSetError(resp, http.StatusInternalServerError, "Expected string for 'http-body'")
             return
         }
 
@@ -216,7 +211,7 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
             decoder := json.NewDecoder(strings.NewReader(httpBody))
             err := decoder.Decode(&bodyObj)
             if err != nil {
-                resp.SetError(fmt.Errorf("JSON decode failed: %s ", err.Error()))
+                RestSetError(resp, http.StatusBadRequest, "JSON decode failed: %s " + err.Error())
                 return
             }
         }
@@ -226,9 +221,9 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         // The wrapped handler should set response in <resp> using:
         //      resp.SetBody()
         //      resp.SetError()
+        canolog.Info("Response: ", resp)
         handler(info, req, resp)
 
         canolog.Info("Response: ", resp.Body())
-        canolog.Info("Response (Error): ", resp.Error())
     }
 }

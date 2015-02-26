@@ -73,17 +73,19 @@ func (server *PigeonServer) rpcHandleRequest(req *PigeonRequest, resp *PigeonRes
 
     // Call the handler
     canolog.Info("Calling Registered handler")
+    canolog.Info(req)
+    canolog.Info(resp)
     handler.fn(req.ReqJobKey, handler.userCtx, req, resp)
     canolog.Info("All done")
 
     return nil
 }
 
-func (server *PigeonServer) RPCHandleRequest(req *PigeonRequest, resp *PigeonResponse) (outErr error) {
+func (server *PigeonServer) RPCHandleRequest(req *PigeonRequest, resp *PigeonResponse) error {
     // defer does not seem to work correctly inside main RPC routine.  So this
     // is our workaround.
     err := server.rpcHandleRequest(req, resp) 
-    canolog.Info("Done w/ RPCHandleRequest")
+    canolog.Info("Leaving RPCHandleRequest")
     return err
 }
 

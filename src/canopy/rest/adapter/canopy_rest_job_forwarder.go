@@ -70,8 +70,8 @@ func CanopyRestJobForwarder(
         // Wait for pigeon response
         resp := <-respChan
 
-        // TODO: handle errors
-        // Write response
-        fmt.Fprint(w, resp.Body()["body"])
+        // Write Response
+        // TODO: write header
+        fmt.Fprint(w, resp.Body()["http-body"])
     }
 }

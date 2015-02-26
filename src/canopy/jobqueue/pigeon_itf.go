@@ -169,10 +169,10 @@ type Request interface {
 }
 
 type Response interface {
-    Error() error
     Body() map[string]interface{}
-    SetBody(body map[string]interface{}) 
-    SetError(err error) 
+
+    // Must be a gob-able value
+    SetBody(body map[string]interface{})
 }
 
 func NewPigeonSystem(cfg config.Config) (System, error) {

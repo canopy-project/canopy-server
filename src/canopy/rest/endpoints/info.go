@@ -29,8 +29,6 @@ func GET_info(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInf
     }
     
     resp := <-respChan
-    if resp.Error() != nil {
-        return nil,  rest_errors.NewInternalServerError("Error from api/info job: " + resp.Error().Error())
-    }
+
     return resp.Body(), nil
 }
