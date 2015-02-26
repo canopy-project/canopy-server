@@ -74,7 +74,7 @@ func main() {
         return
     }
 
-    // handle SIGINT & SIGTERM
+    // Log crashes
     defer func() {
         r := recover()
         if r != nil {
@@ -85,6 +85,7 @@ func main() {
         }
         shutdown()
     }()
+    // handle SIGINT & SIGTERM
     c := make (chan os.Signal, 1)
     c2 := make (chan os.Signal, 1)
     signal.Notify(c, os.Interrupt)

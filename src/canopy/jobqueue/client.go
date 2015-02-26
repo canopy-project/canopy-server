@@ -15,6 +15,7 @@
 package jobqueue
 
 import (
+    "canopy/canolog"
     "fmt"
     "net/rpc"
     "math/rand"
@@ -30,6 +31,7 @@ func (client *PigeonClient) send(hostname string, request *PigeonRequest, respCh
     resp := &PigeonResponse{}
 
     // Dial the server
+    canolog.Info("RPC Dialing")
     rpcClient, err := rpc.DialHTTP("tcp", hostname + ":1888")
     if err != nil {
         return fmt.Errorf("Pigeon: (dialing) %s", err.Error())
@@ -37,8 +39,12 @@ func (client *PigeonClient) send(hostname string, request *PigeonRequest, respCh
     defer rpcClient.Close()
 
     // Make the call
+    canolog.Info("RPC Calling")
     err = rpcClient.Call("PigeonServer.RPCHandleRequest", request, resp)
     if err != nil {
+        canolog.Error("Pigeon: (calling) ", err.Error())
+        // Send error response to channel
+        respChan <- resp
         return fmt.Errorf("Pigeon: (calling) %s", err.Error())
     }
 
@@ -64,6 +70,7 @@ func (client *PigeonClient) Broadcast(key string, payload map[string]interface{}
 }
 
 func (client *PigeonClient) Launch(key string, payload map[string]interface{}) (<-chan Response, error) {
+    canolog.Info("Launching ", key)
 
     req := PigeonRequest {
         ReqJobKey: key,
@@ -77,14 +84,17 @@ func (client *PigeonClient) Launch(key string, payload map[string]interface{}) (
     }
 
     if len(serverHosts) == 0 {
+        canolog.Info("No listeners found", key)
         return nil, fmt.Errorf("Pigeon: No listeners found for %s", key)
     }
 
     // For now, pick one at random
     serverHost := serverHosts[rand.Intn(len(serverHosts))]
 
+    canolog.Info("Making RPC call ", key)
     respChan := make(chan Response)
     go client.send(serverHost, &req, respChan)
+    canolog.Info("Returned from send", key)
 
     return respChan, nil
 }

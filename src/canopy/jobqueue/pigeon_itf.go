@@ -101,7 +101,7 @@ const (
     UNRESPONSIVE
 )
 
-type HandlerFunc func(map[string]interface{}, Request, Response)
+type HandlerFunc func(jobKey string, userCtx map[string]interface{}, req Request, resp Response)
 
 type System interface {
     // Create a new empty response object.

@@ -15,11 +15,13 @@
 package jobqueue
 
 import (
+    "canopy/canolog"
     "encoding/gob"
     "fmt"
     "net"
     "net/rpc"
     "net/http"
+    "runtime"
 )
 
 type PigeonServer struct {
@@ -46,7 +48,21 @@ type pigeonHandler struct {
 }
 
 // RPC entrypoint
-func (server *PigeonServer) RPCHandleRequest(req *PigeonRequest, resp *PigeonResponse) error {
+func (server *PigeonServer) rpcHandleRequest(req *PigeonRequest, resp *PigeonResponse) (outErr error) {
+
+    // Log crashes in the RPC code
+    defer func() {
+        r := recover()
+        if r != nil {
+            var buf [4096]byte
+            runtime.Stack(buf[:], false)
+            canolog.Error("RPC PANIC ", r, string(buf[:]))
+            canolog.Info("Recovered")
+            outErr = fmt.Errorf("Crash in %s", req.ReqJobKey)
+        }
+    }()
+
+    canolog.Info("RPC Handling", req.ReqJobKey)
 
     // Lookup the handler for that job type
     handler, ok := server.handlers[req.ReqJobKey]
@@ -56,14 +72,25 @@ func (server *PigeonServer) RPCHandleRequest(req *PigeonRequest, resp *PigeonRes
     }
 
     // Call the handler
-    handler.fn(handler.userCtx, req, resp)
+    canolog.Info("Calling Registered handler")
+    handler.fn(req.ReqJobKey, handler.userCtx, req, resp)
+    canolog.Info("All done")
 
     return nil
+}
+
+func (server *PigeonServer) RPCHandleRequest(req *PigeonRequest, resp *PigeonResponse) (outErr error) {
+    // defer does not seem to work correctly inside main RPC routine.  So this
+    // is our workaround.
+    err := server.rpcHandleRequest(req, resp) 
+    canolog.Info("Done w/ RPCHandleRequest")
+    return err
 }
 
 func (server *PigeonServer) serveRPC() error {
     // TODO: Use direct TCP instead of HTML
     gob.Register(map[string]interface{}{})
+    gob.Register(map[string]string{})
     PIGEON_RPC_PORT := ":1888"
     err := rpc.Register(server)
     if err != nil {

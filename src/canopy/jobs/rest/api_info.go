@@ -21,7 +21,7 @@ import (
 )
 
 // Constructs the response body for the /api/info REST endpoint
-func ApiInfoHandler(userCtx map[string]interface{}, req jobqueue.Request, resp jobqueue.Response) {
+func ApiInfoHandler(jobKey string, userCtx map[string]interface{}, req jobqueue.Request, resp jobqueue.Response) {
 
     cfg, ok := userCtx["cfg"].(config.Config)
     if !ok {

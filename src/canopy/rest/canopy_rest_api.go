@@ -44,17 +44,31 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
         return err
     }
 
+    pigeonClient := pig.NewClient()
+
     extra := adapter.RestHandlerIn{
         Config: cfg,
         CookieStore: store,
         Mailer: mailer,
         PigeonSys: pigeonSys,
-        PigeonClient: pig.NewClient(),
-   }
+        PigeonClient: pigeonClient,
+    }
+
+    forwardAsPigeonJob := func(httpEndpoint, httpMethods, jobKey string) {
+        r.HandleFunc(
+            httpEndpoint, 
+            adapter.CanopyRestJobForwarder(
+                jobKey, 
+                store, 
+                cfg.OptAllowOrigin(), 
+                pigeonClient,
+            ),
+        ).Methods(httpMethods)
+    }
 
     // TODO: Need to handle allow-origin correctly!
     r.HandleFunc("/", rootRedirectHandler).Methods("GET")
-    r.HandleFunc("/api/activate", adapter.CanopyRestAdapter(endpoints.POST_activate, extra)).Methods("POST")
+    forwardAsPigeonJob("/api/activate", "POST", "api/activate")
     r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, extra)).Methods("GET")
     r.HandleFunc("/api/create_account", adapter.CanopyRestAdapter(endpoints.POST_create_account, extra)).Methods("POST")
     r.HandleFunc("/api/create_devices", adapter.CanopyRestAdapter(endpoints.POST_create_devices, extra)).Methods("POST")

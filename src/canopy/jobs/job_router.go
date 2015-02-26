@@ -40,6 +40,11 @@ func InitJobServer(cfg config.Config) error {
     if err != nil {
         return err
     }
+
+    err = server.Handle("api/activate", rest.RestJobWrapper(rest.ApiActivateHandler), userCtx)
+    if err != nil {
+        return err
+    }
     return nil
 }
 
