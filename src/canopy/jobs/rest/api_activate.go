@@ -21,7 +21,7 @@ import (
 // Backend implementation /api/activate endpoint
 // Activates a user account (i.e., email address confirmation).
 // 
-func ApiActivateHandler(info *RestRequestInfo) (map[string]interface{}, RestError) {
+func ApiActivateHandler(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
     canolog.Info("api/activate REST job started")
     if info.Account == nil {
         return nil, NotLoggedInError().Log()

@@ -19,6 +19,7 @@ import (
     "canopy/config"
     "canopy/datalayer"
     "canopy/jobqueue"
+    "canopy/mail"
     "encoding/base64"
     "encoding/json"
     "errors"
@@ -26,7 +27,7 @@ import (
     "strings"
 )
 
-type RestJobHandler func(reqInfo *RestRequestInfo) (respJson map[string]interface{}, err RestError) 
+type RestJobHandler func(reqInfo *RestRequestInfo, sideeffect *RestSideEffects) (respJson map[string]interface{}, err RestError) 
 
 // CanopyRestAuthTypeEnum is the type of authentication used in a request
 type CanopyRestAuthTypeEnum int
@@ -91,7 +92,7 @@ func RestSetErrorClearCookies(resp jobqueue.Response, err RestError) {
     resp.SetBody(map[string]interface{}{
         "http-status" : err.StatusCode(),
         "http-body" : err.ResponseBody(),
-        "clear-cookies" : true,
+        "clear-cookies" : []string{"logged_in_username"},
     })
 }
 
@@ -112,7 +113,8 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         //  {
         //      "http-status" : int,
         //      "http-body" : string,
-        //      "clear-cookie" : bool,
+        //      "clear-cookies" : []string,
+        //      "set-cookies" : map[string]string,
         //  }
         var ok bool
 
@@ -133,6 +135,13 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         conn := info.Conn
         if !ok {
             RestSetError(resp, InternalServerError("Expected datalayer.Connection for 'db-conn'").Log())
+            return
+        }
+
+        // Get MailClient from userCtx
+        mailer, ok := userCtx["mailer"].(mail.MailClient)
+        if !ok {
+            RestSetError(resp, InternalServerError("Expected MailClient for 'mailer'").Log())
             return
         }
 
@@ -228,7 +237,8 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         info.BodyObj = bodyObj
 
         // Call the wrapped handler.
-        respObj, restErr := handler(info)
+        sideEffects := NewRestSideEffects(mailer)
+        respObj, restErr := handler(info, sideEffects)
         if restErr != nil {
             // Send the error response
             RestSetError(resp, restErr)
@@ -246,5 +256,8 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
             "http-status" : http.StatusOK,
         })
 
+        // Perform deferred side effects
+        // This must occur after resp.SetBody
+        sideEffects.Perform(req, resp)
     }
 }

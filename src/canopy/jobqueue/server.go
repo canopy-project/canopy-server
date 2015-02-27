@@ -32,16 +32,6 @@ type PigeonServer struct {
     handlers map[string]*pigeonHandler
 }
 
-type PigeonRequest struct {
-    ReqJobKey string
-    ReqBody map[string]interface{}
-}
-
-type PigeonResponse struct {
-    RespErr error
-    RespBody map[string]interface{}
-}
-
 type pigeonHandler struct {
     fn HandlerFunc
     userCtx map[string]interface{}

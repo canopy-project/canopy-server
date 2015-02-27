@@ -18,7 +18,7 @@ import (
 )
 
 // Constructs the response body for the /api/me REST endpoint
-func ApiMeHandler(info *RestRequestInfo) (map[string]interface{}, RestError) {
+func ApiMeHandler(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     if info.Account == nil {
         return nil, NotLoggedInError().Log()
     }

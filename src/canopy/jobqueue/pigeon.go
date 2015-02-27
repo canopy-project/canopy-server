@@ -22,6 +22,16 @@ import (
 type PigeonSystem struct {
     dl datalayer.PigeonSystem
 }
+
+type PigeonRequest struct {
+    ReqJobKey string
+    ReqBody map[string]interface{}
+}
+
+type PigeonResponse struct {
+    RespBody map[string]interface{}
+}
+
 func (pigeon *PigeonSystem) NewClient() Client {
     return &PigeonClient{
         sys: pigeon,
@@ -60,16 +70,12 @@ func (resp *PigeonResponse) Body() map[string]interface{} {
     return resp.RespBody
 }
 
-func (resp *PigeonResponse) Error() error {
-    return resp.RespErr
-}
-
 func (resp *PigeonResponse) SetBody(body map[string]interface{}) {
     resp.RespBody = body
 }
 
-func (resp *PigeonResponse) SetError(err error) {
-    resp.RespErr = err
+func (resp *PigeonResponse) AppendToBody(key string, value interface{}) {
+    resp.RespBody[key] = value
 }
 
 func (req *PigeonRequest) Body() map[string]interface{} {

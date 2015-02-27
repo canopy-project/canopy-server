@@ -173,6 +173,9 @@ type Response interface {
 
     // Must be a gob-able value
     SetBody(body map[string]interface{})
+
+    // <value> must be a gob-able value
+    AppendToBody(key string, value interface{})
 }
 
 func NewPigeonSystem(cfg config.Config) (System, error) {
