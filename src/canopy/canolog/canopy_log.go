@@ -101,6 +101,10 @@ func Error(v ...interface{}) {
     std.errorLogger.Output(2, fmt.Sprintln(v...))
 }
 
+func ErrorCalldepth(calldepth int, v ...interface{}) {
+    std.errorLogger.Output(calldepth, fmt.Sprintln(v...))
+}
+
 // Log a warning
 func Warn(v ...interface{}) {
     std.warnLogger.Output(2, fmt.Sprintln(v...))

@@ -16,36 +16,35 @@ package rest
 
 import (
     "canopy/canolog"
-    "canopy/jobqueue"
 )
 
 // Backend implementation /api/activate endpoint
 // Activates a user account (i.e., email address confirmation).
 // 
-func ApiActivateHandler(info *CanopyRestInfo, req jobqueue.Request, resp jobqueue.Response) {
+func ApiActivateHandler(info *RestRequestInfo) (map[string]interface{}, RestError) {
     canolog.Info("api/activate REST job started")
     if info.Account == nil {
-        //return nil, rest_errors.NewNotLoggedInError()
+        return nil, NotLoggedInError().Log()
     }
 
     username, ok := info.BodyObj["username"].(string)
     if !ok {
-        //return nil, rest_errors.NewBadInputError("String \"username\" expected")
+        return nil, BadInputError(`String "username" expected`).Log()
     }
 
     code, ok := info.BodyObj["code"].(string)
     if !ok {
-        //return nil, rest_errors.NewBadInputError("String \"code\" expected")
+        return nil, BadInputError(`String "code" expected`).Log()
     }
 
     err := info.Account.Activate(username, code)
     if err != nil {
         // TODO: Report InternalServerError different from InvalidCode
         //return nil, rest_errors.NewBadInputError("Unable to activate account")
+        return nil, BadInputError("Unable to activate account").Log()
     }
 
-    resp.SetBody(map[string]interface{}{
+    return map[string]interface{}{
         "result" : "ok",
-    })
-    canolog.Info("All done")
+    }, nil
 }

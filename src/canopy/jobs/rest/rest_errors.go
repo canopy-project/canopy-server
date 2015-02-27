@@ -13,3 +13,98 @@
 // limitations under the License.
 
 package rest
+
+import(
+    "canopy/canolog"
+    "encoding/json"
+    "fmt"
+    "net/http"
+)
+
+type RestError interface {
+    StatusCode() int
+    ResponseBody() string
+    
+    // Log the error and return self
+    Log() RestError
+}
+
+func WriteErrorResponse(w http.ResponseWriter, err RestError) {
+    w.WriteHeader(err.StatusCode())
+    fmt.Fprintf(w, err.ResponseBody())
+}
+
+type GenericRestError struct {
+    statusCode int
+    responseBody string
+}
+
+func (err *GenericRestError) StatusCode() int {
+    return err.statusCode
+}
+
+func (err *GenericRestError) ResponseBody() string {
+    return err.responseBody
+}
+
+func (err *GenericRestError) Log() RestError {
+    canolog.ErrorCalldepth(3, fmt.Sprintf("HTTP %d: %s", err.statusCode, err.responseBody))
+    return err
+}
+
+func NewGenericRestError(statusCode int, errorType string, msg string) *GenericRestError {
+    body := map[string]interface{}{
+        "result" : "error",
+        "error_type" : errorType,
+    }
+    if msg != "" {
+        body["error_msg"] = msg
+    }
+
+    jsonBytes, err := json.MarshalIndent(body, "", "    ")
+    if err != nil {
+        canolog.Error("Error marshalling error response.  That's ironic.", err)
+        return &GenericRestError{
+            statusCode: statusCode,
+            responseBody: `{"result" : "error", "error_type" : "internal_error", "msg" : "Error encoding error response"}`,
+        }
+    }
+    responseBody := string(jsonBytes)
+
+    return &GenericRestError{
+        statusCode: statusCode,
+        responseBody: responseBody,
+    }
+}
+
+func BadInputError(msg string) *GenericRestError {
+    return NewGenericRestError(http.StatusBadRequest, "bad_input", msg)
+}
+
+func DatabaseConnectionError() *GenericRestError {
+    return NewGenericRestError(http.StatusInternalServerError, "db_connection_error", "")
+}
+
+func EmailTakenError() *GenericRestError {
+    return NewGenericRestError(http.StatusBadRequest, "email_taken", "")
+}
+
+func IncorrectUsernameOrPasswordError() *GenericRestError {
+    return NewGenericRestError(http.StatusUnauthorized, "incorrect_username_or_password", "")
+}
+
+func InternalServerError(msg string) *GenericRestError {
+    return NewGenericRestError(http.StatusInternalServerError, "internal_error", msg)
+}
+
+func NotLoggedInError() *GenericRestError {
+    return NewGenericRestError(http.StatusUnauthorized, "not_logged_in", "")
+}
+
+func URLNotFoundError() *GenericRestError {
+    return NewGenericRestError(http.StatusNotFound, "url_not_found", "")
+}
+
+func UsernameNotAvailableError() *GenericRestError {
+    return NewGenericRestError(http.StatusBadRequest, "username_not_available", "")
+}

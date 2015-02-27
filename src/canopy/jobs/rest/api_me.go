@@ -15,21 +15,17 @@
 package rest
 
 import (
-    "canopy/jobqueue"
 )
 
 // Constructs the response body for the /api/me REST endpoint
-func ApiMeHandler(info *CanopyRestInfo, req jobqueue.Request, resp jobqueue.Response) {
+func ApiMeHandler(info *RestRequestInfo) (map[string]interface{}, RestError) {
     if info.Account == nil {
-        RestSetError(resp, http.StatusUnauthorized, "Not logged in")
-        return 
+        return nil, NotLoggedInError().Log()
     }
-    // TODO: Convert to string
-    // Actually, better yet return (map[string]interface{}, RestError)
-    resp.SetBody(map[string]interface{}{
+    return map[string]interface{}{
         "activated" : info.Account.IsActivated(),
+        "email" : info.Account.Email(),
         "result" : "ok",
         "username" : info.Account.Username(),
-        "email" : info.Account.Email(),
-    }, nil)
+    }, nil
 }
