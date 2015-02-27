@@ -22,6 +22,7 @@ import(
     "github.com/gorilla/sessions"
     "io/ioutil"
     "net/http"
+    "runtime"
 )
 
 // This handler forwards an HTTP request along as a Pigeon job.
@@ -33,12 +34,23 @@ func CanopyRestJobForwarder(
 
     return func(w http.ResponseWriter, r *http.Request) {
 
+        // Log crashes
+        defer func() {
+            r := recover()
+            if r != nil {
+                var buf [4096]byte
+                runtime.Stack(buf[:], false)
+                canolog.Error("PANIC ", r, string(buf[:]))
+                w.WriteHeader(http.StatusInternalServerError)
+                fmt.Fprintf(w, "{\"result\" : \"error\", \"error_type\" : \"crash\"}")
+            }
+        }()
+
         // Log request
         canolog.Info("Request: ", r.Method, r.URL, " BY ", r.RemoteAddr)
 
         // Check for session-based AUTH
         cookieUsername := ""
-        var session sessions.Session
         if cookieStore != nil {
             session, _ := cookieStore.Get(r, "canopy-login-session")
             cookieUsername, _ = session.Values["logged_in_username"].(string)
@@ -86,8 +98,11 @@ func CanopyRestJobForwarder(
 
         clearCookies, ok := resp["clear-cookies"].([]string)
         if ok {
+            session, _ := cookieStore.Get(r, "canopy-login-session")
             for _, cookie := range clearCookies {
+                canolog.Info("Clearing cookie: ", session, session.Values, cookie)
                 session.Values[cookie] = ""
+                canolog.Info("Cleared")
             }
             err := session.Save(r, w)
             if err != nil {
@@ -99,7 +114,9 @@ func CanopyRestJobForwarder(
 
         setCookies, ok := resp["set-cookies"].(map[string]string)
         if ok {
+            session, _ := cookieStore.Get(r, "canopy-login-session")
             for key, value := range setCookies {
+                canolog.Info("Setting cookie: ", key, ":", value)
                 session.Values[key] = value
             }
             err := session.Save(r, w)

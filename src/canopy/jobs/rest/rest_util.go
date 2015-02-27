@@ -16,8 +16,6 @@ package rest
 import (
     "canopy/cloudvar"
     "canopy/datalayer"
-    "canopy/pigeon"
-    "canopy/ws"
     "encoding/base64"
     "encoding/json"
     "errors"
@@ -125,9 +123,10 @@ type jsonNotification struct {
     Msg string `json:"msg"`
 }
 
-func deviceToJsonObj(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (map[string]interface{}, error) {
+func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
     statusJsonObj := map[string]interface{} {
-        "ws_connected" : ws.IsDeviceConnected(pigeonSys, device.ID().String()),
+        // TODO: Fix connection status
+        "ws_connected" : false, // ws.IsDeviceConnected(pigeonSys, device.ID().String()),
     }
     lastSeen := device.LastActivityTime()
     if lastSeen == nil {
@@ -191,8 +190,8 @@ func deviceToJsonObj(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (m
     return out, nil
 
 }
-func deviceToJsonString(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (string, error) {
-    out, err := deviceToJsonObj(pigeonSys, device)
+func deviceToJsonString(device datalayer.Device) (string, error) {
+    out, err := deviceToJsonObj(device)
     if err != nil {
         return "", err;
     }
@@ -204,14 +203,14 @@ func deviceToJsonString(pigeonSys *pigeon.PigeonSystem, device datalayer.Device)
     return string(jsn), nil
 }
 
-func devicesToJsonObj(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device) (map[string]interface{}, error) {
+func devicesToJsonObj(devices []datalayer.Device) (map[string]interface{}, error) {
 
     out := map[string]interface{} {
         "devices" : []interface{} {},
     }
 
     for _, device := range devices {
-        deviceJsonObj, err := deviceToJsonObj(pigeonSys, device)
+        deviceJsonObj, err := deviceToJsonObj(device)
         if err != nil {
             continue
         }
@@ -222,8 +221,8 @@ func devicesToJsonObj(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device
     return out, nil
 }
 
-func devicesToJsonString(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device) (string, error) {
-    out, err := devicesToJsonObj(pigeonSys, devices)
+func devicesToJsonString(devices []datalayer.Device) (string, error) {
+    out, err := devicesToJsonObj(devices)
     if err != nil {
         return "", err;
     }

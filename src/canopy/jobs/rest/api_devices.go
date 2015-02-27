@@ -29,7 +29,7 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
     }
     //out, err := devicesToJsonObj(info.PigeonSys, devices)
     // TODO: How do we tell ws connectivity status?
-    out, err := devicesToJsonObj(nil, devices)
+    out, err := devicesToJsonObj(devices)
     if err != nil {
         return nil, InternalServerError("Generating JSON")
     }
