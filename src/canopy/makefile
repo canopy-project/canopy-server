@@ -26,7 +26,7 @@ build/canopy-cloud-service:
 	mkdir -p ~/.canopy/golang
 	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-server.go
 	mkdir -p build/
-	mv canopy-server build/cnaopy-cloud-service
+	mv canopy-server build/canopy-cloud-service
 
 build/canodevtool:
 	mkdir -p ~/.canopy/golang

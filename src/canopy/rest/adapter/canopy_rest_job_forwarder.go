@@ -62,6 +62,11 @@ func CanopyRestJobForwarder(
         //
         canolog.Info("Launching job", jobKey)
         respChan, err := pigeonClient.Launch(jobKey, payload)
+        if err != nil {
+            w.WriteHeader(http.StatusInternalServerError)
+            fmt.Fprintf(w, "{\"result\" : \"error\", \"error_type\" : \"failed_to_launch_job\"}")
+            return
+        }
 
         w.Header().Set("Content-Type", "application/json")
         if allowOrigin != "" {

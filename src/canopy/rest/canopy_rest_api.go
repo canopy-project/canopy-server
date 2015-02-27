@@ -17,6 +17,7 @@ package rest
 
 import (
     "canopy/config"
+    "canopy/canolog"
     "canopy/mail"
     "canopy/pigeon"
     "canopy/rest/adapter"
@@ -55,6 +56,7 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
     }
 
     forwardAsPigeonJob := func(httpEndpoint, httpMethods, jobKey string) {
+        canolog.Info("Registering route: ", httpEndpoint, "  to ", jobKey)
         r.HandleFunc(
             httpEndpoint, 
             adapter.CanopyRestJobForwarder(
@@ -70,7 +72,9 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
     r.HandleFunc("/", rootRedirectHandler).Methods("GET")
     forwardAsPigeonJob("/api/activate", "POST", "api/activate")
     r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, extra)).Methods("GET")
-    r.HandleFunc("/api/create_account", adapter.CanopyRestAdapter(endpoints.POST_create_account, extra)).Methods("POST")
+    forwardAsPigeonJob("/api/create_account", "POST", "api/create_account")
+    forwardAsPigeonJob("/api/foobar", "GET", "api/foobar")
+    //r.HandleFunc("/api/create_account", adapter.CanopyRestAdapter(endpoints.POST_create_account, extra)).Methods("POST")
     r.HandleFunc("/api/create_devices", adapter.CanopyRestAdapter(endpoints.POST_create_devices, extra)).Methods("POST")
     r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.GET_device__id, extra)).Methods("GET")
     r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.POST_device__id, extra)).Methods("POST")
@@ -83,7 +87,7 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
     r.HandleFunc("/api/logout", adapter.CanopyRestAdapter(endpoints.GET_POST_logout, extra))
     //r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.GET_me, extra)).Methods("GET")
     forwardAsPigeonJob("/api/me", "GET", "api/me")
-    r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.POST_me, extra)).Methods("POST")
+    //r.HandleFunc("/api/me", adapter.CanopyRestAdapter(endpoints.POST_me, extra)).Methods("POST")
     r.HandleFunc("/api/reset_password", adapter.CanopyRestAdapter(endpoints.POST_reset_password, extra)).Methods("POST")
 
     return nil
