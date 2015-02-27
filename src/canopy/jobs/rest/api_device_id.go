@@ -11,52 +11,49 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package endpoints
+package rest
 
 import (
     "canopy/canolog"
     "canopy/cloudvar"
-    "canopy/pigeon"
-    "canopy/rest/adapter"
     "canopy/datalayer"
-    "canopy/rest/rest_errors"
     "canopy/sddl"
     "github.com/gocql/gocql"
-    "net/http"
     "time"
 )
 
-func GET_device__id(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+func GET__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     // TODO: Check permissions
     //
     // Used for anonymous devices
-    deviceIdString := info.URLVars["id"]
+    /*deviceIdString := info.URLVars["id"]*/
 
-    uuid, err := gocql.ParseUUID(deviceIdString)
+    /*uuid, err := gocql.ParseUUID(deviceIdString)
     if err != nil {
-        return nil, rest_errors.NewURLNotFoundError()
-    }
+        return nil, URLNotFoundError()
+    }*/
 
-    device, err := info.Conn.LookupDevice(uuid)
+    /*device, err := info.Conn.LookupDevice(uuid)
     if err != nil {
         // TODO: What errors to return here?
-        return nil, rest_errors.NewInternalServerError("Device lookup failed")
-    }
-    out, err := deviceToJsonObj(info.PigeonSys, device)
+        return nil, InternalServerError("Device lookup failed")
+    }*/
+    /*out, err := deviceToJsonObj(info.PigeonSys, device)
     if err != nil {
-        w.WriteHeader(http.StatusInternalServerError);
-        return nil, rest_errors.NewInternalServerError("Generating JSON")
-    }
+        return nil, InternalServerError("Generating JSON")
+    }*/
+    //return out, nil
+    // TODO: Use new pigeon system
 
-    return out, nil
+    return nil, nil
 }
 
-func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     deviceIdString := info.URLVars["id"]
 
     uuid, err := gocql.ParseUUID(deviceIdString)
     if err != nil {
-        return nil, rest_errors.NewURLNotFoundError()
+        return nil, URLNotFoundError()
     }
 
     var device datalayer.Device
@@ -67,16 +64,16 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         device, err = info.Account.Device(uuid)
         if err != nil {
             // TODO: What errors to return here?
-            return nil, rest_errors.NewInternalServerError("Device lookup failed")
+            return nil, InternalServerError("Device lookup failed")
         }
     } else if info.Device != nil {
         if deviceIdString != string(info.Device.IDString()) {
             // TODO: what error to return?
-            return nil, rest_errors.NewInternalServerError("Device mismatch")
+            return nil, InternalServerError("Device mismatch")
         }
         device = info.Device
     } else {
-        return nil, rest_errors.NewNotLoggedInError()
+        return nil, NotLoggedInError()
     }
 
     // Check for SDDL doc.  If it doesn't exist, then create it.
@@ -88,7 +85,7 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         newDoc := sddl.Sys.NewEmptyDocument()
         err = device.SetSDDLDocument(newDoc)
         if (err != nil) {
-            return nil, rest_errors.NewInternalServerError("Setting new SDDL document")
+            return nil, InternalServerError("Setting new SDDL document")
         }
         doc = newDoc;
     }
@@ -111,11 +108,11 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         case "sddl":
             sddlJsonObj, ok := value.(map[string]interface{})
             if !ok {
-                return nil, rest_errors.NewBadInputError("Expected object \"sddl\"")
+                return nil, BadInputError("Expected object \"sddl\"")
             }
             err = device.ExtendSDDL(sddlJsonObj)
             if err != nil {
-                return nil, rest_errors.NewBadInputError(err.Error())
+                return nil, BadInputError(err.Error())
             }
         }
     }
@@ -126,7 +123,7 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         case "vars":
             varsJsonObj, ok := value.(map[string]interface{})
             if !ok {
-                return nil, rest_errors.NewBadInputError("Expected object \"vars\"")
+                return nil, BadInputError("Expected object \"vars\"")
             }
             for varName, valueJsonObj := range varsJsonObj {
                 varDef, err := device.LookupVarDef(varName)
@@ -147,7 +144,7 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         }
     }
 
-    msg := &pigeon.PigeonMessage {
+    /*msg := &pigeon.PigeonMessage {
         Data : info.BodyObj,
     }
     canolog.Info("Sending pigeon message", msg);
@@ -156,7 +153,8 @@ func POST_device__id(w http.ResponseWriter, r *http.Request, info adapter.Canopy
         canolog.Warn("Problem sending WS message! ", err);
         // TODO: Are there certain errors here that shouldn't be ignored?
         //return nil, rest_errors.NewInternalServerError("SendMessage failed")
-    }
+    }*/
+    // TODO: Use new pigeon system for this
 
     return map[string]interface{} {
         "result" : "ok",

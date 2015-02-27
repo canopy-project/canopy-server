@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copyright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,13 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package endpoints
+package rest
 
 import (
-    "net/http"
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
 )
 
-func GET_POST_logout(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
-    info.Session.Values["logged_in_username"] = ""
-    err := info.Session.Save(r, w)
-    if err != nil {
-        return nil, rest_errors.NewInternalServerError("Problem saving session")
-    }
+func GET_POST_api__logout(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    sideEffect.ClearCookie("logged_in_username")
 
     out := map[string]interface{} {
         "result" : "ok",

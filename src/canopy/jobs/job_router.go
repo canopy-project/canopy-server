@@ -50,21 +50,21 @@ func InitJobServer(cfg config.Config) error {
     }
     userCtx["db-conn"] = conn
 
-    err = server.Handle("api/activate", rest.RestJobWrapper(rest.ApiActivateHandler), userCtx)
-    if err != nil {
-        return err
+    routes := map[string]jobqueue.HandlerFunc{
+        "api/activate": rest.RestJobWrapper(rest.ApiActivateHandler),
+        "api/create_account": rest.RestJobWrapper(rest.ApiCreateAccountHandler),
+        "api/create_devices": rest.RestJobWrapper(rest.ApiCreateDevicesHandler),
+        "api/info": rest.ApiInfoHandler,
+        "api/me": rest.RestJobWrapper(rest.ApiMeHandler),
     }
-    err = server.Handle("api/create_account", rest.RestJobWrapper(rest.ApiCreateAccountHandler), userCtx)
-    if err != nil {
-        return err
+
+    // Register handlers
+    for jobKey, handler := range routes {
+        err = server.Handle(jobKey, handler, userCtx)
+        if err != nil {
+            return err
+        }
     }
-    err = server.Handle("api/info", rest.ApiInfoHandler, userCtx)
-    if err != nil {
-        return err
-    }
-    err = server.Handle("api/me", rest.RestJobWrapper(rest.ApiMeHandler), userCtx)
-    if err != nil {
-        return err
-    }
+
     return nil
 }
