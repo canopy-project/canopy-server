@@ -125,8 +125,7 @@ type jsonNotification struct {
 
 func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
     statusJsonObj := map[string]interface{} {
-        // TODO: Fix connection status
-        "ws_connected" : false, // ws.IsDeviceConnected(pigeonSys, device.ID().String()),
+        "ws_connected" : device.WSConnected(),
     }
     lastSeen := device.LastActivityTime()
     if lastSeen == nil {

@@ -234,6 +234,14 @@ type Device interface {
     // activity timestamp is set to *t.
     // Saves the data to the database.
     UpdateLastActivityTime(t *time.Time) error
+
+    // Update websocket connectivity status
+    // Saves the data to the database
+    UpdateWSConnected(connected bool) error
+
+    // Gets whether or not this device is connected to the database.
+    // (Does not fetch from DB)
+    WSConnected() bool
 }
 
 // Notification is a record of a message sent to the device owner originiating

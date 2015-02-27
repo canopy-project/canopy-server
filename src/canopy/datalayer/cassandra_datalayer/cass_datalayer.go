@@ -247,6 +247,7 @@ var creationQueries []string = []string{
         sddl text,
         public_access_level int,
         last_seen timestamp,
+        ws_connected boolean,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 

@@ -30,9 +30,9 @@ import (
     "canopy/service"
 )
 
-func IsDeviceConnected(pigeonSys *pigeon.PigeonSystem, deviceIdString string) bool {
+/*func IsDeviceConnected(pigeonSys *pigeon.PigeonSystem, deviceIdString string) bool {
     return (pigeonSys.Mailbox(deviceIdString) != nil)
-}
+}*/
 
 func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem) func(ws *websocket.Conn) {
     // Main websocket server routine.
@@ -73,12 +73,22 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem)
                     if mailbox == nil {
                         deviceIdString := device.ID().String()
                         mailbox = pigeonSys.CreateMailbox(deviceIdString)
+                        err = device.UpdateWSConnected(true)
+                        if err != nil {
+                            canolog.Error("Unexpected error: ", err)
+                        }
                     }
                 }
             } else if err == io.EOF {
                 canolog.Websocket("Websocket connection closed")
                 // connection closed
                 if mailbox != nil {
+                    if device != nil {
+                        err = device.UpdateWSConnected(false)
+                        if err != nil {
+                            canolog.Error("Unexpected error: ", err)
+                        }
+                    }
                     mailbox.Close()
                 }
                 return;
@@ -96,6 +106,12 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem)
                     canolog.Websocket("Websocket connection closed during ping")
                     // connection closed
                     if mailbox != nil {
+                        if device != nil {
+                            err = device.UpdateWSConnected(false)
+                            if err != nil {
+                                canolog.Error("Unexpected error: ", err)
+                            }
+                        }
                         mailbox.Close()
                     }
                     return;
