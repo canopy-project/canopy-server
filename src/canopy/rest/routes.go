@@ -19,7 +19,6 @@ import (
     "canopy/config"
     "canopy/canolog"
     "canopy/pigeon"
-    "canopy/rest/adapter"
     "canopy/jobqueue"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
@@ -44,7 +43,7 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
         canolog.Info("Registering route: ", httpEndpoint, "  to ", jobKey)
         r.HandleFunc(
             httpEndpoint, 
-            adapter.CanopyRestJobForwarder(
+            CanopyRestJobForwarder(
                 jobKey, 
                 store, 
                 cfg.OptAllowOrigin(), 
