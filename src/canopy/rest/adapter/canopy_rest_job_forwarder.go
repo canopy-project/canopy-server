@@ -38,6 +38,7 @@ func CanopyRestJobForwarder(
 
         // Check for session-based AUTH
         cookieUsername := ""
+        var session sessions.Session
         if cookieStore != nil {
             session, _ := cookieStore.Get(r, "canopy-login-session")
             cookieUsername, _ = session.Values["logged_in_username"].(string)
@@ -68,10 +69,44 @@ func CanopyRestJobForwarder(
         }
 
         // Wait for pigeon response
-        resp := <-respChan
+        resp := (<-respChan).Body()
 
-        // Write Response
-        // TODO: write header
-        fmt.Fprint(w, resp.Body()["http-body"])
+        // Parse pigeon response
+        httpStatus, ok := resp["http-status"].(int)
+        if !ok {
+            w.WriteHeader(http.StatusInternalServerError)
+            fmt.Fprintf(w, "{\"result\" : \"error\", \"error\" : \"Expected int http-status\"}")
+            return
+        }
+
+        clearCookies, ok := resp["clear-cookies"].([]string)
+        if ok {
+            for _, cookie := range clearCookies {
+                session.Values[cookie] = ""
+            }
+            err := session.Save(r, w)
+            if err != nil {
+                w.WriteHeader(http.StatusInternalServerError)
+                fmt.Fprintf(w, "{\"result\" : \"error\", \"error\" : \"error_saving_session\"}")
+                return
+            }
+        }
+
+        setCookies, ok := resp["set-cookies"].(map[string]string)
+        if ok {
+            for key, value := range setCookies {
+                session.Values[key] = value
+            }
+            err := session.Save(r, w)
+            if err != nil {
+                w.WriteHeader(http.StatusInternalServerError)
+                fmt.Fprintf(w, "{\"result\" : \"error\", \"error\" : \"error_saving_session\"}")
+                return
+            }
+        }
+
+        // Write HTTP Response
+        w.WriteHeader(httpStatus)
+        fmt.Fprint(w, resp["http-body"])
     }
 }
