@@ -15,7 +15,6 @@
 package jobs
 
 import (
-    "canopy/canolog"
     "canopy/config"
     "canopy/datalayer/cassandra_datalayer"
     "canopy/jobqueue"
@@ -58,20 +57,3 @@ func InitJobServer(cfg config.Config) error {
     }
     return nil
 }
-
-func InitJobClient(cfg config.Config) error {
-    pigeon, err := jobqueue.NewPigeonSystem(cfg)
-    if err != nil {
-        return err
-    }
-
-    client := pigeon.NewClient()
-
-    respChan, err := client.Launch("api/info", map[string]interface{}{"hi" : "there"})
-
-    resp := <-respChan
-    canolog.Info(resp)
-
-    return nil
-}
-    

@@ -119,11 +119,6 @@ func main() {
         canolog.Error("Unable to initialize Job Server", err)
         return
     }
-    err = jobs.InitJobClient(cfg)
-    if err != nil {
-        canolog.Error("Unable to initialize Job Client")
-        return
-    }
 
     if (cfg.OptForwardOtherHosts() != "") {
         canolog.Info("Requests to hosts other than ", cfg.OptHostname(), " will be forwarded to ", cfg.OptForwardOtherHosts())
