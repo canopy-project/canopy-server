@@ -15,6 +15,7 @@
 package rest
 
 import (
+    "bytes"
     "canopy/canolog"
     "canopy/config"
     "canopy/datalayer"
@@ -23,7 +24,9 @@ import (
     "encoding/base64"
     "encoding/json"
     "errors"
+    "fmt"
     "net/http"
+    "runtime"
     "strings"
 )
 
@@ -117,6 +120,18 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         //      "set-cookies" : map[string]string,
         //  }
         var ok bool
+
+        defer func() {
+            // Catch exceptions and return callstack
+            r := recover()
+            if r != nil {
+                var buf [4096]byte
+                runtime.Stack(buf[:], false)
+                n := bytes.Index(buf[:], []byte{0})
+                canolog.Error(string(buf[:n]))
+                RestSetError(resp, InternalServerError(fmt.Sprint("Crash: ", string(buf[:n]))))
+            }
+        }()
 
         canolog.Info("Handling job", jobKey)
         info := &RestRequestInfo{ }
