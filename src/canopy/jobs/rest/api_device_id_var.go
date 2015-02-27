@@ -21,9 +21,9 @@ import (
     "time"
 )
 
-func GET_api__device__id__sensor(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func GET__api__device__id__var(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     deviceIdString := info.URLVars["id"]
-    sensorName := info.URLVars["sensor"]
+    sensorName := info.URLVars["var"]
     authorized := false;
     var device datalayer.Device
 

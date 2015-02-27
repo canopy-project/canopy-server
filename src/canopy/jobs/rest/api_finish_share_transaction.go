@@ -17,7 +17,7 @@ import (
     "canopy/datalayer"
 )
 
-func POST_api__finish_share_transaction(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func POST__api__finish_share_transaction(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     /*
      *  POST
      *  {

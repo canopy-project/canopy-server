@@ -1,4 +1,4 @@
-// Copyright 2015 Canopy Services, Inc.
+// Copyright 2014-2015 Canopy Services, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -15,23 +15,14 @@
 package rest
 
 import (
-    "canopy/config"
-    "canopy/jobqueue"
 )
 
 // Constructs the response body for the /api/info REST endpoint
-func ApiInfoHandler(jobKey string, userCtx map[string]interface{}, req jobqueue.Request, resp jobqueue.Response) {
-
-    cfg, ok := userCtx["cfg"].(config.Config)
-    if !ok {
-        //resp.SetError(fmt.Errorf("Internal error: expected 'cfg' in UserContext"))
-        return
-    }
-
-    resp.SetBody(map[string]interface{}{
+func GET__api__info(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    return map[string]interface{}{
+        "config" : info.Config.ToJsonObject(),
         "result" : "ok",
         "service-name" : "Canopy Cloud Service",
         "version" : "0.9.2-beta",
-        "config" : cfg.ToJsonObject(),
-    })
+    }, nil
 }

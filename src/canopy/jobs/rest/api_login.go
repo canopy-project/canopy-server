@@ -16,7 +16,7 @@ package rest
 import (
 )
 
-func POST_api__login(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func POST__api__login(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     username, ok := info.BodyObj["username"].(string)
     if !ok {
         return nil, BadInputError("String \"username\" expected")

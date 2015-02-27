@@ -18,7 +18,7 @@ package rest
 import (
 )
 
-func GET_POST_api__logout(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func GET_POST__api__logout(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     sideEffect.ClearCookie("logged_in_username")
 
     out := map[string]interface{} {

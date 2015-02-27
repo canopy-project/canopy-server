@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copyright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,26 +13,25 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package endpoints
+package rest
 
 import (
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
-    "net/http"
 )
 
-func GET_devices(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
     if info.Account == nil {
-        return nil, rest_errors.NewNotLoggedInError()
+        return nil, NotLoggedInError()
     }
 
     devices, err := info.Account.Devices()
     if err != nil {
-        return nil, rest_errors.NewInternalServerError("Device lookup failed")
+        return nil, InternalServerError("Device lookup failed")
     }
-    out, err := devicesToJsonObj(info.PigeonSys, devices)
+    //out, err := devicesToJsonObj(info.PigeonSys, devices)
+    // TODO: How do we tell ws connectivity status?
+    out, err := devicesToJsonObj(nil, devices)
     if err != nil {
-        return nil, rest_errors.NewInternalServerError("Generating JSON")
+        return nil, InternalServerError("Generating JSON")
     }
 
     return out, nil

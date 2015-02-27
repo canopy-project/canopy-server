@@ -54,8 +54,16 @@ func InitJobServer(cfg config.Config) error {
         "api/activate": rest.RestJobWrapper(rest.ApiActivateHandler),
         "api/create_account": rest.RestJobWrapper(rest.ApiCreateAccountHandler),
         "api/create_devices": rest.RestJobWrapper(rest.ApiCreateDevicesHandler),
-        "api/info": rest.ApiInfoHandler,
+        "POST:api/device/id": rest.RestJobWrapper(rest.POST__api__device__id),
+        "GET:api/device/id": rest.RestJobWrapper(rest.GET__api__device__id),
+        "GET:api/device/id/var": rest.RestJobWrapper(rest.GET__api__device__id__var),
+        "api/finish_share_transaction": rest.RestJobWrapper(rest.POST__api__finish_share_transaction),
+        "api/login": rest.RestJobWrapper(rest.POST__api__login),
+        "api/logout": rest.RestJobWrapper(rest.GET_POST__api__logout),
+        "api/info": rest.RestJobWrapper(rest.GET__api__info),
         "api/me": rest.RestJobWrapper(rest.ApiMeHandler),
+        "api/share": rest.RestJobWrapper(rest.POST__api__share),
+        "api/reset_password": rest.RestJobWrapper(rest.POST__api__reset_password),
     }
 
     // Register handlers

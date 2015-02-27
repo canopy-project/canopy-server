@@ -34,7 +34,7 @@ import (
 //      "password" : <NEW_PASSWORD>,
 //      "code" : <PASSWORD_RESET_CODE>,
 // }
-func POST_api__reset_password(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func POST__api__reset_password(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     usernameOrEmail, ok := info.BodyObj["username"].(string)
     if !ok {
         return nil, BadInputError("String \"username\" expected")

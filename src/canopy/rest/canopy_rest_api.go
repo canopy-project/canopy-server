@@ -18,10 +18,8 @@ package rest
 import (
     "canopy/config"
     "canopy/canolog"
-    "canopy/mail"
     "canopy/pigeon"
     "canopy/rest/adapter"
-    "canopy/rest/endpoints"
     "canopy/jobqueue"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
@@ -35,25 +33,12 @@ func rootRedirectHandler(w http.ResponseWriter, r *http.Request) {
 func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem) error {
     store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
     
-    mailer, err := mail.NewMailClient(cfg)
-    if err != nil {
-        return err
-    }
-
     pig, err := jobqueue.NewPigeonSystem(cfg)
     if err != nil {
         return err
     }
 
     pigeonClient := pig.NewClient()
-
-    extra := adapter.RestHandlerIn{
-        Config: cfg,
-        CookieStore: store,
-        Mailer: mailer,
-        PigeonSys: pigeonSys,
-        PigeonClient: pigeonClient,
-    }
 
     forwardAsPigeonJob := func(httpEndpoint, httpMethods, jobKey string) {
         canolog.Info("Registering route: ", httpEndpoint, "  to ", jobKey)
@@ -71,7 +56,8 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
     // TODO: Need to handle allow-origin correctly!
     r.HandleFunc("/", rootRedirectHandler).Methods("GET")
     forwardAsPigeonJob("/api/activate", "POST", "api/activate")
-    r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, extra)).Methods("GET")
+    //r.HandleFunc("/api/info", adapter.CanopyRestAdapter(endpoints.GET_info, extra)).Methods("GET")
+    forwardAsPigeonJob("/api/info", "GET", "api/info")
     forwardAsPigeonJob("/api/create_account", "POST", "api/create_account")
     forwardAsPigeonJob("/api/foobar", "GET", "api/foobar")
     //r.HandleFunc("/api/create_account", adapter.CanopyRestAdapter(endpoints.POST_create_account, extra)).Methods("POST")
@@ -81,11 +67,14 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
     forwardAsPigeonJob("/api/device/{id}", "POST", "POST:api/device/id")
     //r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.GET_device__id, extra)).Methods("GET")
     //r.HandleFunc("/api/device/{id}", adapter.CanopyRestAdapter(endpoints.POST_device__id, extra)).Methods("POST")
-    forwardAsPigeonJob("/api/device/{id}/{sensor}", "GET", "api/device/id/sensor")
+    forwardAsPigeonJob("/api/device/{id}/{var}", "GET", "api/device/id/var")
     //r.HandleFunc("/api/device/{id}/{sensor}", adapter.CanopyRestAdapter(endpoints.GET_device__id__sensor, extra)).Methods("GET")
-    r.HandleFunc("/api/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, extra)).Methods("GET")
-    r.HandleFunc("/api/me/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, extra)).Methods("GET")
-    r.HandleFunc("/api/share", adapter.CanopyRestAdapter(endpoints.POST_share, extra)).Methods("POST")
+    //r.HandleFunc("/api/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, extra)).Methods("GET")
+    forwardAsPigeonJob("/api/devices", "GET", "api/devices")
+    forwardAsPigeonJob("/api/me/devices", "GET", "api/devices")
+    //r.HandleFunc("/api/me/devices", adapter.CanopyRestAdapter(endpoints.GET_devices, extra)).Methods("GET")
+    //r.HandleFunc("/api/share", adapter.CanopyRestAdapter(endpoints.POST_share, extra)).Methods("POST")
+    forwardAsPigeonJob("/api/share", "POST", "api/share")
     forwardAsPigeonJob("/api/finish_share_transaction", "POST", "api/finish_share_transaction")
     //r.HandleFunc("/api/finish_share_transaction", adapter.CanopyRestAdapter(endpoints.POST_finish_share_transaction, extra)).Methods("POST")
     //r.HandleFunc("/api/login", adapter.CanopyRestAdapter(endpoints.POST_login, extra)).Methods("POST")
