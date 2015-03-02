@@ -103,6 +103,8 @@ const (
 
 type HandlerFunc func(jobKey string, userCtx map[string]interface{}, req Request, resp Response)
 
+type Handler() func(
+
 type System interface {
     // Create a new empty response object.
     NewClient() Client
@@ -146,7 +148,15 @@ type Server interface {
     // database.
     // <userCtx> is optional user-provided data that will be passed to the
     //      handler as req.UserContext().
-    Handle(jobKey string, fn HandlerFunc, userCtx map[string]interface{}) error
+    HandleFunc(jobKey string, fn HandlerFunc, userCtx map[string]interface{}) error
+
+    // Listen for requests that match <key>, triggering a handler's Handle()
+    // function each time such a request is recieved.
+    // Registers that this Server can handle jobs named <jobKey> in the
+    // database.
+    // <userCtx> is optional user-provided data that will be passed to the
+    //      handler as req.UserContext().
+    Handle(jobKey string, handler Handler) error
 
     // Set the Server's status to "active".  Does nothing if server is already
     // "active".

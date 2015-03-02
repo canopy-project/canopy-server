@@ -26,21 +26,21 @@ import (
     "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
-    "canopy/pigeon"
+    "canopy/jobqueue"
     "canopy/service"
 )
+
 
 /*func IsDeviceConnected(pigeonSys *pigeon.PigeonSystem, deviceIdString string) bool {
     return (pigeonSys.Mailbox(deviceIdString) != nil)
 }*/
 
-func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem) func(ws *websocket.Conn) {
+func NewCanopyWebsocketServer(cfg config.Config, pigeonClient jobqueue.Client, pigeonServer jobqueue.Server) func(ws *websocket.Conn) {
     // Main websocket server routine.
     // This event loop runs until the websocket connection is broken.
     return func(ws *websocket.Conn) {
         canolog.Websocket("Websocket connection established")
 
-        var mailbox *pigeon.PigeonMailbox
         var cnt int32
         var device datalayer.Device
         lastPingTime := time.Now()
@@ -73,6 +73,7 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem)
                     if mailbox == nil {
                         deviceIdString := device.ID().String()
                         mailbox = pigeonSys.CreateMailbox(deviceIdString)
+
                         err = device.UpdateWSConnected(true)
                         if err != nil {
                             canolog.Error("Unexpected error: ", err)
@@ -97,7 +98,6 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonSys *pigeon.PigeonSystem)
             } else {
                 canolog.Error("Unexpected error: ", err)
             }
-
 
             // Periodically send blank message
             if time.Now().After(lastPingTime.Add(30*time.Second)) {
