@@ -51,7 +51,7 @@ func ApiCreateAccountHandler(info *RestRequestInfo, sideEffect *RestSideEffects)
 
     account, err = info.Conn.CreateAccount(username, email, password)
     if err != nil {
-        return nil, InternalServerError("Problem Creating Account").Log()
+        return nil, InternalServerError("Problem Creating Account" + err.Error()).Log()
     }
 
     sideEffect.SetCookie("logged_in_username", username)

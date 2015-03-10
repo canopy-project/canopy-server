@@ -22,15 +22,16 @@ import (
     //"canopy/util/random"
 )
 
-type PigeonClient struct {
+type PigeonOutbox struct {
     sys *PigeonSystem
     timeoutms int32
 }
 
-func (client *PigeonClient) send(hostname string, request *PigeonRequest, respChan chan<- Response) error {
+func (outbox *PigeonOutbox) send(hostname string, request *PigeonRequest, respChan chan<- Response) error {
     resp := &PigeonResponse{}
 
     // Dial the server
+    // TODO: Inefficient to dial each time?
     canolog.Info("RPC Dialing")
     rpcClient, err := rpc.DialHTTP("tcp", hostname + ":1888")
     if err != nil {
@@ -54,7 +55,7 @@ func (client *PigeonClient) send(hostname string, request *PigeonRequest, respCh
     return nil
 }
 
-func (client *PigeonClient) Broadcast(key string, payload map[string]interface{}) error {
+func (outbox *PigeonOutbox) Broadcast(key string, payload map[string]interface{}) error {
     // Get list of all workers interested in these keys
     //workerHosts, err := launcher.sys.dl.GetListeners(key)
     //if err != nil {
@@ -69,7 +70,7 @@ func (client *PigeonClient) Broadcast(key string, payload map[string]interface{}
     return nil
 }
 
-func (client *PigeonClient) Launch(key string, payload map[string]interface{}) (<-chan Response, error) {
+func (outbox *PigeonOutbox) Launch(key string, payload map[string]interface{}) (<-chan Response, error) {
     canolog.Info("Launching ", key)
 
     req := PigeonRequest {
@@ -78,7 +79,7 @@ func (client *PigeonClient) Launch(key string, payload map[string]interface{}) (
     }
 
     // Get list of all workers interested in these keys
-    serverHosts, err := client.sys.dl.GetListeners(key)
+    serverHosts, err := outbox.sys.dl.GetListeners(key)
     if err != nil {
         return nil, err
     }
@@ -93,15 +94,15 @@ func (client *PigeonClient) Launch(key string, payload map[string]interface{}) (
 
     canolog.Info("Making RPC call ", key)
     respChan := make(chan Response)
-    go client.send(serverHost, &req, respChan)
+    go outbox.send(serverHost, &req, respChan)
     canolog.Info("Returned from send", key)
 
     return respChan, nil
 }
 
-func (client *PigeonClient) LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error) {
+func (outbox *PigeonOutbox) LaunchIdempotent(key string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error) {
     // Get list of all workers interested in these keys
-    //workerHosts, err := client.sys.dl.GetListeners(key)
+    //workerHosts, err := outbox.sys.dl.GetListeners(key)
     //if err != nil {
     //    return nil, err
     //}
@@ -116,13 +117,13 @@ func (client *PigeonClient) LaunchIdempotent(key string, numParallel uint32, pay
     // Send payload to each of the workers
     //for _, worker := range workerHostsSubset {
         // TODO: take response of first responder
-        //client.send(worker, payload)
+        //outbox.send(worker, payload)
     //}
 
     return nil, fmt.Errorf("Not fully implemented")
 }
 
-func (client *PigeonClient) SetTimeoutms(timeout int32) {
-    client.timeoutms = timeout
+func (outbox *PigeonOutbox) SetTimeoutms(timeout int32) {
+    outbox.timeoutms = timeout
 }
 

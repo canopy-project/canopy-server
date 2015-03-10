@@ -30,6 +30,8 @@ type PigeonServer struct {
     
     // mapping from jobKey to HandlerFunc
     handlers map[string]*pigeonHandler
+    // mapping from msgKey to list of inboxes
+    inboxesByMsgKey map[string]([]*PigeonInbox)
 }
 
 type pigeonHandler struct {
@@ -97,6 +99,34 @@ func (server *PigeonServer) serveRPC() error {
     return nil
 }
 
+func (server *PigeonServer) CreateInbox(msgKey string) (Inbox, error) {
+    // Create new inbox object
+    inbox := &PigeonInbox{
+        server: server,
+        msgKey: msgKey,
+    }
+
+    // Register this inbox (ie "listener") in the DB
+    err := server.sys.dl.RegisterListener(server.hostname, msgKey)
+    if err != nil {
+        return nil, err
+    }
+
+    // Associate the inbox with the msgKey (locally)
+    _, ok := server.inboxesByMsgKey[msgKey]
+    if ok {
+        // Append new inbox to the list
+        server.inboxesByMsgKey[msgKey] = append(server.inboxesByMsgKey[msgKey], inbox)
+    } else {
+        // This is the first inbox on this server for msgKey.
+        // Create list of inboxes for msgKey.
+        server.inboxesByMsgKey[msgKey] = []*PigeonInbox{}
+    }
+
+    return inbox, nil
+
+}
+
 func (server *PigeonServer) Handle(jobKey string, fn HandlerFunc, userCtx map[string]interface{}) error {
     // Register this handler in the DB
     err := server.sys.dl.RegisterListener(server.hostname, jobKey)
@@ -127,8 +157,8 @@ func (server *PigeonServer) Start() error {
     return nil
 }
 
-func (server *PigeonServer) Status() error {
-    return fmt.Errorf("Not implemented")
+func (server *PigeonServer) Status() (StatusEnum, error) {
+    return DOES_NOT_EXIST, fmt.Errorf("Not implemented")
 }
 
 func (server *PigeonServer) Stop() error {

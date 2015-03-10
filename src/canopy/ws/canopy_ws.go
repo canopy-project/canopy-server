@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 SimpleThings, Inc.
+ * Copyright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,7 +35,7 @@ import (
     return (pigeonSys.Mailbox(deviceIdString) != nil)
 }*/
 
-func NewCanopyWebsocketServer(cfg config.Config, pigeonClient jobqueue.Client, pigeonServer jobqueue.Server) func(ws *websocket.Conn) {
+func NewCanopyWebsocketServer(cfg config.Config, outbox jobqueue.Outbox, pigeonServer jobqueue.Server) func(ws *websocket.Conn) {
     // Main websocket server routine.
     // This event loop runs until the websocket connection is broken.
     return func(ws *websocket.Conn) {
@@ -43,6 +43,8 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonClient jobqueue.Client, p
 
         var cnt int32
         var device datalayer.Device
+        var inbox jobqueue.Inbox
+        var inboxReciever jobqueue.RecieveHandler
         lastPingTime := time.Now()
         
         cnt = 0
@@ -70,9 +72,15 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonClient jobqueue.Client, p
                     canolog.Error("Error processing device communications: ", resp.Err)
                 } else {
                     device = resp.Device
-                    if mailbox == nil {
+                    if inbox == nil {
                         deviceIdString := device.ID().String()
-                        mailbox = pigeonSys.CreateMailbox(deviceIdString)
+                        inbox, err = pigeonServer.CreateInbox("canopy_ws:" + deviceIdString)
+                        if err != nil {
+                            canolog.Error("Error initializing inbox:", err)
+                            return
+                        }
+                        inboxReciever = jobqueue.NewRecieveHandler()
+                        inbox.SetHandler(inboxReciever)
 
                         err = device.UpdateWSConnected(true)
                         if err != nil {
@@ -83,14 +91,14 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonClient jobqueue.Client, p
             } else if err == io.EOF {
                 canolog.Websocket("Websocket connection closed")
                 // connection closed
-                if mailbox != nil {
+                if inbox != nil {
                     if device != nil {
                         err = device.UpdateWSConnected(false)
                         if err != nil {
                             canolog.Error("Unexpected error: ", err)
                         }
                     }
-                    mailbox.Close()
+                    inbox.Close()
                 }
                 return;
             } else if nerr, ok := err.(net.Error); ok && nerr.Timeout() {
@@ -105,14 +113,14 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonClient jobqueue.Client, p
                 if err != nil {
                     canolog.Websocket("Websocket connection closed during ping")
                     // connection closed
-                    if mailbox != nil {
+                    if inbox != nil {
                         if device != nil {
                             err = device.UpdateWSConnected(false)
                             if err != nil {
                                 canolog.Error("Unexpected error: ", err)
                             }
                         }
-                        mailbox.Close()
+                        inbox.Close()
                     }
                     return;
                 }
@@ -120,10 +128,10 @@ func NewCanopyWebsocketServer(cfg config.Config, pigeonClient jobqueue.Client, p
                 lastPingTime = time.Now()
             }
 
-            if mailbox != nil {
-                msg, _ := mailbox.RecieveMessage(time.Duration(100*time.Millisecond))
+            if inbox != nil {
+                msg, _ := inboxReciever.Recieve(time.Duration(100*time.Millisecond))
                 if msg != nil {
-                    msgString, err := json.Marshal(msg.Data)
+                    msgString, err := json.Marshal(msg.Body())
 
                     if err != nil {
                         canolog.Error("Unexpected error: ", err)

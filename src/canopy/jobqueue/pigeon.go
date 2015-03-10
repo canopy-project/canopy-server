@@ -16,7 +16,9 @@ package jobqueue
 
 import (
     "canopy/datalayer"
+    "errors"
     "fmt"
+    "time"
 )
 
 type PigeonSystem struct {
@@ -32,8 +34,38 @@ type PigeonResponse struct {
     RespBody map[string]interface{}
 }
 
-func (pigeon *PigeonSystem) NewClient() Client {
-    return &PigeonClient{
+type PigeonRecieveHandler struct {
+    ch chan map[string]interface{}
+}
+
+func NewPigeonRecieveHandler() *PigeonRecieveHandler{
+    return &PigeonRecieveHandler{
+        ch: make(chan map[string]interface{}),
+    }
+}
+
+func (recvHandler *PigeonRecieveHandler) Handle(jobkey string, 
+        userCtx map[string]interface{}, 
+        req Request, 
+        resp Response) {
+
+    // Send it into channel
+    recvHandler.ch <- req.Body()
+}
+
+func (recvHandler *PigeonRecieveHandler) Recieve(timeout time.Duration) (map[string]interface{}, error) {
+
+    select {
+        case msg := <- recvHandler.ch:
+            return msg, nil
+        case <- time.After(timeout):
+            return nil, errors.New("Recieve timed out")
+    }
+    
+}
+
+func (pigeon *PigeonSystem) NewOutbox() Outbox {
+    return &PigeonOutbox{
         sys: pigeon,
         timeoutms: -1,
     }
@@ -81,4 +113,5 @@ func (resp *PigeonResponse) AppendToBody(key string, value interface{}) {
 func (req *PigeonRequest) Body() map[string]interface{} {
     return req.ReqBody
 }
+
 

@@ -30,7 +30,7 @@ func CanopyRestJobForwarder(
         jobKey string, 
         cookieStore *sessions.CookieStore,
         allowOrigin string,
-        pigeonClient jobqueue.Client) http.HandlerFunc {
+        outbox jobqueue.Outbox) http.HandlerFunc {
 
     return func(w http.ResponseWriter, r *http.Request) {
 
@@ -73,7 +73,7 @@ func CanopyRestJobForwarder(
         }
         //
         canolog.Info("Launching job", jobKey)
-        respChan, err := pigeonClient.Launch(jobKey, payload)
+        respChan, err := outbox.Launch(jobKey, payload)
         if err != nil {
             w.WriteHeader(http.StatusInternalServerError)
             fmt.Fprintf(w, "{\"result\" : \"error\", \"error_type\" : \"failed_to_launch_job\"}")

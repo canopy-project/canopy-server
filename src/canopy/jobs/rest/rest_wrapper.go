@@ -56,7 +56,7 @@ type RestRequestInfo struct {
     Config config.Config
     Device datalayer.Device
     Cookies map[string]string
-    PigeonClient jobqueue.Client
+    PigeonOutbox jobqueue.Outbox
     URLVars map[string]string
     UserCtx map[string]interface{}
 }

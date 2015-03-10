@@ -14,74 +14,34 @@
 
 // OVERVIEW
 //
-//  Pigeon is Canopy's message passing system.  It follows a client/server
-//  model, although most nodes will act as both a server and a client.  The
-//  process goes something like this:
+//  Pigeon is Canopy's distributed message passing system.  Pigeon can
+//  efficient pass messages locally or to remote servers and integrates
+//  naturally with golang's native channels.  Pigeon uses Canopy's database to
+//  persistently store routing info, server status and load.
 //
-//  1) The Server registers which jobs it can handle.  These are identified by
-//  "job key" strings.
-//  2) The Client launches (or broadcasts) a request.
-//  2) The Pigeon system determines which server(s) to send the request to.
-//  3) The Server receives, processes the request (perhaps by launching further
-//  requests), and generates a response.
-//  4) The Pigeon system reports the Server's response to the Client.
+//  A "Message" consists of:
+//      - A string label called the "MsgKey" that controls where the message
+//      is sent.
+//      - A gob-able payload of type map[string]interface{}
 //
-//  Pigeon's flexible design allows it to be used for a variety of distributed
-//  computing tasks.
+//  The "Outbox" interface allows you to send messages.  When a message is
+//  sent, it is sent to one or more inboxes listening for the message's MsgKey.
+//  You can control how many inboxes recieve the message.  For example, using
+//  outbox.Launch sends the message to exactly 1 inbox, simulating a job queue.
+//  Using oubox.Broadcast sends the message to all inboxes that are listening
+//  for MsgKey.
 //
-//  A "Server" listens for Requests.
+//  The "Inbox" interface allows you to recieve messages with a particular
+//  MsgKey.
 //
-//  A "Client" issues Requests.
-//
-//  A "Request" consists of a string name ("job key") and a JSON payload.
-//
-//  A "Response" consists of a JSON payload and an optional error object.
-//
-// SERVERS
-//
-//  A Server is identified by IP Address or Hostname.  Information about each
-//  Server is stored in the database.
-//
-//  To register a new Server, use:
-//
-//      server, err := pigeonSys.StartServer(hostname)
-//
-//  You can then start listening for requests that match a desired key:
-//
-//      err = server.Handle("myJobKey", myHandlerFunc)
-//
-//  Before your program quits, we advise that you Stop the server.  Otherwise,
-//  requests will continue to be sent to it and will time out.
-//
-//      err = server.Stop()
-//
-//  All data about Servers including their status and what they are listening
-//  for are stored in the DB.
-//
-// LAUNCHING REQUESTS
-//
-//  To send a message you must first create a Client object.  A Client contains
-//  the settings that will be used to send the request.
-//
-//      client := pigeonSys.NewClient()
-//
-//  You can then set options:
-//
-//      client.SetTimeoutms(1000)
-//
-//  To send a request that should be consumed by exactly one Server:
-//
-//      responseChan := client.Launch("generic", myPayload)
-//
-//  To block waiting for the response:
-//
-//      response := <-responseChan
+//  To create an Inbox, you must first be running a Pigeon RPC Server.
 //
 package jobqueue
 
 import (
     "canopy/config"
     "canopy/datalayer/cassandra_datalayer"
+    "time"
 )
 
 // StatusEnum is the status of a Worker
@@ -101,13 +61,15 @@ const (
     UNRESPONSIVE
 )
 
-type HandlerFunc func(jobKey string, userCtx map[string]interface{}, req Request, resp Response)
+type HandlerFunc func(msgKey string, userCtx map[string]interface{}, req Request, resp Response)
 
-type Handler() func(
+type Handler interface {
+    Handle(jobkey string, userCtx map[string]interface{}, req Request, resp Response)
+}
 
 type System interface {
     // Create a new empty response object.
-    NewClient() Client
+    NewOutbox() Outbox
 
     // Create a new empty response object.
     NewResponse() Response
@@ -117,61 +79,88 @@ type System interface {
     StartServer(hostname string) (Server, error)
 
     // Lookup a specific Server by hostname.
-    Server(hostname string) (Server, error)
+    //Server(hostname string) (Server, error)
 
     // Obtain list of Servers from the DB.
-    Servers() ([]Server, error)
-}
-
-type Client interface {
-    // Broadcast a request to every Server interested
-    Broadcast(jobKey string, payload map[string]interface{}) error
-
-    // Launches a request that will be handled by exactly one Server
-    Launch(jobKey string, payload map[string]interface{}) (<-chan Response, error)
-    
-    // Launches a request that is idemponent and can be consumed by multiple
-    // Servers without ill effect.  This allows the job to be sent to
-    // multiple consumers simultaneously, for low latency response (whoever
-    // responds first wins).
-    LaunchIdempotent(jobKey string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error)
-
-    // Set the timeout for non-broadcast requests.
-    // Use a negative value for no timeout.
-    SetTimeoutms(timeout int32)
+    //Servers() ([]ServerInfo, error)
 }
 
 type Server interface {
-    // Listen for requests that match <key>, triggering a handler function each
-    // time such a request is recieved.
-    // Registers that this Server can handle jobs named <jobKey> in the
-    // database.
-    // <userCtx> is optional user-provided data that will be passed to the
-    //      handler as req.UserContext().
-    HandleFunc(jobKey string, fn HandlerFunc, userCtx map[string]interface{}) error
-
-    // Listen for requests that match <key>, triggering a handler's Handle()
-    // function each time such a request is recieved.
-    // Registers that this Server can handle jobs named <jobKey> in the
-    // database.
-    // <userCtx> is optional user-provided data that will be passed to the
-    //      handler as req.UserContext().
-    Handle(jobKey string, handler Handler) error
+    // Create (and register) a new Inbox that recieves messages labelled
+    // msgKey.
+    CreateInbox(msgKey string) (Inbox, error)
 
     // Set the Server's status to "active".  Does nothing if server is already
     // "active".
     Start() error
 
     // Get the Server's status
-    Status() error
+    Status() (StatusEnum, error)
 
     // Set the Server's status to "stopped".  It will no longer recieve
     // requests until started again.  Does nothing if worker is already
     // "stopped".
     Stop() error
+}
 
-    // Stop listening for a specific <jobKey>.
-    StopHandling(jobKey string) error
+type Inbox interface {
+    // Close (cleanup & shutdown) this inbox.
+    // After this is called Handler will no longer be triggered and this
+    // object's methods will all return "Inbox closed" errors.
+    Close() error
+
+    // Get the MsgKey that this inbox is listening for.
+    MsgKey() string
+
+    // Resume listening for MsgKey after a call to .Suspend().  Returns an
+    // error if inbox is not suspended.
+    Resume() error
+
+    // Obtain the Server object that this Inbox is using for RPC.
+    Server() Server
+
+    // Set the handler that should be triggered when messages with MsgKey are
+    // recieved.
+    SetHandler(handler Handler) error
+
+    // Set the handler that should be triggered when messages with MsgKey are
+    // retrieved.  This sets the handler using a function instead of a Handler
+    // object.
+    SetHandlerFunc(fn HandlerFunc) error
+
+    // Temporarily stop listening for MsgKey.  Call .Resume() to resume.
+    // Returns an error if inbox is already suspended.
+    Suspend() error
+
+    // Set additional data that should be passed to handler.
+    SetUserCtx(userCtx interface{})
+}
+
+type Outbox interface {
+    // Broadcast a request to every interested Inbox
+    Broadcast(msgKey string, payload map[string]interface{}) error
+
+    // Launches a request that will be handled by exactly one Server
+    Launch(msgKey string, payload map[string]interface{}) (<-chan Response, error)
+    
+    // Launches a request that is idemponent and can be consumed by multiple
+    // Servers without ill effect.  This allows the job to be sent to
+    // multiple consumers simultaneously, for low latency response (whoever
+    // responds first wins).
+    LaunchIdempotent(msgKey string, numParallel uint32, payload map[string]interface{}) (<-chan Response, error)
+
+    // Set the timeout for non-broadcast requests.
+    // Use a negative value for no timeout.
+    SetTimeoutms(timeout int32)
+}
+
+type RecieveHandler interface {
+    Recieve(timeout time.Duration) (map[string]interface{}, error)
+    Handle(jobkey string, userCtx map[string]interface{}, req Request, resp Response)
+}
+
+func NewRecieveHandler() RecieveHandler{
+    return NewPigeonRecieveHandler()
 }
 
 type Request interface {

@@ -18,7 +18,6 @@ package rest
 import (
     "canopy/config"
     "canopy/canolog"
-    "canopy/pigeon"
     "canopy/jobqueue"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
@@ -29,15 +28,10 @@ func rootRedirectHandler(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, "/mgr/index.html", 301);
 }
 
-func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem) error {
+func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *jobqueue.PigeonSystem) error {
     store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
     
-    pig, err := jobqueue.NewPigeonSystem(cfg)
-    if err != nil {
-        return err
-    }
-
-    pigeonClient := pig.NewClient()
+    outbox := pigeonSys.NewOutbox()
 
     forwardAsPigeonJob := func(httpEndpoint, httpMethods, jobKey string) {
         canolog.Info("Registering route: ", httpEndpoint, "  to ", jobKey)
@@ -47,7 +41,7 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *pigeon.PigeonSystem)
                 jobKey, 
                 store, 
                 cfg.OptAllowOrigin(), 
-                pigeonClient,
+                outbox,
             ),
         ).Methods(httpMethods)
     }

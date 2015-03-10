@@ -22,12 +22,7 @@ import (
     "canopy/jobs/rest"
 )
 
-func InitJobServer(cfg config.Config) error {
-    pigeon, err := jobqueue.NewPigeonSystem(cfg)
-    if err != nil {
-        return err
-    }
-
+func InitJobServer(cfg config.Config, pigeonServer jobqueue.Server) error {
     mailer, err := mail.NewMailClient(cfg)
     if err != nil {
         return err
@@ -36,11 +31,6 @@ func InitJobServer(cfg config.Config) error {
     userCtx := map[string]interface{}{
         "cfg" : cfg,
         "mailer" : mailer,
-    }
-
-    server, err := pigeon.StartServer("localhost") // TODO use configured hostname
-    if err != nil {
-        return err
     }
 
     dl := cassandra_datalayer.NewDatalayer(cfg)
@@ -69,11 +59,13 @@ func InitJobServer(cfg config.Config) error {
     }
 
     // Register handlers
-    for jobKey, handler := range routes {
-        err = server.Handle(jobKey, handler, userCtx)
+    for msgKey, handler := range routes {
+        inbox, err := pigeonServer.CreateInbox(msgKey)
         if err != nil {
             return err
         }
+        inbox.SetUserCtx(userCtx)
+        inbox.SetHandlerFunc(handler)
     }
 
     return nil
