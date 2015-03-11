@@ -201,12 +201,24 @@ func (conn *CassConnection) DeleteAccount(username string) error {
     account, _ := conn.LookupAccount(username)
     email := account.Email()
 
+    // TODO: Transactionize.  This might be done by adding a txn state field to
+    // the table.
+
     err := conn.session.Query(`
-            DELETE FROM accounts
+            DELETE FROM device_group
             WHERE username = ?
     `, username).Exec()
     if err != nil {
-        canolog.Error("Error deleting account", err)
+        canolog.Error("Error deleting account's device groups", err)
+        return err
+    }
+
+    err = conn.session.Query(`
+            DELETE FROM device_permissions
+            WHERE username = ?
+    `, username).Exec()
+    if err != nil {
+        canolog.Error("Error deleting account's permission", err)
         return err
     }
 
@@ -216,6 +228,15 @@ func (conn *CassConnection) DeleteAccount(username string) error {
     `, email).Exec()
     if err != nil {
         canolog.Error("Error deleting account email", err)
+    }
+
+    err = conn.session.Query(`
+            DELETE FROM accounts
+            WHERE username = ?
+    `, username).Exec()
+    if err != nil {
+        canolog.Error("Error deleting account", err)
+        return err
     }
 
     return nil
