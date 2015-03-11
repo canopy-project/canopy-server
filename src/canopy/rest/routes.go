@@ -28,7 +28,7 @@ func rootRedirectHandler(w http.ResponseWriter, r *http.Request) {
     http.Redirect(w, r, "/mgr/index.html", 301);
 }
 
-func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys *jobqueue.PigeonSystem) error {
+func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys jobqueue.System) error {
     store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
     
     outbox := pigeonSys.NewOutbox()

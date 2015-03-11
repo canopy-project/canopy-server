@@ -16,8 +16,8 @@ package main
 import (
     "canopy/canolog"
     "canopy/config"
+    "canopy/jobqueue"
     "canopy/jobs"
-    "canopy/pigeon"
     "canopy/rest"
     "canopy/webapp"
     "canopy/ws"
@@ -68,12 +68,6 @@ func main() {
 
     canolog.Info("Starting Canopy Cloud Service")
 
-    pigeonSys, err := pigeon.InitPigeonSystem()
-    if (err != nil) {
-        canolog.Error("Error starting pigeon system")
-        return
-    }
-
     // Log crashes
     defer func() {
         r := recover()
@@ -114,7 +108,21 @@ func main() {
     }
     canolog.Info(cfg.ToString())
 
-    err = jobs.InitJobServer(cfg)
+    pigeonSys, err := jobqueue.NewPigeonSystem(cfg)
+    if err != nil {
+        canolog.Error("Error initializing messaging system (Pigeon):", err)
+        return
+    }
+
+    pigeonServer, err := pigeonSys.StartServer("localhost") // TODO use configured host
+    if err != nil {
+        canolog.Error("Unable to start messaging server (Pigeon):", err)
+        return
+    }
+
+    pigeonOutbox := pigeonSys.NewOutbox()
+
+    err = jobs.InitJobServer(cfg, pigeonServer)
     if err != nil {
         canolog.Error("Unable to initialize Job Server", err)
         return
@@ -132,7 +140,7 @@ func main() {
     hostname := cfg.OptHostname()
     webManagerPath := cfg.OptWebManagerPath()
     jsClientPath := cfg.OptJavascriptClientPath()
-    http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(cfg, pigeonSys)))
+    http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(cfg, pigeonOutbox, pigeonServer)))
 
     webapp.AddRoutes(r)
     rest.AddRoutes(r, cfg, pigeonSys)

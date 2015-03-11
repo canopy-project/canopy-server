@@ -68,7 +68,7 @@ type Handler interface {
 }
 
 type System interface {
-    // Create a new empty response object.
+    // Create a new outbox object.
     NewOutbox() Outbox
 
     // Create a new empty response object.

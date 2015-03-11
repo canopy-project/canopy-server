@@ -131,7 +131,7 @@ func NewCanopyWebsocketServer(cfg config.Config, outbox jobqueue.Outbox, pigeonS
             if inbox != nil {
                 msg, _ := inboxReciever.Recieve(time.Duration(100*time.Millisecond))
                 if msg != nil {
-                    msgString, err := json.Marshal(msg.Body())
+                    msgString, err := json.Marshal(msg)
 
                     if err != nil {
                         canolog.Error("Unexpected error: ", err)
