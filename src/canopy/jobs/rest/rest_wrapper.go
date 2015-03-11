@@ -102,7 +102,7 @@ func RestSetErrorClearCookies(resp jobqueue.Response, err RestError) {
 // Wrapper for handling pigeon requests that originated from
 // CanopyRestJobForwarder
 func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
-    return func(jobKey string, userCtx map[string]interface{}, req jobqueue.Request, resp jobqueue.Response) {
+    return func(jobKey string, userCtxItf interface{}, req jobqueue.Request, resp jobqueue.Response) {
         // This expects to recieve the following over the wire from the Pigeon
         // client:
         //  {
@@ -145,11 +145,24 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
             return
         }
 
+        userCtx, ok := userCtxItf.(map[string]interface{})
+        if !ok {
+            RestSetError(resp, InternalServerError("Expected map[string]interface{} for userCtx").Log())
+            return
+        }
+
         // Get DB Connection from userCtx
         info.Conn, ok = userCtx["db-conn"].(datalayer.Connection)
         conn := info.Conn
         if !ok {
             RestSetError(resp, InternalServerError("Expected datalayer.Connection for 'db-conn'").Log())
+            return
+        }
+
+        // Get Config from userCtx
+        info.Config, ok = userCtx["cfg"].(config.Config)
+        if !ok {
+            RestSetError(resp, InternalServerError("Expected config.Config for 'cfg'").Log())
             return
         }
 

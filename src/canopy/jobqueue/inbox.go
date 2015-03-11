@@ -29,40 +29,40 @@ type funcHandler struct {
     fn HandlerFunc
 }
 
-func (inbox PigeonInbox) Close() error {
+func (inbox *PigeonInbox) Close() error {
     return fmt.Errorf("Close not implemented")
 }
 
-func (inbox PigeonInbox) MsgKey() string {
+func (inbox *PigeonInbox) MsgKey() string {
     return inbox.msgKey
 }
 
-func (inbox PigeonInbox) Resume() error {
+func (inbox *PigeonInbox) Resume() error {
     return fmt.Errorf("Resume not implemented")
 }
 
-func (inbox PigeonInbox) Server() Server {
+func (inbox *PigeonInbox) Server() Server {
     return inbox.server
 }
 
-func (inbox PigeonInbox) SetHandler(handler Handler) error {
+func (inbox *PigeonInbox) SetHandler(handler Handler) error {
     inbox.handler = handler
     return nil
 }
 
-func (inbox PigeonInbox) SetHandlerFunc(fn HandlerFunc) error {
+func (inbox *PigeonInbox) SetHandlerFunc(fn HandlerFunc) error {
     inbox.handler = &funcHandler{fn}
     return nil
 }
 
-func (inbox PigeonInbox) Suspend() error {
+func (inbox *PigeonInbox) Suspend() error {
     return fmt.Errorf("Suspend not implemented")
 }
 
-func (inbox PigeonInbox) SetUserCtx(userCtx interface{}) {
+func (inbox *PigeonInbox) SetUserCtx(userCtx interface{}) {
     inbox.userCtx = userCtx
 }
 
-func (handler *funcHandler)Handle(jobkey string, userCtx map[string]interface{}, req Request, resp Response) {
+func (handler *funcHandler)Handle(jobkey string, userCtx interface{}, req Request, resp Response) {
     handler.fn(jobkey, userCtx, req, resp)
 }

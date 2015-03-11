@@ -21,6 +21,7 @@ import (
     "net"
     "net/rpc"
     "net/http"
+    "math/rand"
     "runtime"
 )
 
@@ -28,8 +29,6 @@ type PigeonServer struct {
     sys *PigeonSystem
     hostname string
     
-    // mapping from jobKey to HandlerFunc
-    handlers map[string]*pigeonHandler
     // mapping from msgKey to list of inboxes
     inboxesByMsgKey map[string]([]*PigeonInbox)
 }
@@ -57,17 +56,30 @@ func (server *PigeonServer) rpcHandleRequest(req *PigeonRequest, resp *PigeonRes
     canolog.Info("RPC Handling", req.ReqJobKey)
 
     // Lookup the handler for that job type
-    handler, ok := server.handlers[req.ReqJobKey]
+    inboxes, ok := server.inboxesByMsgKey[req.ReqJobKey]
     if !ok {
-        // NOT FOUND
-        return fmt.Errorf("Pigeon Server: No handler for job key %s on server %s", req.ReqJobKey, server.hostname)
+        // NOT FOUND (NO INBOX LIST)
+        return fmt.Errorf("Pigeon Server: No inbox for msg key %s on server %s", req.ReqJobKey, server.hostname)
+    }
+    if len(inboxes) < 0 {
+        // NOT FOUND (NO INBOXES IN LIST)
+        return fmt.Errorf("Pigeon Server: No inboxes for msg key %s on server %s", req.ReqJobKey, server.hostname)
+    }
+    // TODO: handle broadcast & idempotent request
+    // For now, send to random inbox
+
+    inbox := inboxes[rand.Intn(len(inboxes))]
+
+    if inbox.handler == nil {
+        return fmt.Errorf("Pigeon Server: Expected handler for inbox %s on inbox %s", req.ReqJobKey, inbox)
     }
 
     // Call the handler
     canolog.Info("Calling Registered handler")
     canolog.Info(req)
     canolog.Info(resp)
-    handler.fn(req.ReqJobKey, handler.userCtx, req, resp)
+    canolog.Info("inbox: ", inbox)
+    inbox.handler.Handle(req.ReqJobKey, inbox.userCtx, req, resp)
     canolog.Info("All done")
 
     return nil
@@ -120,26 +132,11 @@ func (server *PigeonServer) CreateInbox(msgKey string) (Inbox, error) {
     } else {
         // This is the first inbox on this server for msgKey.
         // Create list of inboxes for msgKey.
-        server.inboxesByMsgKey[msgKey] = []*PigeonInbox{}
+        server.inboxesByMsgKey[msgKey] = []*PigeonInbox{inbox}
     }
 
     return inbox, nil
 
-}
-
-func (server *PigeonServer) Handle(jobKey string, fn HandlerFunc, userCtx map[string]interface{}) error {
-    // Register this handler in the DB
-    err := server.sys.dl.RegisterListener(server.hostname, jobKey)
-    if err != nil {
-        return err
-    }
-
-    // Associate the handler function with the jobKey
-    server.handlers[jobKey] = &pigeonHandler{
-        fn: fn,
-        userCtx: userCtx,
-    }
-    return nil
 }
 
 func (server *PigeonServer) Start() error {

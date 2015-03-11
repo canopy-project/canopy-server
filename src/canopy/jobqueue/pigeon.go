@@ -45,7 +45,7 @@ func NewPigeonRecieveHandler() *PigeonRecieveHandler{
 }
 
 func (recvHandler *PigeonRecieveHandler) Handle(jobkey string, 
-        userCtx map[string]interface{}, 
+        userCtx interface{}, 
         req Request, 
         resp Response) {
 
@@ -79,7 +79,7 @@ func (pigeon *PigeonSystem) StartServer(hostname string) (Server, error) {
     server := &PigeonServer{
         sys : pigeon,
         hostname: hostname,
-        handlers : map[string]*pigeonHandler{},
+        inboxesByMsgKey: map[string]([]*PigeonInbox){},
     }
 
     err := server.Start()

@@ -61,10 +61,10 @@ const (
     UNRESPONSIVE
 )
 
-type HandlerFunc func(msgKey string, userCtx map[string]interface{}, req Request, resp Response)
+type HandlerFunc func(msgKey string, userCtx interface{}, req Request, resp Response)
 
 type Handler interface {
-    Handle(jobkey string, userCtx map[string]interface{}, req Request, resp Response)
+    Handle(jobkey string, userCtx interface{}, req Request, resp Response)
 }
 
 type System interface {
@@ -156,7 +156,7 @@ type Outbox interface {
 
 type RecieveHandler interface {
     Recieve(timeout time.Duration) (map[string]interface{}, error)
-    Handle(jobkey string, userCtx map[string]interface{}, req Request, resp Response)
+    Handle(jobkey string, userCtx interface{}, req Request, resp Response)
 }
 
 func NewRecieveHandler() RecieveHandler{
