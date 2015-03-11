@@ -18,13 +18,13 @@ import (
     "canopy/mail/messages"
 )
 
-// Constructs the response body for the /api/me REST endpoint
-func GET__api__me(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+// Constructs the response body for the /api/user/self REST endpoint
+func GET__api__user__self(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     if info.Account == nil {
         return nil, NotLoggedInError().Log()
     }
     return map[string]interface{}{
-        "activated" : info.Account.IsActivated(),
+        "validated" : info.Account.IsActivated(),
         "email" : info.Account.Email(),
         "result" : "ok",
         "username" : info.Account.Username(),
@@ -32,7 +32,7 @@ func GET__api__me(info *RestRequestInfo, sideEffect *RestSideEffects) (map[strin
 }
 
 
-func POST__api__me(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func POST__api__user__self(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     if info.Account == nil {
         return nil, NotLoggedInError()
     }
@@ -74,7 +74,7 @@ func POST__api__me(info *RestRequestInfo, sideEffect *RestSideEffects) (map[stri
 // Delete current account
 // Also has side effect of logging the user out, if authenticated with session
 // cookie.
-func DELETE__api__me(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func DELETE__api__user__self(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     if info.Account == nil {
         return nil, NotLoggedInError().Log()
     }

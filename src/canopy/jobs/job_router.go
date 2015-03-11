@@ -52,9 +52,9 @@ func InitJobServer(cfg config.Config, pigeonServer jobqueue.Server) error {
         "api/info": rest.RestJobWrapper(rest.GET__api__info),
         "api/login": rest.RestJobWrapper(rest.POST__api__login),
         "api/logout": rest.RestJobWrapper(rest.GET_POST__api__logout),
-        "GET:api/me": rest.RestJobWrapper(rest.GET__api__me),
-        "POST:api/me": rest.RestJobWrapper(rest.POST__api__me),
-        "DELETE:api/me": rest.RestJobWrapper(rest.DELETE__api__me),
+        "GET:api/user/self": rest.RestJobWrapper(rest.GET__api__user__self),
+        "POST:api/user/self": rest.RestJobWrapper(rest.POST__api__user__self),
+        "DELETE:api/user/self": rest.RestJobWrapper(rest.DELETE__api__user__self),
         "api/reset_password": rest.RestJobWrapper(rest.POST__api__reset_password),
         "api/share": rest.RestJobWrapper(rest.POST__api__share),
     }

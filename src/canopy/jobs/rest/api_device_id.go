@@ -49,31 +49,39 @@ func GET__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (m
 }
 
 func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    var device datalayer.Device
+    var err error
+
     deviceIdString := info.URLVars["id"]
 
-    uuid, err := gocql.ParseUUID(deviceIdString)
-    if err != nil {
-        return nil, URLNotFoundError()
-    }
-
-    var device datalayer.Device
-
-    // TODO: support anonymous device creation
-
-    if info.Account != nil {
-        device, err = info.Account.Device(uuid)
-        if err != nil {
-            // TODO: What errors to return here?
-            return nil, InternalServerError("Device lookup failed")
-        }
-    } else if info.Device != nil {
-        if deviceIdString != string(info.Device.IDString()) {
-            // TODO: what error to return?
-            return nil, InternalServerError("Device mismatch")
+    if deviceIdString == "self" {
+        if info.Device == nil {
+            return nil, BadInputError("Expected device credentials with /api/device/self").Log()
         }
         device = info.Device
     } else {
-        return nil, NotLoggedInError()
+        uuid, err := gocql.ParseUUID(deviceIdString)
+        if err != nil {
+            return nil, URLNotFoundError()
+        }
+
+        // TODO: support anonymous device creation
+
+        if info.Account != nil {
+            device, err = info.Account.Device(uuid)
+            if err != nil {
+                // TODO: What errors to return here?
+                return nil, InternalServerError("Device lookup failed").Log()
+            }
+        } else if info.Device != nil {
+            if deviceIdString != string(info.Device.IDString()) {
+                // TODO: what error to return?
+                return nil, InternalServerError("Device mismatch").Log()
+            }
+            device = info.Device
+        } else {
+            return nil, NotLoggedInError()
+        }
     }
 
     // Check for SDDL doc.  If it doesn't exist, then create it.
@@ -83,9 +91,9 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
         // Create SDDL for the device if it doesn't exist.
         // TODO: should this be automatically done by device.SDDLClass()?
         newDoc := sddl.Sys.NewEmptyDocument()
-        err = device.SetSDDLDocument(newDoc)
+        err := device.SetSDDLDocument(newDoc)
         if (err != nil) {
-            return nil, InternalServerError("Setting new SDDL document")
+            return nil, InternalServerError("Setting new SDDL document").Log()
         }
         doc = newDoc;
     }
