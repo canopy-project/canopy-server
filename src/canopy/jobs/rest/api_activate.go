@@ -1,4 +1,4 @@
-// Copyright 2014 SimpleThings, Inc.
+// Copyright 2015 Canopy Services, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,42 +11,40 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package endpoints
+
+package rest
 
 import (
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
-    "net/http"
+    "canopy/canolog"
 )
 
-// Request:
-// {
-//     "username" : 
-//     "code" : 
-// }
-func POST_activate(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+// Backend implementation /api/activate endpoint
+// Activates a user account (i.e., email address confirmation).
+// 
+func ApiActivateHandler(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
+    canolog.Info("api/activate REST job started")
     if info.Account == nil {
-        return nil, rest_errors.NewNotLoggedInError()
+        return nil, NotLoggedInError().Log()
     }
 
     username, ok := info.BodyObj["username"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"username\" expected")
+        return nil, BadInputError(`String "username" expected`).Log()
     }
 
     code, ok := info.BodyObj["code"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"code\" expected")
+        return nil, BadInputError(`String "code" expected`).Log()
     }
 
     err := info.Account.Activate(username, code)
     if err != nil {
         // TODO: Report InternalServerError different from InvalidCode
-        return nil, rest_errors.NewBadInputError("Unable to activate account")
+        //return nil, rest_errors.NewBadInputError("Unable to activate account")
+        return nil, BadInputError("Unable to activate account").Log()
     }
 
-    return map[string]interface{} {
+    return map[string]interface{}{
         "result" : "ok",
     }, nil
 }
-

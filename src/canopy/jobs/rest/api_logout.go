@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copyright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -13,20 +13,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package endpoints
+package rest
 
 import (
-    "net/http"
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
 )
 
-func GET_info(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
-    return map[string]interface{}{
-        "result" : "ok",
-        "service-name" : "Canopy Cloud Service",
-        "version" : "0.9.1-beta",
-        "config" : info.Config.ToJsonObject(),
-    }, nil
-}
+func GET_POST__api__logout(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    sideEffect.ClearCookie("logged_in_username")
 
+    out := map[string]interface{} {
+        "result" : "ok",
+    }
+    return out, nil
+}

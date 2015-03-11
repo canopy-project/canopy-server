@@ -11,13 +11,11 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package endpoints
+package rest
 
 import (
     "canopy/cloudvar"
     "canopy/datalayer"
-    "canopy/pigeon"
-    "canopy/ws"
     "encoding/base64"
     "encoding/json"
     "errors"
@@ -125,9 +123,9 @@ type jsonNotification struct {
     Msg string `json:"msg"`
 }
 
-func deviceToJsonObj(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (map[string]interface{}, error) {
+func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
     statusJsonObj := map[string]interface{} {
-        "ws_connected" : ws.IsDeviceConnected(pigeonSys, device.ID().String()),
+        "ws_connected" : device.WSConnected(),
     }
     lastSeen := device.LastActivityTime()
     if lastSeen == nil {
@@ -191,8 +189,8 @@ func deviceToJsonObj(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (m
     return out, nil
 
 }
-func deviceToJsonString(pigeonSys *pigeon.PigeonSystem, device datalayer.Device) (string, error) {
-    out, err := deviceToJsonObj(pigeonSys, device)
+func deviceToJsonString(device datalayer.Device) (string, error) {
+    out, err := deviceToJsonObj(device)
     if err != nil {
         return "", err;
     }
@@ -204,14 +202,14 @@ func deviceToJsonString(pigeonSys *pigeon.PigeonSystem, device datalayer.Device)
     return string(jsn), nil
 }
 
-func devicesToJsonObj(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device) (map[string]interface{}, error) {
+func devicesToJsonObj(devices []datalayer.Device) (map[string]interface{}, error) {
 
     out := map[string]interface{} {
         "devices" : []interface{} {},
     }
 
     for _, device := range devices {
-        deviceJsonObj, err := deviceToJsonObj(pigeonSys, device)
+        deviceJsonObj, err := deviceToJsonObj(device)
         if err != nil {
             continue
         }
@@ -222,8 +220,8 @@ func devicesToJsonObj(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device
     return out, nil
 }
 
-func devicesToJsonString(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Device) (string, error) {
-    out, err := devicesToJsonObj(pigeonSys, devices)
+func devicesToJsonString(devices []datalayer.Device) (string, error) {
+    out, err := devicesToJsonObj(devices)
     if err != nil {
         return "", err;
     }
@@ -234,6 +232,19 @@ func devicesToJsonString(pigeonSys *pigeon.PigeonSystem, devices []datalayer.Dev
     }
     return string(jsn), nil
 }
+
+func samplesToJsonObj(samples []cloudvar.CloudVarSample) (map[string]interface{}) {
+    out := map[string]interface{}{}
+    out["samples"] = []interface{}{}
+    for _, sample := range samples {
+        out["samples"] = append(out["samples"].([]interface{}), map[string]interface{}{
+            "t" : sample.Timestamp.Format(time.RFC3339),
+            "v" : sample.Value,
+        })
+    }
+    return out
+}
+
 
 func samplesToJson(samples []cloudvar.CloudVarSample) (string, error) {
     out := jsonSamples{[]jsonSample{}}

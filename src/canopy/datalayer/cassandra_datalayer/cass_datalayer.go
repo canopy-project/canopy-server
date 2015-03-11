@@ -247,6 +247,7 @@ var creationQueries []string = []string{
         sddl text,
         public_access_level int,
         last_seen timestamp,
+        ws_connected boolean,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 
@@ -298,6 +299,18 @@ var creationQueries []string = []string{
         msg text,
         notify_type int,
         PRIMARY KEY(device_id, time_issued)
+    ) `,
+
+    `CREATE TABLE workers (
+        name text,
+        status text,
+        PRIMARY KEY(name)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE listeners (
+        key text
+        workers set<text>,
+        PRIMARY KEY(key)
     ) `,
 }
 
@@ -351,7 +364,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
     // Create keyspace.
     err = session.Query(`
             CREATE KEYSPACE ` + keyspace + `
-            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
+            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}
     `).Exec()
     if err != nil {
         // Ignore errors (just log them).

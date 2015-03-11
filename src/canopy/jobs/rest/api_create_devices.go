@@ -1,4 +1,4 @@
-// Copyright 2014 SimpleThings, Inc.
+// Copyright 2015 Canopy Services, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,33 +11,34 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package endpoints
+
+package rest
 
 import (
     "canopy/datalayer"
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
-    "net/http"
 )
 
-func POST_create_devices(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+// Backend implementation /api/activate endpoint
+// Activates a user account (i.e., email address confirmation).
+// 
+func ApiCreateDevicesHandler(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
     if info.Account == nil {
-        return nil, rest_errors.NewNotLoggedInError()
+        return nil, NotLoggedInError().Log()
     }
 
     quantityFloat, ok := info.BodyObj["quantity"].(float64)
     if !ok {
-        return nil, rest_errors.NewBadInputError("Numeric \"quantity\" expected")
+        return nil, BadInputError("Numeric \"quantity\" expected")
     }
     quantity := int(quantityFloat)
 
     friendlyNames, ok := info.BodyObj["friendly_names"].([]interface{})
     if !ok {
-        return nil, rest_errors.NewBadInputError("List \"friendly_names\" expected")
+        return nil, BadInputError("List \"friendly_names\" expected")
     }
 
     if len(friendlyNames) != quantity {
-        return nil, rest_errors.NewBadInputError("Incorrect number of friendly_names provided")
+        return nil, BadInputError("Incorrect number of friendly_names provided")
     }
 
     out := map[string]interface{} {
@@ -48,16 +49,16 @@ func POST_create_devices(w http.ResponseWriter, r *http.Request, info adapter.Ca
     for _, nameItf := range friendlyNames {
         friendlyName, ok := nameItf.(string)
         if !ok {
-            return nil, rest_errors.NewBadInputError("String friendly name expected")
+            return nil, BadInputError("String friendly name expected")
         }
         device, err := info.Conn.CreateDevice(friendlyName, nil, "", datalayer.NoAccess);
         if err != nil {
-            return nil, rest_errors.NewInternalServerError("Error creating device")
+            return nil, InternalServerError("Error creating device")
         }
 
         err = device.SetAccountAccess(info.Account, datalayer.ReadWriteAccess, datalayer.ShareRevokeAllowed);
         if err != nil {
-            return nil, rest_errors.NewInternalServerError("Error setting device permissions")
+            return nil, InternalServerError("Error setting device permissions")
         }
 
         devicesSlice, ok := out["devices"].([]interface{})

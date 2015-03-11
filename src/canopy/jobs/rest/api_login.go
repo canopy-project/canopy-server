@@ -1,4 +1,4 @@
-// Copyright 2014 SimpleThings, Inc.
+// Copyright 2014-2015 Canopy Services, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,35 +11,28 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package endpoints
+package rest
 
 import (
-    "net/http"
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
 )
 
-func POST_login(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+func POST__api__login(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     username, ok := info.BodyObj["username"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"username\" expected")
+        return nil, BadInputError("String \"username\" expected")
     }
 
     password, ok := info.BodyObj["password"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"password\" expected")
+        return nil, BadInputError("String \"password\" expected")
     }
 
     account, err := info.Conn.LookupAccountVerifyPassword(username, password)
     if err != nil {
-        return nil, rest_errors.NewIncorrectUsernameOrPasswordError()
+        return nil, IncorrectUsernameOrPasswordError()
     }
 
-    info.Session.Values["logged_in_username"] = username
-    err = info.Session.Save(r, w)
-    if err != nil {
-        return nil, rest_errors.NewInternalServerError("Problem saving session")
-    }
+    sideEffect.SetCookie("logged_in_username", username)
 
     out := map[string]interface{} {
         "result" : "ok",

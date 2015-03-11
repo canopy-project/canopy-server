@@ -1,4 +1,4 @@
-// Copyright 2014 SimpleThings, Inc.
+// Copyright 2015 Canopy Services, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,58 +11,50 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package endpoints
+
+package rest
 
 import (
-    "canopy/canolog"
     "canopy/mail/messages"
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
-    "net/http"
 )
 
-func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+// Constructs the response body for the /api/create_account REST endpoint
+func ApiCreateAccountHandler(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     username, ok := info.BodyObj["username"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"username\" expected")
+        return nil, BadInputError("String \"username\" expected").Log()
     }
 
     email, ok := info.BodyObj["email"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"email\" expected")
+        return nil, BadInputError("String \"email\" expected").Log()
     }
 
     password, ok := info.BodyObj["password"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"password\" expected")
+        return nil, BadInputError("String \"password\" expected").Log()
     }
 
     account, err := info.Conn.LookupAccount(username)
     if err == nil {
         // TODO: other errors could have occurred.  Do not necessarily take
         // (err != nil) as a sign that username is available!
-        return nil, rest_errors.NewUsernameTakenError()
+        return nil, UsernameNotAvailableError().Log()
     }
 
     account, err = info.Conn.LookupAccount(email)
     if err == nil {
         // TODO: other errors could have occurred.  Do not necessarily take
         // (err != nil) as a sign that username is available!
-        return nil, rest_errors.NewEmailTakenError()
+        return nil, EmailTakenError().Log()
     }
 
     account, err = info.Conn.CreateAccount(username, email, password)
     if err != nil {
-        return nil, rest_errors.NewInternalServerError("Problem Creating Account")
+        return nil, InternalServerError("Problem Creating Account" + err.Error()).Log()
     }
 
-    info.Session.Values["logged_in_username"] = username
-    err = info.Session.Save(r, w)
-    if err != nil {
-        return nil, rest_errors.NewInternalServerError("Problem saving session")
-    }
-
-    canolog.Trace("Sending email")
+    sideEffect.SetCookie("logged_in_username", username)
 
     protocol := "http://"
     if info.Config.OptEnableHTTPS() {
@@ -73,7 +65,8 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
             "/mgr/activate.html?username=" + account.Username() + 
             "&code=" + account.ActivationCode()
 
-    msg := info.Mailer.NewMail();
+    // Send email
+    msg := sideEffect.SendEmail()
     msg.AddTo(account.Email(), account.Username())
     msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
     msg.SetReplyTo("no-reply@canopy.link")
@@ -83,10 +76,6 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
         protocol + info.Config.OptHostname(),
         info.Config.OptHostname(),
     )
-    err = info.Mailer.Send(msg)
-    if (err != nil) {
-        return nil, rest_errors.NewInternalServerError("Problem sending mail")
-    }
 
     out := map[string]interface{} {
         "activated" : false,
@@ -96,4 +85,3 @@ func POST_create_account(w http.ResponseWriter, r *http.Request, info adapter.Ca
     }
     return out, nil
 }
-

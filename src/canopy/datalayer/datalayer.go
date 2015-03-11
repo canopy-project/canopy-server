@@ -108,6 +108,9 @@ type Connection interface {
     // Lookup a device from the database, using string representation of its
     // UUID, and verify the secret key.
     LookupDeviceByStringIDVerifySecretKey(id, secret string) (Device, error)
+
+    // Get the datalayer interface for the Pigeon system
+    PigeonSystem() PigeonSystem
 }
 
 // Account is a user account
@@ -231,6 +234,14 @@ type Device interface {
     // activity timestamp is set to *t.
     // Saves the data to the database.
     UpdateLastActivityTime(t *time.Time) error
+
+    // Update websocket connectivity status
+    // Saves the data to the database
+    UpdateWSConnected(connected bool) error
+
+    // Gets whether or not this device is connected to the database.
+    // (Does not fetch from DB)
+    WSConnected() bool
 }
 
 // Notification is a record of a message sent to the device owner originiating
@@ -252,3 +263,14 @@ type Notification interface {
     NotifyType() int
 }
 
+type PigeonSystem interface {
+    // List all workers that are listening for <key>.
+    // Returns list of hostnames
+    GetListeners(key string) ([]string, error)
+    
+    // Register that a worker is listening for <key>.
+    RegisterListener(hostname, key string) error
+
+    // Register that a worker exists
+    RegisterWorker(hostname string) error
+}

@@ -1,4 +1,4 @@
-// Copyright 2014 SimpleThings, Inc.
+// Copyright 2014-2015 Canopy Services, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -11,16 +11,13 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
-package endpoints
+package rest
 
 import (
     "canopy/mail"
-    "canopy/rest/adapter"
-    "canopy/rest/rest_errors"
-    "net/http"
 )
 
-func POST_share(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestInfo) (map[string]interface{}, rest_errors.CanopyRestError) {
+func POST__api__share(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
     /*
      *  POST
      *  {
@@ -34,12 +31,12 @@ func POST_share(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestI
      */
     deviceId, ok := info.BodyObj["device_id"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"device_id\" expected")
+        return nil, BadInputError("String \"device_id\" expected")
     }
 
     device, err := info.Conn.LookupDeviceByStringID(deviceId)
     if err != nil {
-        return nil, rest_errors.NewBadInputError("Device not found")
+        return nil, BadInputError("Device not found")
     }
 
     //accessLevel, ok := data["access_level"].(int)
@@ -58,21 +55,21 @@ func POST_share(w http.ResponseWriter, r *http.Request, info adapter.CanopyRestI
 
     email, ok := info.BodyObj["email"].(string)
     if !ok {
-        return nil, rest_errors.NewBadInputError("String \"email\" expected")
+        return nil, BadInputError("String \"email\" expected")
     }
 
     if info.Account == nil {
-        return nil, rest_errors.NewNotLoggedInError()
+        return nil, NotLoggedInError()
     }
 
     mailer, err := mail.NewMailClient(info.Config)
     if err != nil {
-        return nil, rest_errors.NewInternalServerError("Error initializing mail client")
+        return nil, InternalServerError("Error initializing mail client")
     }
     mail := mailer.NewMail();
     err = mail.AddTo(email, "")
     if err != nil {
-        return nil, rest_errors.NewBadInputError("Invalid email recipient")
+        return nil, BadInputError("Invalid email recipient")
     }
     mail.SetSubject(device.Name())
     mail.SetHTML(`
@@ -86,7 +83,7 @@ devices.  Learn more at <a href=http://devel.canopy.link>http://canopy.link</a>
     mail.SetFrom("greg@canopy.link", "greg (via Canopy)")
     err = mailer.Send(mail)
     if err != nil {
-        return nil, rest_errors.NewInternalServerError("Error sending mail")
+        return nil, InternalServerError("Error sending mail")
     }
 
     return map[string]interface{} {

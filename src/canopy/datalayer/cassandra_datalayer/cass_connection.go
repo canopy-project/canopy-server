@@ -190,6 +190,7 @@ func (conn *CassConnection) CreateDevice(
         doc: sddl.Sys.NewEmptyDocument(),
         docString: "",
         publicAccessLevel: publicAccessLevel,
+        wsConnected: false,
     }, nil
 }
 
@@ -294,17 +295,19 @@ func (conn *CassConnection) LookupDevice(
 
     device.deviceId = deviceId
     device.conn = conn
-    var last_seen time.Time;
+    var last_seen time.Time
+    var ws_connected bool
 
     err := conn.session.Query(`
-        SELECT friendly_name, secret_key, sddl, last_seen
+        SELECT friendly_name, secret_key, sddl, last_seen, ws_connected
         FROM devices
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
             &device.secretKey,
             &device.docString,
-            &last_seen)
+            &last_seen,
+            &ws_connected)
     if err != nil {
         canolog.Error(err)
         return nil, err
@@ -316,6 +319,8 @@ func (conn *CassConnection) LookupDevice(
     } else {
         device.last_seen = &last_seen
     }
+
+    device.wsConnected = ws_connected
 
     if device.docString != "" {
         device.doc, err = sddl.Sys.ParseDocumentString(device.docString)
@@ -367,4 +372,8 @@ func (conn *CassConnection) LookupDeviceByStringIDVerifySecretKey(
         return nil, err
     }
     return conn.LookupDeviceVerifySecretKey(deviceId, secret)
+}
+
+func (conn *CassConnection) PigeonSystem() datalayer.PigeonSystem {
+    return &CassPigeonSystem{conn}
 }

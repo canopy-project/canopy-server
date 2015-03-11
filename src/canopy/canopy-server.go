@@ -14,21 +14,23 @@
 package main
 
 import (
-    "fmt"
-    "net/http"
-    "net/http/httputil"
-    "net/url"
-    "code.google.com/p/go.net/websocket"
-    "github.com/gorilla/context"
-    "github.com/gorilla/mux"
     "canopy/canolog"
     "canopy/config"
-    "canopy/pigeon"
+    "canopy/jobqueue"
+    "canopy/jobs"
     "canopy/rest"
     "canopy/webapp"
     "canopy/ws"
+    "code.google.com/p/go.net/websocket"
+    "fmt"
+    "github.com/gorilla/context"
+    "github.com/gorilla/mux"
+    "net/http"
+    "net/http/httputil"
+    "net/url"
     "os"
     "os/signal"
+    "runtime"
     "syscall"
 )
 
@@ -39,6 +41,7 @@ func shutdown() {
 }
 
 func main() {
+
     r := mux.NewRouter()
 
     cfg := config.NewDefaultConfig()
@@ -65,14 +68,18 @@ func main() {
 
     canolog.Info("Starting Canopy Cloud Service")
 
-    pigeonSys, err := pigeon.InitPigeonSystem()
-    if (err != nil) {
-        canolog.Error("Error starting pigeon system")
-        return
-    }
-
+    // Log crashes
+    defer func() {
+        r := recover()
+        if r != nil {
+        var buf [4096]byte
+            runtime.Stack(buf[:], false)
+            canolog.Error("PANIC ", r, string(buf[:]))
+            panic(r)
+        }
+        shutdown()
+    }()
     // handle SIGINT & SIGTERM
-    defer shutdown()
     c := make (chan os.Signal, 1)
     c2 := make (chan os.Signal, 1)
     signal.Notify(c, os.Interrupt)
@@ -101,6 +108,26 @@ func main() {
     }
     canolog.Info(cfg.ToString())
 
+    pigeonSys, err := jobqueue.NewPigeonSystem(cfg)
+    if err != nil {
+        canolog.Error("Error initializing messaging system (Pigeon):", err)
+        return
+    }
+
+    pigeonServer, err := pigeonSys.StartServer("localhost") // TODO use configured host
+    if err != nil {
+        canolog.Error("Unable to start messaging server (Pigeon):", err)
+        return
+    }
+
+    pigeonOutbox := pigeonSys.NewOutbox()
+
+    err = jobs.InitJobServer(cfg, pigeonServer)
+    if err != nil {
+        canolog.Error("Unable to initialize Job Server", err)
+        return
+    }
+
     if (cfg.OptForwardOtherHosts() != "") {
         canolog.Info("Requests to hosts other than ", cfg.OptHostname(), " will be forwarded to ", cfg.OptForwardOtherHosts())
         targetUrl, _ := url.Parse(cfg.OptForwardOtherHosts())
@@ -113,7 +140,7 @@ func main() {
     hostname := cfg.OptHostname()
     webManagerPath := cfg.OptWebManagerPath()
     jsClientPath := cfg.OptJavascriptClientPath()
-    http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(cfg, pigeonSys)))
+    http.Handle(hostname + "/echo", websocket.Handler(ws.NewCanopyWebsocketServer(cfg, pigeonOutbox, pigeonServer)))
 
     webapp.AddRoutes(r)
     rest.AddRoutes(r, cfg, pigeonSys)
@@ -163,6 +190,7 @@ func main() {
         case err := <- httpsResultChan:
             canolog.Error(err)
     }
+
 }
 
 /*

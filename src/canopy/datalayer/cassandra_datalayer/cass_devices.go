@@ -36,6 +36,7 @@ type CassDevice struct {
     name string
     publicAccessLevel datalayer.AccessLevel
     secretKey string
+    wsConnected bool
 }
 
 func tableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
@@ -599,4 +600,21 @@ func (device *CassDevice) UpdateLastActivityTime(tp *time.Time) error {
     }
     device.last_seen = &t
     return nil;
+}
+
+func (device *CassDevice) UpdateWSConnected(connected bool) error {
+    err := device.conn.session.Query(`
+            UPDATE devices
+            SET ws_connected = ?
+            WHERE device_id = ?
+    `, connected, device.ID()).Exec()
+    if err != nil {
+        return err;
+    }
+    device.wsConnected = connected
+    return nil;
+}
+
+func (device *CassDevice) WSConnected() bool {
+    return device.wsConnected
 }
