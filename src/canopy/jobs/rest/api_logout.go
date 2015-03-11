@@ -19,7 +19,7 @@ import (
 )
 
 func GET_POST__api__logout(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
-    sideEffect.ClearCookie("logged_in_username")
+    sideEffect.Logout()
 
     out := map[string]interface{} {
         "result" : "ok",
