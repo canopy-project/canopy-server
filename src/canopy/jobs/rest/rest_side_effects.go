@@ -53,6 +53,15 @@ func (sideEffect *RestSideEffects) ClearCookie(key string) {
     sideEffect.clearCookies = append(sideEffect.clearCookies, key)
 }
 
+// Causes user logout as a side-effect during REST endpoint handling (if user
+// is authenticated with session cookie).  This does not actually log the user
+// out.
+// Equivalent to:
+//  sideEffect.ClearCookie("logged_in_username")
+func (sideEffect *RestSideEffects) Logout() {
+    sideEffect.ClearCookie("logged_in_username")
+}
+
 // Causes an email to be sent as a side-effect during REST endpoint handling.
 // This does not actually send the cookie.
 //

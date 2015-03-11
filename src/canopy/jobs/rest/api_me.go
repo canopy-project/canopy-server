@@ -15,6 +15,7 @@
 package rest
 
 import (
+    "canopy/mail/messages"
 )
 
 // Constructs the response body for the /api/me REST endpoint
@@ -67,5 +68,37 @@ func POST__api__me(info *RestRequestInfo, sideEffect *RestSideEffects) (map[stri
         "result" : "ok",
         "username" : info.Account.Username(),
         "email" : info.Account.Email(),
+    }, nil
+}
+
+// Delete current account
+// Also has side effect of logging the user out, if authenticated with session
+// cookie.
+func DELETE__api__me(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    if info.Account == nil {
+        return nil, NotLoggedInError().Log()
+    }
+
+    // Delete account
+    err := info.Conn.DeleteAccount(info.Account.Username())
+    if err != nil {
+        return nil, InternalServerError("Problem deleting account: " + err.Error()).Log()
+    }
+
+    // Send farewell email to the user
+    msg := sideEffect.SendEmail()
+    msg.AddTo(info.Account.Email(), info.Account.Username())
+    msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
+    msg.SetReplyTo("no-reply@canopy.link")
+    messages.MailMessageAccountDeleted(msg,
+        info.Account.Username(), 
+        info.Config.OptHostname(),
+    )
+
+    // Log the user out
+    sideEffect.Logout()
+
+    return map[string]interface{}{
+        "result" : "ok",
     }, nil
 }
