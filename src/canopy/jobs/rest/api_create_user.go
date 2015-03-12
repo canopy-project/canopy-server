@@ -19,7 +19,7 @@ import (
 )
 
 // Constructs the response body for the /api/create_account REST endpoint
-func ApiCreateAccountHandler(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+func ApiCreateUserHandler(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
     username, ok := info.BodyObj["username"].(string)
     if !ok {
         return nil, BadInputError("String \"username\" expected").Log()

@@ -50,8 +50,8 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys jobqueue.System) erro
     // TODO: Can we automate all this?
     r.HandleFunc("/", rootRedirectHandler).Methods("GET")
     forwardAsPigeonJob("/api/activate", "POST", "api/activate")
-    forwardAsPigeonJob("/api/create_account", "POST", "api/create_account")
     forwardAsPigeonJob("/api/create_devices", "POST", "api/create_devices")
+    forwardAsPigeonJob("/api/create_user", "POST", "api/create_user")
     forwardAsPigeonJob("/api/device/{id}", "GET", "GET:api/device/id")
     forwardAsPigeonJob("/api/device/{id}", "POST", "POST:api/device/id")
     forwardAsPigeonJob("/api/device/{id}/{var}", "GET", "api/device/id/var")
