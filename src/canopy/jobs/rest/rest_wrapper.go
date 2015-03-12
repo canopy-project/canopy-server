@@ -69,7 +69,7 @@ func parseBasicAuth(authHeader []string) (username string, password string, err 
     if len(parts) != 2 {
         return "", "", errors.New("Authentication header malformed")
     }
-    if parts[0] != "Basic" {
+    if !strings.EqualFold(parts[0], "Basic") {
         return "", "", errors.New("Expected basic authentication")
     }
     encodedVal := parts[1]
