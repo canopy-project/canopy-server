@@ -79,6 +79,15 @@ func DELETE__api__user__self(info *RestRequestInfo, sideEffect *RestSideEffects)
         return nil, NotLoggedInError().Log()
     }
 
+    skipEmail := false
+    skipEmailItf, ok := info.BodyObj["skip-email"]
+    if ok {
+        skipEmail, ok = skipEmailItf.(bool)
+        if !ok {
+            return nil, BadInputError("\"skip-email\" must be boolean").Log()
+        }
+    }
+
     // Delete account
     err := info.Conn.DeleteAccount(info.Account.Username())
     if err != nil {
@@ -86,14 +95,16 @@ func DELETE__api__user__self(info *RestRequestInfo, sideEffect *RestSideEffects)
     }
 
     // Send farewell email to the user
-    msg := sideEffect.SendEmail()
-    msg.AddTo(info.Account.Email(), info.Account.Username())
-    msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
-    msg.SetReplyTo("no-reply@canopy.link")
-    messages.MailMessageAccountDeleted(msg,
-        info.Account.Username(), 
-        info.Config.OptHostname(),
-    )
+    if !skipEmail {
+        msg := sideEffect.SendEmail()
+        msg.AddTo(info.Account.Email(), info.Account.Username())
+        msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
+        msg.SetReplyTo("no-reply@canopy.link")
+        messages.MailMessageAccountDeleted(msg,
+            info.Account.Username(), 
+            info.Config.OptHostname(),
+        )
+    }
 
     // Log the user out
     sideEffect.Logout()

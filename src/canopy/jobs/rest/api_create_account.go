@@ -35,6 +35,15 @@ func ApiCreateAccountHandler(info *RestRequestInfo, sideEffect *RestSideEffects)
         return nil, BadInputError("String \"password\" expected").Log()
     }
 
+    skipEmail := false
+    skipEmailItf, ok := info.BodyObj["skip-email"]
+    if ok {
+        skipEmail, ok = skipEmailItf.(bool)
+        if !ok {
+            return nil, BadInputError("\"skip-email\" must be boolean").Log()
+        }
+    }
+
     account, err := info.Conn.LookupAccount(username)
     if err == nil {
         // TODO: other errors could have occurred.  Do not necessarily take
@@ -66,16 +75,18 @@ func ApiCreateAccountHandler(info *RestRequestInfo, sideEffect *RestSideEffects)
             "&code=" + account.ActivationCode()
 
     // Send email
-    msg := sideEffect.SendEmail()
-    msg.AddTo(account.Email(), account.Username())
-    msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
-    msg.SetReplyTo("no-reply@canopy.link")
-    messages.MailMessageCreatedAccount(msg,
-        account.Username(), 
-        activationLink,
-        protocol + info.Config.OptHostname(),
-        info.Config.OptHostname(),
-    )
+    if !skipEmail {
+        msg := sideEffect.SendEmail()
+        msg.AddTo(account.Email(), account.Username())
+        msg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
+        msg.SetReplyTo("no-reply@canopy.link")
+        messages.MailMessageCreatedAccount(msg,
+            account.Username(), 
+            activationLink,
+            protocol + info.Config.OptHostname(),
+            info.Config.OptHostname(),
+        )
+    }
 
     out := map[string]interface{} {
         "activated" : false,
