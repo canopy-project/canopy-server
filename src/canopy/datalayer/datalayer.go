@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copyright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -140,6 +140,11 @@ type Account interface {
     // Reset password.  Like SetPassword but requires a valid Password Reset
     // Code, and invalidates <code> on success.
     ResetPassword(code, newPassword string) error
+
+    // Set email.  This also causes the account to go back to un-activated
+    // status and a new activation code is generated.  Saves changes to the
+    // database.
+    SetEmail(newEmail string) error
 
     // Set password
     SetPassword(string) error

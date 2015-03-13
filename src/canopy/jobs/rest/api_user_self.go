@@ -39,7 +39,64 @@ func POST__api__user__self(info *RestRequestInfo, sideEffect *RestSideEffects) (
     for fieldName, value := range info.BodyObj {
         switch fieldName {
         case "email":
-            return nil, InternalServerError("Changing email not implemented")
+            oldEmail := info.Account.Email()
+
+            newEmail, ok := value.(string)
+            if !ok {
+                return nil, BadInputError("Expected string \"email\"")
+            }
+
+            // If email hasn't changed, do nothing
+            if newEmail == oldEmail {
+                break
+            }
+
+            err := info.Account.SetEmail(newEmail)
+            if err != nil {
+                // TODO: finer-grained error reporting
+                return nil, InternalServerError("Problem changing email:" + err.Error())
+            }
+
+            // send email notifying user of the change.
+            skipEmail := false
+            skipEmailItf, ok := info.BodyObj["skip-email"]
+            if ok {
+                skipEmail, ok = skipEmailItf.(bool)
+                if !ok {
+                    return nil, BadInputError("\"skip-email\" must be boolean").Log()
+                }
+            }
+            if !skipEmail {
+                protocol := "http://"
+                if info.Config.OptEnableHTTPS() {
+                    protocol = "https://"
+                }
+
+                activationLink := protocol + info.Config.OptHostname() + 
+                    "/mgr/activate.html?username=" + info.Account.Username() + 
+                    "&code=" + info.Account.ActivationCode()
+
+                awayMsg := sideEffect.SendEmail()
+                awayMsg.AddTo(oldEmail, info.Account.Username())
+                awayMsg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
+                awayMsg.SetReplyTo("no-reply@canopy.link")
+                messages.MailMessageEmailChangedAway(awayMsg,
+                    info.Account.Username(), 
+                    activationLink,
+                    protocol + info.Config.OptHostname(),
+                    info.Config.OptHostname())
+
+                toMsg := sideEffect.SendEmail()
+                toMsg.AddTo(newEmail, info.Account.Username())
+                toMsg.SetFrom("no-reply@canopy.link", "Canopy Cloud Service")
+                toMsg.SetReplyTo("no-reply@canopy.link")
+                messages.MailMessageEmailChangedTo(toMsg,
+                    info.Account.Username(), 
+                    activationLink,
+                    protocol + info.Config.OptHostname(),
+                    info.Config.OptHostname())
+            }
+
         case "new_password":
             newPassword, ok := value.(string)
             if !ok {
