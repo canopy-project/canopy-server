@@ -22,36 +22,10 @@ import (
     "time"
 )
 
-func GET__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
-    // TODO: Check permissions
-    //
-    // Used for anonymous devices
-    /*deviceIdString := info.URLVars["id"]*/
-
-    /*uuid, err := gocql.ParseUUID(deviceIdString)
-    if err != nil {
-        return nil, URLNotFoundError()
-    }*/
-
-    /*device, err := info.Conn.LookupDevice(uuid)
-    if err != nil {
-        // TODO: What errors to return here?
-        return nil, InternalServerError("Device lookup failed")
-    }*/
-    /*out, err := deviceToJsonObj(info.PigeonSys, device)
-    if err != nil {
-        return nil, InternalServerError("Generating JSON")
-    }*/
-    //return out, nil
-    // TODO: Use new pigeon system
-
-    return nil, nil
-}
-
-func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
-    var device datalayer.Device
-    var err error
-
+// Lookup device by ID string in the URL.  The ID string may be a UUID or
+// "self".  Verifies that the requester has permission to access to the
+// requested device, returning an error if unathorized.
+func getDeviceByIdString(info *RestRequestInfo) (datalayer.Device, RestError) {
     deviceIdString := info.URLVars["id"]
 
     if deviceIdString == "self" {
@@ -59,7 +33,7 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
             // TODO: should be unauthorized
             return nil, BadInputError("Expected device credentials with /api/device/self").Log()
         }
-        device = info.Device
+        return info.Device, nil
     } else {
         uuid, err := gocql.ParseUUID(deviceIdString)
         if err != nil {
@@ -69,20 +43,48 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
         // TODO: support anonymous device creation
 
         if info.Account != nil {
-            device, err = info.Account.Device(uuid)
+            device, err := info.Account.Device(uuid)
             if err != nil {
                 // TODO: What errors to return here?
                 return nil, InternalServerError("Device lookup failed").Log()
             }
+            return device, nil
         } else if info.Device != nil {
             if deviceIdString != string(info.Device.IDString()) {
                 // TODO: what error to return?
+                // TODO: This should be allowed if the device has adequate
+                // permissions.
                 return nil, InternalServerError("Device mismatch").Log()
             }
-            device = info.Device
+            return info.Device, nil
         } else {
             return nil, NotLoggedInError()
         }
+    }
+}
+
+func GET__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    var err error
+
+    device, restErr := getDeviceByIdString(info)
+    if device == nil {
+        return nil, restErr
+    }
+
+    out, err := deviceToJsonObj(device)
+    if err != nil {
+        return nil, InternalServerError("Generating JSON")
+    }
+
+    return out, nil
+}
+
+func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    var err error
+
+    device, restErr := getDeviceByIdString(info)
+    if device == nil {
+        return nil, restErr
     }
 
     // Check for SDDL doc.  If it doesn't exist, then create it.
