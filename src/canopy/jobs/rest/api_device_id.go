@@ -56,6 +56,7 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
 
     if deviceIdString == "self" {
         if info.Device == nil {
+            // TODO: should be unauthorized
             return nil, BadInputError("Expected device credentials with /api/device/self").Log()
         }
         device = info.Device

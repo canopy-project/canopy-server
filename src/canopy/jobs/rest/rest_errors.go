@@ -66,7 +66,7 @@ func NewGenericRestError(statusCode int, errorType string, msg string) *GenericR
         canolog.Error("Error marshalling error response.  That's ironic.", err)
         return &GenericRestError{
             statusCode: statusCode,
-            responseBody: `{"result" : "error", "error_type" : "internal_error", "msg" : "Error encoding error response"}`,
+            responseBody: `{"result" : "error", "error_type" : "internal_error", "error_msg" : "Error encoding error response"}`,
         }
     }
     responseBody := string(jsonBytes)
@@ -82,7 +82,7 @@ func BadInputError(msg string) *GenericRestError {
 }
 
 func DatabaseConnectionError() *GenericRestError {
-    return NewGenericRestError(http.StatusInternalServerError, "db_connection_error", "")
+    return NewGenericRestError(http.StatusInternalServerError, "internal_error", "Database connection error")
 }
 
 func EmailTakenError() *GenericRestError {

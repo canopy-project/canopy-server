@@ -43,6 +43,7 @@ func ApiCreateDevicesHandler(info *RestRequestInfo, sideEffects *RestSideEffects
 
     out := map[string]interface{} {
         "result" : "ok",
+        "count" : quantity,
         "devices" : []interface{} {},
     }
 
