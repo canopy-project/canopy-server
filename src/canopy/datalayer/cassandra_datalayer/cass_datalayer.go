@@ -162,6 +162,11 @@ import (
 //      YYMMDD           83f0a...|temperature|150314     Day worth of samples
 //      YYMMDDHH         83f0a...|temperature|15031403   Hour worth of samples
 //
+//  For weekly data, we specify the first day (monday) of the week and append
+//  the letter "w":
+//
+//      YYMMDDw         83f0a...|temperature|150309w    Week worth of samples
+//
 //  Our software ensures that each bucket contains a reasonable number of
 //  samples.  For example, a YY bucket containing a Year's worth of samples may
 //  only have 1 sample/day, whereas a YYMMDD bucket containing a Day's worth of
@@ -181,6 +186,17 @@ import (
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 var creationQueries []string = []string{
+    // used for:
+    //  float32
+    `CREATE TABLE varsample_float (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value float,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
     // used for:
     //  uint8
     //  int8
