@@ -43,6 +43,8 @@ const (
     BUCKET_SIZE_MIXED,
 )
 
+
+
 type cloudVarTierEnum int
 const (
     TIER_STANDARD cloudVarTierEnum = iota
@@ -164,8 +166,34 @@ func getBucketNamesForTimeRange(start, end time.Time, bucketSize bucketSizeEnum)
     switch bucketSizeEnum
 }
 
+func stratificationBoundary(t time.Time, maxSamplingPeriod time.Duration) time.Time {
+    // TODO
+}
 
-func (device *CassDevice) insertSampleLOD(varDef sddl.VarDef, t time.Time, value interface{}) error {
+
+func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, last_insert_t, t time.Time, bucketSize bucketSizeEnum, value interface{}) error {
+    // Get the stratification boundary occuring most recently before <t>.
+    // Only insert sample if <last_insert_time> is before the stratification
+    // boundary.
+    samplingPeriod := LODSamplingPeriod(bucketSize)
+    strat_boundary_t := stratificationBoundary(t, samplingPeriod)
+    if last_insert_t < strat_boundary_t {
+        bucketName := getBucketName(t, bucketSize)
+
+        // insert sample
+        err := device.conn.session.Query(`
+                INSERT INTO varsample_float (device_id, propname, timeprefix, time, value)
+                VALUES (?, ?, ?, ?)
+        `, device.ID(), propname, t, value).Exec()
+        if err != nil {
+            return err;
+        }
+        return nil;
+    } else {
+        // discard sample
+        return nil
+    }
+}
 
 func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
     // Get the most recent update time for this variable.
@@ -174,7 +202,7 @@ func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value in
     // For each bucketSize, insert or discard sample based on our
     // stratification algorithm.
     for bucketSize=BUCKET_SIZE_HOUR; bucketSize < LAST_BUCKET_SIZE; bucketSize++ {
-        err = insertSampleLOD(varDef, lastUpdateTime, bucketSize, t, value)
+        err = insertOrDiscardSampleLOD(varDef, lastUpdateTime, bucketSize, t, value)
         if err != nil {
             // TODO: Transactionize/rollback?
             return err
@@ -292,10 +320,20 @@ func (device *CassDevice) historicDataLOD(
     return sample, nil
 }
 
+func LODSamplingPeriod(lod bucketSizeEnum) time.Duration {
+    return map[bucketSizeEnum]time.Duration {
+        BUCKET_SIZE_HOUR: 5*time.SECOND,
+        BUCKET_SIZE_DAY: 2*time.MINUTE,
+        BUCKET_SIZE_WEEK: 15*time.MINUTE,
+        BUCKET_SIZE_MONTH: 1*time.HOUR,
+        BUCKET_SIZE_YEAR: 12*time.HOUR
+    }[lod]
+}
+
 // For a given bucket size, we store several buckets of that size depending on
 // the Cloud Variable's upgrade tier.  This returns the time duration spanned
 // by the buckets of a particular size, given the upgrade tier.
-func cloudVarLODDuration(loudVarTierEnum, lod bucketSizeEnum) time.Duration {
+func cloudVarLODDuration(cloudVarTierEnum, lod bucketSizeEnum) time.Duration {
     type LODTier struct {
         lod bucketSizeEnum
         tier cloudVarTierEnum
@@ -320,7 +358,7 @@ func cloudVarLODDuration(loudVarTierEnum, lod bucketSizeEnum) time.Duration {
         LODTier{BUCKET_SIZE_YEAR, TIER_STANDARD}: 365*31*24*time.HOUR,
         LODTier{BUCKET_SIZE_YEAR, TIER_ENHANCED}: 4*365*24*time.HOUR,
         LODTier{BUCKET_SIZE_YEAR, TIER_ULTRA}: 4*365*24*time.HOUR,
-    }
+    }[cloudVarTierEnum, lod]
 }
 
 func (device *CassDevice) HistoricData(
