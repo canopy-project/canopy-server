@@ -383,3 +383,10 @@ func (device *CassDevice) HistoricData(
     // Fetch the data from that LOD
     return historicDataLOD(varDef, startTime, endTime time.Time, bucketSize)
 }
+
+
+// Remove old buckets for a single cloud variable
+func garbageCollect(varDef sddl.VarDef) {
+    // For each bucketSize, did we cross a threshold since last sample?
+    // If so, cleanup older buckets.
+}
