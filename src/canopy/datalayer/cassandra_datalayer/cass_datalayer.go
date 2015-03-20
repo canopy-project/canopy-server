@@ -244,6 +244,7 @@ var creationQueries []string = []string{
         device_id uuid,
         secret_key text,
         friendly_name text,
+        location_note text,
         sddl text,
         public_access_level int,
         last_seen timestamp,

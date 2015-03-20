@@ -190,6 +190,7 @@ func (conn *CassConnection) CreateDevice(
         doc: sddl.Sys.NewEmptyDocument(),
         docString: "",
         publicAccessLevel: publicAccessLevel,
+        locationNote: "",
         wsConnected: false,
     }, nil
 }
@@ -328,11 +329,12 @@ func (conn *CassConnection) LookupDevice(
     var ws_connected bool
 
     err := conn.session.Query(`
-        SELECT friendly_name, secret_key, sddl, last_seen, ws_connected
+        SELECT friendly_name, location_note, secret_key, sddl, last_seen, ws_connected
         FROM devices
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
+            &device.locationNote,
             &device.secretKey,
             &device.docString,
             &last_seen,

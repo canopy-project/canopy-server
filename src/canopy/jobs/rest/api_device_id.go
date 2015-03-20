@@ -104,13 +104,13 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
     // Parse payload
     for fieldName, value := range info.BodyObj {
         switch fieldName {
-        case "__friendly_name":
+        case "friendly_name":
             friendlyName, ok := value.(string)
             if !ok {
                 continue;
             }
             device.SetName(friendlyName);
-        case "__location_note":
+        case "location_note":
             locationNote, ok := value.(string)
             if !ok {
                 continue;
