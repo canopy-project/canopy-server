@@ -90,13 +90,13 @@ import (
 //  ULTRA               LOD_5   16 years after Bucket End       17
 //
 //
-// A "stratifictation approach" is used to generate low resolution data.  Our
+// A "stratifictation technique" is used to generate low resolution data.  Our
 // approach breaks time up into calendar-aligned chunks (conceptually similar
 // to the way we generate buckets).  Each chunk may contain at most a single
 // data sample.  Further data samples that fall in the same chunk are
 // discarded.  This approach gives us a (more-or-less) evenly-spaced
 // downsampling of the input signal, while also making it easy to determine
-// whether to keep or discard a sample.
+// whether to keep or discard particular samples.
 //
 //  LOD         STRATIFICATION PERIOD
 //  ------------------------------
@@ -123,6 +123,7 @@ const (
 type bucketSizeEnum int
 const (
     BUCKET_SIZE_INVALID bucketSizeEnum = iota,
+    BUCKET_SIZE_15MIN,  // Bucket contains 15 minutes worth of samples
     BUCKET_SIZE_HOUR,   // Bucket contains 1 hour's worth of samples
     BUCKET_SIZE_DAY,    // Bucket contains 1 day's worth of samples
     BUCKET_SIZE_WEEK,   // Bucket contains 1 week's worth of samples
@@ -135,13 +136,104 @@ const (
 )
 
 
+const lodBucketSize = map[lodEnum]bucketSizeEnum{
+    LOD_0: BUCKET_SIZE_15MIN,
+    LOD_1: BUCKET_SIZE_HOUR,
+    LOD_2: BUCKET_SIZE_DAY,
+    LOD_3: BUCKET_SIZE_WEEK,
+    LOD_4: BUCKET_SIZE_MONTH,
+    LOD_5: BUCKET_SIZE_YEAR,
+}
 
-type cloudVarTierEnum int
+// stratificationSize describes the "size" (i.e. time duration) of a stratification
+// chunk (which may contain at most 1 sample).
+type stratificationSize int
 const (
-    TIER_STANDARD cloudVarTierEnum = iota
+    STRATIFICATION_SIZE_INVALID stratificationSizeEnum = iota,
+    STRATIFICATION_1_SEC,              // Store at most 1 sample / 1 sec.
+    STRATIFICATION_5_SEC,              // Store at most 1 sample / 5 sec.
+    STRATIFICATION_2_MIN,              // Store at most 1 sample / 2 min.
+    STRATIFICATION_15_MIN,             // Store at most 1 sample / 15 min.
+    STRATIFICATION_1_HOUR,             // Store at most 1 sample / hour.
+    STRATIFICATION_12_HOUR,            // Store at most 1 sample / hour.
+    STRATIFICATION_END,
+)
+
+type storageTierEnum int
+const (
+    TIER_STANDARD storageTierEnum = iota
     TIER_ENHANCED // Extra data storage
     TIER_ULTRA  // Even more data storage
 )
+
+const lodStratificationSize = map[lodEnum]stratificationSize{
+    LOD_0: STRATIFICATION_1_SEC,
+    LOD_1: STRATIFICATION_5_SEC,
+    LOD_2: STRATIFICATION_2_MIN,
+    LOD_3: STRATIFICATION_15_MIN,
+    LOD_4: STRATIFICATION_1_HOUR,
+    LOD_5: STRATIFICATION_12_HOUR,
+}
+
+type bucketStruct struct {
+    lod lodEnum
+    startTime time.Time
+}
+
+func (bucket bucketStruct)LOD() lodEnum {
+    return bucket.lod
+}
+
+func (bucket bucketStruct)BucketSize() bucketSizeEnum {
+    return lodBucketSize[bucket.lod]
+}
+
+func (bucket bucketStruct)StartTime() time.Time {
+    return bucket.startTime
+}
+
+func (bucket bucketStruct)EndTime() time.Time {
+    return incTimeByBucketSize(bucket.startTime, bucket.BucketSize())
+}
+
+func (bucket bucketStruct)Prev() Bucket {
+    t := decTimeByBucketSize(bucket.startTime, bucket.BucketSize())
+    return getBucket(t, bucket.BucketSize())
+}
+
+func (bucket bucketStruct)Next() Bucket {
+    return getBucket(bucket.EndTime(), bucket.BucketSize())
+}
+
+func (bucket bucketStruct)Name() string {
+    t := bucket.StartTime()
+    switch bucket.BucketSize() {
+        case BUCKET_SIZE_HOUR:
+            return fmt.Sprintf("%2d%2d%2d%2d",
+                    t.Year() % 100,
+                    t.Month(),
+                    t.Day(),
+                    t.Hour())
+        case BUCKET_SIZE_DAY:
+            return fmt.Sprintf("%2d%2d%2d", t.Year() % 100, t.Month(), t.Day())
+        case BUCKET_SIZE_WEEK:
+            return fmt.Sprintf("%2d%2d%2dw", t.Year() % 100, t.Month(), t.Day())
+        case BUCKET_SIZE_MONTH:
+            return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
+        case BUCKET_SIZE_YEAR:
+            return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
+        default:
+            panic("Problemo")
+}
+
+func getBucket(t time.Time, lod lodEnum) bucket {
+    bucketSize := lodBucketSize[lod]
+    startTime := roundTimeToBucketStart(t, bucketSize)
+    return bucketStruct{
+        lod: lod
+        startTime: startTime
+    }
+}
 
 // Get the bucket name based on time and bucket size.
 func getBucketName(t time.Time, bucketSize bucketSizeEnum) string {
