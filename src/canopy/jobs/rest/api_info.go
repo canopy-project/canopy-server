@@ -15,13 +15,18 @@
 package rest
 
 import (
+    canotime "canopy/util/time"
+    "time"
 )
 
 // Constructs the response body for the /api/info REST endpoint
 func GET__api__info(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    t := time.Now().UTC()
     return map[string]interface{}{
         "config" : info.Config.ToJsonObject(),
         "result" : "ok",
+        "clock_us" : canotime.EpochMicroseconds(t),
+        "clock_utc" : canotime.RFC3339(t),
         "service-name" : "Canopy Cloud Service",
         "version" : "0.9.2-beta",
     }, nil
