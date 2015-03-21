@@ -24,8 +24,99 @@ import (
     "github.com/gocql/gocql"
 )
 
-struct lodTier {
-}
+// Canopy stores cloud variable timeseries data at multiple resolutions.  This
+// approach keeps data storage under control and allows fast data lookup over
+// any time period.  High res data is stored for short durations,
+// whereas low res data is stored for longer durations.  The different
+// resolutions are achieved by discarding fewer or more samples.
+//
+// The LOD (Level of Detail) is an integer. 0=highest resolution with shortest
+// duration, 5=lowest resolution with longest duration.
+//
+// Internally, samples are collected in "buckets".  The LOD determines the
+// "bucket size" which is the time duration that a bucket represents:
+//
+//  LOD         BUCKET SIZE
+//  ------------------------------
+//  LOD_0       15 minute
+//  LOD_1       1 hour
+//  LOD_2       1 day
+//  LOD_3       1 week
+//  LOD_4       1 month
+//  LOD_5       1 year
+//
+// For each LOD, buckets are created aligned to the calendar.  Here are some
+// example buckets:
+//
+//  EXAMPLE BUCKETS:
+//  LOD    Bucket Start         Bucket End (exclusive)   Bucket Duration
+//  ------------------------------------------------------------------------
+//  LOD_0  2015-04-03 10:15     2015-04-03 10:30         15 min
+//  LOD_0  2015-04-03 10:30     2015-04-03 10:45         15 min
+//  LOD_1  2015-04-03 10:00     2015-04-03 11:00         1 hour
+//  LOD_2  2015-04-03           2015-04-04               1 day
+//  LOD_4  2015-04              2015-05                  1 month
+//  LOD_5  2015                 2016                     1 year
+//
+// A sample may appear in multiple buckets.  For example, a data sample that
+// occurred at "2015-04-03 10:22:43" may end up in several of the above
+// buckets.
+//
+// A garbage collection mechanism deletes old buckets once they have expired.
+// The time until a bucket expired is determined by both the LOD and the cloud
+// variable's "storage tier".
+//
+//  STORAGE TIER        LOD     EXPIRATION           MAX ACTIVE BUCKETS FOR LOD
+//  ------------------------------------------------------------------------
+//  STANDARD            LOD_0   15 min after Bucket End         2
+//  STANDARD            LOD_1   1 hour after Bucket End         2
+//  STANDARD            LOD_2   1 day after Bucket End          2
+//  STANDARD            LOD_3   1 week after Bucket End         2
+//  STANDARD            LOD_4   1 month after Bucket End        2
+//  STANDARD            LOD_5   1 year after Bucket End         2
+//  
+//  DELUXE              LOD_0   1 hour after Bucket End         5
+//  DELUXE              LOD_1   1 day after Bucket End          25
+//  DELUXE              LOD_2   1 week after Bucket End         8
+//  DELUXE              LOD_3   1 month after Bucket End        5
+//  DELUXE              LOD_4   1 year after Bucket End         13
+//  DELUXE              LOD_5   4 years after Bucket End        5
+//
+//  ULTRA               LOD_0   1 day after Bucket End          97
+//  ULTRA               LOD_1   1 week after Bucket End         169
+//  ULTRA               LOD_2   1 month after Bucket End        31
+//  ULTRA               LOD_3   1 year after Bucket End         53
+//  ULTRA               LOD_4   4 years after Bucket End        49
+//  ULTRA               LOD_5   16 years after Bucket End       17
+//
+//
+// A "stratifictation approach" is used to generate low resolution data.  Our
+// approach breaks time up into calendar-aligned chunks (conceptually similar
+// to the way we generate buckets).  Each chunk may contain at most a single
+// data sample.  Further data samples that fall in the same chunk are
+// discarded.  This approach gives us a (more-or-less) evenly-spaced
+// downsampling of the input signal, while also making it easy to determine
+// whether to keep or discard a sample.
+//
+//  LOD         STRATIFICATION PERIOD
+//  ------------------------------
+//  LOD_0       1 sec
+//  LOD_1       5 sec
+//  LOD_2       2 min
+//  LOD_3       15 min
+//  LOD_4       1 hour
+//  LOD_5       12 hour
+
+type lodEnum int
+const (
+    LOD_0 lodEnum = iota,
+    LOD_1,
+    LOD_2,
+    LOD_3,
+    LOD_4,
+    LOD_5,
+    LOD_END,
+)
 
 // bucketSizeEnum describes the "size" (i.e. time duration) of a bucket of
 // samples.
