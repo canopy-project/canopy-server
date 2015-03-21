@@ -384,9 +384,25 @@ func (device *CassDevice) HistoricData(
     return historicDataLOD(varDef, startTime, endTime time.Time, bucketSize)
 }
 
+func crossedBucketThreshold(t0, t1 time.Time, bucketSize bucketSizeEnum) bool {
+    bucket0 := getBucketName(t0, bucketSize)
+    bucket1 := getBucketName(t1, bucketSize)
+    return bucket0 != bucket1
+}
 
 // Remove old buckets for a single cloud variable
 func garbageCollect(varDef sddl.VarDef) {
     // For each bucketSize, did we cross a threshold since last sample?
     // If so, cleanup older buckets.
+
+    var bucketSize bucketSizeEnum
+    for bucketSize=BUCKET_SIZE_HOUR; bucketSize<LAST_BUCKET_SIZE; bucketSize++ {
+        lastSampleBucket := getBucketName(prev_t, bucketSize)
+        curSampleBucket := getBucketName(cur_t bucketSize)
+        if lastSampleBucket != curSampleBucket {
+        }
+
+    func getBucketName(t time.Time, bucketSize bucketSizeEnum) string {
+        }
+    }
 }

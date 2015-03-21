@@ -24,6 +24,7 @@ import (
     "github.com/gocql/gocql"
 )
 
+
 //
 // Cassandra stores data in column families (aka tables).  Each column family
 // (table) has multiple rows.  Each row has a row key.  Each row also has an
@@ -186,6 +187,16 @@ import (
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 var creationQueries []string = []string{
+    // Keeps track for which buckets have been created for use by garbage
+    // collector.
+    `CREATE TABLE sample_buckets (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        endtime timestamp,
+        PRIMARY KEY((device_id, propname))
+    ) WITH COMPACT STORAGE`,
+
     // used for:
     //  float32
     `CREATE TABLE varsample_float (
