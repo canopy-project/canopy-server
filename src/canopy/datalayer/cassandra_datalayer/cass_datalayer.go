@@ -202,7 +202,7 @@ var creationQueries []string = []string{
         var_name text,
         lod int
         timeprefix text,
-        expire_time timestamp,
+        endtime timestamp,
         PRIMARY KEY((device_id, propname, lod), timeprefix)
     ) WITH COMPACT STORAGE`,
 

@@ -354,8 +354,9 @@ func (device *CassDevice)addBucket(varName string, bucket *bucketStruct) error {
             SET endtime = ?
             WHERE device_id = ?
                 AND var_name = ?
+                AND lod = ?
                 AND timeprefix = ?
-    `, bucket.EndTime(), device.ID(), varName, bucket.Name).Consistency(gocql.One).Exec()
+    `, bucket.EndTime(), device.ID(), varName, bucket.LOD(), bucket.Name()).Consistency(gocql.One).Exec()
 
     if err != nil {
         return err
@@ -394,7 +395,7 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
             canolog.Error("Error adding sample bucket: ", err)
             // don't return!  We need to do garbage collection!
         }
-        garbageCollectLOD(varDef, lod)
+        device.garbageCollectLOD(t, varDef, lod)
     }
 }
 
@@ -579,32 +580,36 @@ func LODSamplingPeriod(lod bucketSizeEnum) time.Duration {
 // For a given bucket size, we store several buckets of that size depending on
 // the Cloud Variable's upgrade tier.  This returns the time duration spanned
 // by the buckets of a particular size, given the upgrade tier.
-func cloudVarLODDuration(cloudVarTierEnum, lod bucketSizeEnum) time.Duration {
+func cloudVarLODDuration(tier cloudVarTierEnum, lod lodEnum) time.Duration {
     type LODTier struct {
-        lod bucketSizeEnum
+        lod lodEnum
         tier cloudVarTierEnum
     }
     return map[LODTier]time.Duration {
-        LODTier{BUCKET_SIZE_HOUR, TIER_STANDARD}: time.HOUR,
-        LODTier{BUCKET_SIZE_HOUR, TIER_ENHANCED}: 24*time.HOUR,
-        LODTier{BUCKET_SIZE_HOUR, TIER_ULTRA}: 7*24*time.HOUR,
+        LODTier{LOD_0, TIER_STANDARD}: 15*time.MINUTE,
+        LODTier{LOD_0, TIER_ENHANCED}: time.HOUR,
+        LODTier{LOD_0, TIER_ULTRA}: 24*time.HOUR,
 
-        LODTier{BUCKET_SIZE_DAY, TIER_STANDARD}: 7*time.HOUR,
-        LODTier{BUCKET_SIZE_DAY, TIER_ENHANCED}: 7*24*time.HOUR,
-        LODTier{BUCKET_SIZE_DAY, TIER_ULTRA}: 31*24*time.HOUR, // TBD
+        LODTier{LOD_1, TIER_STANDARD}: time.HOUR,
+        LODTier{LOD_1, TIER_ENHANCED}: 24*time.HOUR,
+        LODTier{LOD_1, TIER_ULTRA}: 7*24*time.HOUR,
 
-        LODTier{BUCKET_SIZE_WEEK, TIER_STANDARD}: 7*24*time.HOUR,
-        LODTier{BUCKET_SIZE_WEEK, TIER_ENHANCED}: 31*24*time.HOUR, // TBD
-        LODTier{BUCKET_SIZE_WEEK, TIER_ULTRA}: 365*24*time.HOUR,
+        LODTier{LOD_2, TIER_STANDARD}: 7*time.HOUR,
+        LODTier{LOD_2, TIER_ENHANCED}: 7*24*time.HOUR,
+        LODTier{LOD_2, TIER_ULTRA}: 31*24*time.HOUR, // TBD
 
-        LODTier{BUCKET_SIZE_MONTH, TIER_STANDARD}: 31*24*time.HOUR, // TBD
-        LODTier{BUCKET_SIZE_MONTH, TIER_ENHANCED}: 365*24*time.HOUR,
-        LODTier{BUCKET_SIZE_MONTH, TIER_ULTRA}: 4*365*24*time.HOUR,
+        LODTier{LOD_3, TIER_STANDARD}: 7*24*time.HOUR,
+        LODTier{LOD_3, TIER_ENHANCED}: 31*24*time.HOUR, // TBD
+        LODTier{LOD_3, TIER_ULTRA}: 365*24*time.HOUR,
 
-        LODTier{BUCKET_SIZE_YEAR, TIER_STANDARD}: 365*31*24*time.HOUR,
-        LODTier{BUCKET_SIZE_YEAR, TIER_ENHANCED}: 4*365*24*time.HOUR,
-        LODTier{BUCKET_SIZE_YEAR, TIER_ULTRA}: 4*365*24*time.HOUR,
-    }[cloudVarTierEnum, lod]
+        LODTier{LOD_4, TIER_STANDARD}: 31*24*time.HOUR, // TBD
+        LODTier{LOD_4, TIER_ENHANCED}: 365*24*time.HOUR,
+        LODTier{LOD_4, TIER_ULTRA}: 4*365*24*time.HOUR,
+
+        LODTier{LOD_5, TIER_STANDARD}: 365*31*24*time.HOUR,
+        LODTier{LOD_5, TIER_ENHANCED}: 4*365*24*time.HOUR,
+        LODTier{LOD_5, TIER_ULTRA}: 4*365*24*time.HOUR,
+    }[lod, tier]
 }
 
 func (device *CassDevice) HistoricData(
@@ -636,12 +641,19 @@ func crossedBucketThreshold(t0, t1 time.Time, bucketSize bucketSizeEnum) bool {
     return bucket0 != bucket1
 }
 
+func bucketExpired(curTime, endTime time.Time, tier cloudVarTierEnum, lod lodEnum) bool {
+    // # amount of time after endTime that a bucket should stick around
+    ttl := cloudVarLODDuration(tier, lod)
+    expireTime := endTime.Add(ttl)
+    return expireTime.Before(curTime)
+}
+
 // Remove old buckets for a single cloud variable and LOD
 func (device *CassDevice)garbageCollectLOD(curTime time.Time, varDef sddl.VarDef, lod lodEnum) {
     // Get list of expired buckets for that LOD
     // TODO: error checking
     err := conn.session.Query(`
-            SELECT timeprefix, expire_time
+            SELECT timeprefix, endtime
             FROM var_buckets
             WHERE device_id = ?
                 AND var_name = ?
@@ -650,9 +662,11 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time, varDef sddl.VarDef
     iter := query.Iter()
     bucketsToRemove := []string{}
     var bucketName string
-    var expireTime time.Time
-    for iter.Scan(&bucketName, &expireTime) {
-        if expireTime.Before(curTime) {
+    var endtime time.Time
+    for iter.Scan(&bucketName, &endtime) {
+        // determine expiration time
+        // TODO: Handle tiers
+        if bucketExpired(curTime, endTime, TIER_STANDARD, lod)
             bucketsToRemove = append(bucketsToRemove, bucketName)
         }
     }
