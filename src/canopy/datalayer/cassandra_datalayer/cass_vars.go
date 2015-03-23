@@ -26,9 +26,9 @@ import (
 
 // Canopy stores cloud variable timeseries data at multiple resolutions.  This
 // approach keeps data storage under control and allows fast data lookup over
-// any time period.  High res data is stored for short durations,
-// whereas low res data is stored for longer durations.  The different
-// resolutions are achieved by discarding fewer or more samples.
+// any time period.  High res data is stored for short durations, whereas low
+// res data is stored for longer durations.  The different resolutions are
+// achieved by discarding fewer or more samples.
 //
 // The LOD (Level of Detail) is an integer. 0=highest resolution with shortest
 // duration, 5=lowest resolution with longest duration.
@@ -271,8 +271,7 @@ func roundTimeToBucketStart(t time.Time, bucketSize bucketSizeEnum) time.Time {
     return t
 }
 
-// Increment a rounded time by 1 bucket size
-// into.
+// Increment a rounded time by 1 bucket size into.
 func incTimeByBucketSize(t time.Time, bucketSize bucketSizeEnum) time.Time {
     switch bucketSize {
         case BUCKET_SIZE_HOUR:
@@ -300,36 +299,20 @@ func crossesBucketBoundary(t0, t1 time.Time, bucketSize bucketSizeEnum) {
     return !t0.Equal(t1)
 }
 
-// Get list of bucket names that span the <start> and <end> time.  If <end> is
-// the zero value, then time.UTCNow() is used.  <bucketSize> determines the size of the
-// buckets to return.
-func getBucketNamesForTimeRange(start, end time.Time, bucketSize bucketSizeEnum) []string {
+// Get list of buckets that span the <start> and <end> time.
+// If <end> is zero value, then time.UTCNow() is used.
+func getBucketsForTimeRange(start, end time.Time, lod lodEnum) []bucketStruct {
     if time.IsZero(end) {
         end = time.UTCNow()
     }
 
-    out := []string{}
-
-    // truncate <start> based on bucketSize
-
-    switch bucketSize {
-    case BUCKET_SIZE_HOUR:
-        rangeStart := start.Truncate(time.Hour)
-        rangeEnd := end.Truncate(time.Hour).Add(time.Hour)
-    case BUCKET_SIZE_DAY:
-        rangeStart := time.Date(start.Year(), start.Month(), start.Day(), 0, 0, 0, 0, time.UTC)
-        rangeEnd := time.Date(end.Year(), end.Month(), end.Day(), 0, 0, 0, 0, time.UTC).AddDate(0, 0, 1)
-    case BUCKET_SIZE_WEEK:
-        rangeEnd := start.AddDate(0, 0, 7)
-    case BUCKET_SIZE_MONTH:
-        rangeEnd := start.AddDate(0, 1, 0)
+    out := []bucketStruct{}
+    startBucket := getBucket(start, lod)
+    for bucket := startBucket; bucket.EndTime().Before(end); bucket = bucket.Next() {
+        out = append(out, bucket)
     }
 
-    for t := start; t.Before(rangeEnd){
-        switch 
-        out = out.append(
-    }
-    switch bucketSizeEnum
+    return out
 }
 
 func stratificationBoundary(t time.Time, period time.Duration) time.Time {
@@ -551,15 +534,15 @@ func (device *CassDevice) historicDataLOD(
     varDef sddl.VarDef, 
     startTime, 
     endTime time.Time,
-    bucketSize bucketSizeEnum) ([]cloudvar.CloudVarSample, error) {
+    lod lodEnum) ([]cloudvar.CloudVarSample, error) {
 
     samples := []cloudvar.CloudVarSample{}
 
     // Get list of all buckets containing samples we are interested in.
     // TODO: This could happen in parallel w/ map-reduce-like algo
-    bucketNames = getBucketNamesForTimeRange(start, end time.Time, bucketSize)
-    for _, bucketName := range bucketNames {
-        err := fetchAndAppendBucketSamples(samples, device.conn, startTime, endTime, bucketName)
+    buckets = getBucketsForTimeRange(start, end, lod)
+    for _, bucket := range buckets {
+        err := fetchAndAppendBucketSamples(samples, device.conn, startTime, endTime, bucket.Name())
         if err != nil {
             return []cloudvar.CloudVarSample{}, err
         }
