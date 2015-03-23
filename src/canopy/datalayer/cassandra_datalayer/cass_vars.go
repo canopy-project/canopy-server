@@ -294,7 +294,7 @@ func incTimeByBucketSize(t time.Time, bucketSize bucketSizeEnum) time.Time {
 }
 
 // Returns True if t0 and t1 are in different buckets (for given bucketSize)
-func crossedBoundary(t0, t1 time.Time, bucketSize bucketSizeEnum) {
+func crossesBucketBoundary(t0, t1 time.Time, bucketSize bucketSizeEnum) {
     t0 = roundTimeToBucketStart(t0, bucketSize)
     t1 = roundTimeToBucketStart(t1, bucketSize)
     return !t0.Equal(t1)
@@ -332,41 +332,69 @@ func getBucketNamesForTimeRange(start, end time.Time, bucketSize bucketSizeEnum)
     switch bucketSizeEnum
 }
 
-func stratificationBoundary(t time.Time, maxSamplingPeriod time.Duration) time.Time {
-    switch stratifictation
+func stratificationBoundary(t time.Time, period time.Duration) time.Time {
+    secsSinceEpoch := t.Unix()
+    periodSecs := period/time.SECOND
+    // Round down to nearest stratification
+    boundarySecsSinceEpoch := secsSinceEpoch - (secsSinceEpoch % periodSecs)
+    return time.Unix(boundarySecsSinceEpoch)
 }
 
 func crossesStratificationBoundary(t0, t1 time.Time, 
-        period stratificationPeriod) bool {
-
-kjbb
+        stratification stratificationSize) bool {
+    period := stratificationPeriod[stratificationSize]
+    sb0 := stratificationBoundary(t0, period)
+    sb1 := stratificationBoundary(t1, period)
+    return !sb0.Equal(sb1)
 }
 
-func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, 
-        lastUpdateTime, 
+func (device *CassDevice)addBucket(varName string, bucket *bucketStruct) error {
+    err := device.conn.session.Query(`
+            UPDATE var_buckets
+            SET endtime = ?
+            WHERE device_id = ?
+                AND var_name = ?
+                AND timeprefix = ?
+    `, bucket.EndTime(), device.ID(), varName, bucket.Name).Consistency(gocql.One).Exec()
+
+    if err != nil {
+        return err
+    }
+}
+
+func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdateTime, 
         t time.Time, 
         lod lodEnum, 
         value interface{}) error {
 
-    // Get the stratification boundary occuring most recently before <t>.
-    // Only insert sample if <last_insert_time> is before the stratification
-    // boundary.
-    strat_boundary_t := stratificationBoundary(t, lodStratificationSize[lod])
-    if lastUpdateTime < strat_boundary_t {
-        bucketName := getBucket(t, lod).Name()
-
-        // insert sample
-        err := device.conn.session.Query(`
-                INSERT INTO varsample_float (device_id, propname, timeprefix, time, value)
-                VALUES (?, ?, ?, ?, ?)
-        `, device.ID(), propname, bucketName, t, value).Exec()
-        if err != nil {
-            return err;
-        }
-        return nil;
-    } else {
+    // Discard sample if it doesn't cross a stratification boundary
+    stratificationSize := lodStratificationSize[lod]
+    if !crossesStratificationBoundary(t0, t1, stratificationSize) {
         // discard sample
         return nil
+    }
+
+    // insert sample
+    bucket := getBucket(t, lod)
+    propname := varDev.Name()
+    err := device.conn.session.Query(`
+            INSERT INTO varsample_float (device_id, propname, timeprefix, time, value)
+            VALUES (?, ?, ?, ?, ?)
+    `, device.ID(), propname, bucket.Name(), t, value).Exec()
+    if err != nil {
+        return err;
+    }
+
+    // Track new bucket (if any) for garbage collection purposes.
+    // And garbage collect.
+    bucketSize := lodBucketSize[lod]
+    if crossesBucketBoundary(t0, t1, bucketSize) {
+        err := addBucket(propname, bucket)
+        if err != nil {
+            canolog.Error("Error adding sample bucket: ", err)
+            // don't return!  We need to do garbage collection!
+        }
+        garbageCollectLOD(varDef, lod)
     }
 }
 
@@ -624,8 +652,3 @@ func garbageCollect(varDef sddl.VarDef) {
         }
     }
 }
-
-
-
-//
-// All samples -> Tier0

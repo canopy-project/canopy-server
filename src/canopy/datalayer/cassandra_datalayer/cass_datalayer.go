@@ -195,14 +195,14 @@ var creationQueries []string = []string{
         PRIMARY KEY(device_id, var_name)
     ) WITH COMPACT STORAGE`,
 
-    // Keeps track for which buckets have been created for use by garbage
+    // Keeps track of which buckets have been created for use by garbage
     // collector.
-    `CREATE TABLE var_lastupdatetime (
+    `CREATE TABLE var_buckets (
         device_id uuid,
         propname text,
         timeprefix text,
         endtime timestamp,
-        PRIMARY KEY((device_id, propname))
+        PRIMARY KEY((device_id, propname), timeprefix)
     ) WITH COMPACT STORAGE`,
 
     // used for:
