@@ -199,10 +199,11 @@ var creationQueries []string = []string{
     // collector.
     `CREATE TABLE var_buckets (
         device_id uuid,
-        propname text,
+        var_name text,
+        lod int
         timeprefix text,
-        endtime timestamp,
-        PRIMARY KEY((device_id, propname), timeprefix)
+        expire_time timestamp,
+        PRIMARY KEY((device_id, propname, lod), timeprefix)
     ) WITH COMPACT STORAGE`,
 
     // used for:

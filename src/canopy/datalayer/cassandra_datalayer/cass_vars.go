@@ -636,19 +636,58 @@ func crossedBucketThreshold(t0, t1 time.Time, bucketSize bucketSizeEnum) bool {
     return bucket0 != bucket1
 }
 
+// Remove old buckets for a single cloud variable and LOD
+func (device *CassDevice)garbageCollectLOD(curTime time.Time, varDef sddl.VarDef, lod lodEnum) {
+    // Get list of expired buckets for that LOD
+    // TODO: error checking
+    err := conn.session.Query(`
+            SELECT timeprefix, expire_time
+            FROM var_buckets
+            WHERE device_id = ?
+                AND var_name = ?
+                AND lod = ?
+    `, device.ID(), varName, lod).Consistency(gocql.One)
+    iter := query.Iter()
+    bucketsToRemove := []string{}
+    var bucketName string
+    var expireTime time.Time
+    for iter.Scan(&bucketName, &expireTime) {
+        if expireTime.Before(curTime) {
+            bucketsToRemove = append(bucketsToRemove, bucketName)
+        }
+    }
+
+    // Remove buckets
+    for _ bucketName := range bucketsToRemove {
+        // TODO: generalize to other datatypes
+        err := conn.session.Query(`
+                DELETE FROM varsample_float
+                WHERE device_id = ?
+                    AND propname = ?
+                    AND timeprefix = ?
+        `, device.ID(), varName, bucketName).Consistency(gocql.One).Exec()
+        if err != nil {
+            canolog.Error("Problem deleting bucket ", device_id, propname, bucketName)
+        } else {
+            // Cleanup var_buckets table, but only if we actually deleted the
+            // bucket in the previous step
+            err := conn.session.Query(`
+                DELETE FROM var_buckets
+                WHERE device_id = ?
+                    AND var_name = ?
+                    AND lod = ?
+                    AND timeprefix = ?
+            `, device.ID(), varName, lod, bucketName)
+            if err != nil {
+                canolog.Error("Problem cleaning var_buckets ", device_id, propname, bucketName)
+            }
+        }
+    }
+}
+
 // Remove old buckets for a single cloud variable
-func garbageCollect(varDef sddl.VarDef) {
-    // For each bucketSize, did we cross a threshold since last sample?
-    // If so, cleanup older buckets.
-
-    var bucketSize bucketSizeEnum
-    for bucketSize=BUCKET_SIZE_HOUR; bucketSize<LAST_BUCKET_SIZE; bucketSize++ {
-        lastSampleBucket := getBucketName(prev_t, bucketSize)
-        curSampleBucket := getBucketName(cur_t bucketSize)
-        if lastSampleBucket != curSampleBucket {
-        }
-
-    func getBucketName(t time.Time, bucketSize bucketSizeEnum) string {
-        }
+func (device *CassDevice)garbageCollect(curTime time.Time, varDef sddl.VarDef) {
+    for lod := LOD_0; lod < LOD_END; LOD++ {
+        device.garbageCollectLOD(curTime, varDef, lod)
     }
 }
