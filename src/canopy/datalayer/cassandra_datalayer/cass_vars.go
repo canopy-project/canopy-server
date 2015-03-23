@@ -175,6 +175,19 @@ const lodStratificationSize = map[lodEnum]stratificationSize{
     LOD_5: STRATIFICATION_12_HOUR,
 }
 
+const stratificationPeriod = map[stratificationSizeEnum]time.Duration {
+        STRATIFICATION_1_SEC: time.SECOND,
+        STRATIFICATION_5_SEC: 5*time.SECOND,
+        STRATIFICATION_2_MIN: 2*time.MINUTE,
+        STRATIFICATION_15_MIN: 15*time.MINUTE,
+        STRATIFICATION_1_HOUR: 1*time.HOUR,
+        STRATIFICATION_12_HOUR: 12*time.HOUR
+}
+
+func lodStratificationPeriod(lod lodEnum) {
+    return stratificationPeriod[lodStratificationSize[lod]]
+}
+
 type bucketStruct struct {
     lod lodEnum
     startTime time.Time
@@ -232,36 +245,6 @@ func getBucket(t time.Time, lod lodEnum) bucket {
     return bucketStruct{
         lod: lod
         startTime: startTime
-    }
-}
-
-// Get the bucket name based on time and bucket size.
-func getBucketName(t time.Time, bucketSize bucketSizeEnum) string {
-    switch bucketSize {
-        case BUCKET_SIZE_HOUR:
-            t = t.Truncate(time.Hour)
-            return fmt.Sprintf("%2d%2d%2d%2d",
-                    t.Year() % 100,
-                    t.Month(),
-                    t.Day(),
-                    t.Hour())
-        case BUCKET_SIZE_DAY:
-            t = t.Truncate(time.Hour)
-            return fmt.Sprintf("%2d%2d%2d", t.Year() % 100, t.Month(), t.Day())
-        case BUCKET_SIZE_WEEK:
-            // Rewind to Sunday
-            dayOfWeek := t.Weekday()
-            t = t.Add(-dayOfWeek*24*time.HOUR)
-            t = t.Truncate(time.Hour)
-            return fmt.Sprintf("%2d%2d%2dw", t.Year() % 100, t.Month(), t.Day())
-        case BUCKET_SIZE_MONTH:
-            t := time.Date(t.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
-            return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
-        case BUCKET_SIZE_YEAR:
-            t := time.Date(t.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
-            return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
-        default:
-            panic("Problemo")
     }
 }
 
@@ -350,24 +333,33 @@ func getBucketNamesForTimeRange(start, end time.Time, bucketSize bucketSizeEnum)
 }
 
 func stratificationBoundary(t time.Time, maxSamplingPeriod time.Duration) time.Time {
-    // TODO
+    switch stratifictation
 }
 
+func crossesStratificationBoundary(t0, t1 time.Time, 
+        period stratificationPeriod) bool {
 
-func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, last_insert_t, t time.Time, bucketSize bucketSizeEnum, value interface{}) error {
+kjbb
+}
+
+func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, 
+        lastUpdateTime, 
+        t time.Time, 
+        lod lodEnum, 
+        value interface{}) error {
+
     // Get the stratification boundary occuring most recently before <t>.
     // Only insert sample if <last_insert_time> is before the stratification
     // boundary.
-    samplingPeriod := LODSamplingPeriod(bucketSize)
-    strat_boundary_t := stratificationBoundary(t, samplingPeriod)
-    if last_insert_t < strat_boundary_t {
-        bucketName := getBucketName(t, bucketSize)
+    strat_boundary_t := stratificationBoundary(t, lodStratificationSize[lod])
+    if lastUpdateTime < strat_boundary_t {
+        bucketName := getBucket(t, lod).Name()
 
         // insert sample
         err := device.conn.session.Query(`
                 INSERT INTO varsample_float (device_id, propname, timeprefix, time, value)
-                VALUES (?, ?, ?, ?)
-        `, device.ID(), propname, t, value).Exec()
+                VALUES (?, ?, ?, ?, ?)
+        `, device.ID(), propname, bucketName, t, value).Exec()
         if err != nil {
             return err;
         }
@@ -378,14 +370,57 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, last_inse
     }
 }
 
-func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
-    // Get the most recent update time for this variable.
-    // TBD: Do we need strong consistency for this (QUORUM?)
+func (device *CassDevice)varLastUpdateTime(varName string) (time.Time, error) {
+    var t time.Time
+    // We use Quorum consistency here for strong conistency guarantee.
+    err := device.conn.session.Query(`
+            SELECT last_update
+            FROM var_lastupdatetime
+            WHERE device_id = ?
+                AND var_name = ?
+    `, device.ID(), varName).Consistency(gocql.Quorum) query.Scan(&t)
+    if err != nil {
+        return nil, err
+    }
+    return t, nil
+}
 
-    // For each bucketSize, insert or discard sample based on our
+func (device *CassDevice)varSetLastUpdateTime(varName string, t time.Time) error {
+    // TODO: How to use QUORUM for writes?
+    err := device.conn.session.Query(`
+            UPDATE var_lastupdatetime
+            SET last_update = ?
+            WHERE device_id = ?
+                AND var_name = ?
+    `, t, device.ID(), varName).Consistency(gocql.Quorum).Exec()
+    if err != nil {
+        return nil, err
+    }
+    return t, nil
+}
+
+func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
+    // check last update time
+    lastUpdateTime, err := device.varLastUpdateTime(varDef.Name())
+    if err != nil {
+        return err
+    }
+
+    if t.Before(lastUpdateTime) {
+        canolog.Error("Insertion time before last update time: ", t, lastUpdateTime)
+        return fmt.Errorf("Insertion time %s before last update time %s", t, lastUpdateTime)
+    }
+
+    // update last update time
+    lastUpdateTime, err := device.varSetLastUpdateTime(varDef.Name(), t)
+    if err != nil {
+        return err
+    }
+
+    // For each LOD, insert or discard sample based on our
     // stratification algorithm.
-    for bucketSize=BUCKET_SIZE_HOUR; bucketSize < LAST_BUCKET_SIZE; bucketSize++ {
-        err = insertOrDiscardSampleLOD(varDef, lastUpdateTime, bucketSize, t, value)
+    for lod := LOD_0; lod < LOD_END; LOD++ {
+        err = insertOrDiscardSampleLOD(varDef, lastUpdateTime, lod, t, value)
         if err != nil {
             // TODO: Transactionize/rollback?
             return err
@@ -589,3 +624,8 @@ func garbageCollect(varDef sddl.VarDef) {
         }
     }
 }
+
+
+
+//
+// All samples -> Tier0

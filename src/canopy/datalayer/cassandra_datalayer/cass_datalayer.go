@@ -187,9 +187,17 @@ import (
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 var creationQueries []string = []string{
+    // Keeps track of last update time for cloud variable
+    `CREATE TABLE var_lastupdatetime (
+        device_id uuid,
+        var_name text,
+        last_update timestamp,
+        PRIMARY KEY(device_id, var_name)
+    ) WITH COMPACT STORAGE`,
+
     // Keeps track for which buckets have been created for use by garbage
     // collector.
-    `CREATE TABLE sample_buckets (
+    `CREATE TABLE var_lastupdatetime (
         device_id uuid,
         propname text,
         timeprefix text,
