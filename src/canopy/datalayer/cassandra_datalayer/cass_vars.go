@@ -364,6 +364,7 @@ func crossesStratificationBoundary(t0, t1 time.Time,
     period := stratificationPeriod[stratificationSize]
     sb0 := stratificationBoundary(t0, period)
     sb1 := stratificationBoundary(t1, period)
+    canolog.Info("Stratification boundary", sb0, sb1)
     return !sb0.Equal(sb1)
 }
 
@@ -425,8 +426,9 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
 
     // Discard sample if it doesn't cross a stratification boundary
     stratificationSize := lodStratificationSize[lod]
-    if !crossesStratificationBoundary(t0, t1, stratificationSize) {
+    if !crossesStratificationBoundary(lastUpdateTime, t, stratificationSize) {
         // discard sample
+        canolog.Info("LOD", lod, "discarded")
         return nil
     }
 
@@ -447,11 +449,13 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
     if err != nil {
         return err;
     }
+    canolog.Info("LOD", lod, "sample inserted into bucket", bucket.Name())
 
     // Track new bucket (if any) for garbage collection purposes.
     // And garbage collect.
     if crossesBucketBoundary(t0, t1, bucket.BucketSize()) {
         err := addBucket(propname, bucket)
+        canolog.Info("New bucket", bucket, "created")
         if err != nil {
             canolog.Error("Error adding sample bucket: ", err)
             // don't return!  We still need to do garbage collection!
@@ -501,11 +505,14 @@ func (device *CassDevice)varSetLastUpdateTime(varName string, t time.Time) error
 
 // Insert a cloud variable data sample.
 func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
+    canolog.Info("Inserting sample", varDef.Name(), t)
+
     // check last update time
     lastUpdateTime, err := device.varLastUpdateTime(varDef.Name())
     if err != nil {
         return err
     }
+    canolog.Info("Last update time was", lastUpdateTime)
 
     if t.Before(lastUpdateTime) {
         canolog.Error("Insertion time before last update time: ", t, lastUpdateTime)
@@ -646,6 +653,7 @@ func (device *CassDevice) historicDataLOD(
     for _, bucket := range buckets {
         samples, err = fetchAndAppendBucketSamples(
                 samples, device.conn, startTime, endTime, bucket.Name())
+        canolog.Info("Fetched ", len(samples), "samples from bucket", bucket.Name())
 
         if err != nil {
             return samples, err
@@ -697,6 +705,8 @@ func (device *CassDevice) HistoricData(
     startTime, 
     endTime time.Time) ([]cloudvar.CloudVarSample, error) {
 
+    canolog.Info("Fetching historic data for", varDef.Name(), startTime, endTime)
+
     // Figure out which resolution to use.
     // Pick the lowest resolution that covers the entire requested period.
     var lod lodEnum
@@ -706,9 +716,11 @@ func (device *CassDevice) HistoricData(
         if startTime.After(curTime.Sub(lodDuration))
             break;
     }
-    if LOD == LOD_END {
-        LOD = LOD_5
+    if lod == LOD_END {
+        lod = LOD_5
     }
+
+    canolog.Info("Using LOD", lod)
 
     // Fetch the data from that LOD
     return historicDataLOD(varDef, startTime, endTime, lod)
@@ -741,6 +753,8 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
         lod lodEnum,
         deleteAll bool) error {
 
+    canolog.Info("Running garbage collection for ", varDef.Name(), "LOD", lod)
+
     // Get list of expired buckets for that LOD
     var bucketName string
     var endtime time.Time
@@ -771,9 +785,16 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
 
     // Remove buckets
     for _ bucketName := range bucketsToRemove {
-        // TODO: generalize to other datatypes
+        // Get table name
+        tableName, err := varTableNameByDatatype(varDef.Datatype())
+        if err != nil {
+            return err
+        }
+
+        // Remove expired bucket
+        canolog.Info("Removing expired bucket", varDef.Name(), bucketName)
         err := conn.session.Query(`
-                DELETE FROM varsample_float
+                DELETE FROM ` + tableName + `
                 WHERE device_id = ?
                     AND propname = ?
                     AND timeprefix = ?
