@@ -424,17 +424,21 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
 // value), nil) if the Cloud Variable has never been set.
 func (device *CassDevice)varLastUpdateTime(varName string) (time.Time, error) {
     var t time.Time
-    // TODO: fix syntax
     // We use Quorum consistency here for strong conistency guarantee.
-    err := device.conn.session.Query(`
+    query := device.conn.session.Query(`
             SELECT last_update
             FROM var_lastupdatetime
             WHERE device_id = ?
                 AND var_name = ?
-    `, device.ID(), varName).Consistency(gocql.Quorum) query.Scan(&t)
+    `, device.ID(), varName).Consistency(gocql.Quorum)
+    err = query.Scan(&t)
     if err != nil {
-        // TODO: Return nil, nil if not found
-        return nil, err
+        switch err.(type) {
+        case gocql.ErrNotFound:
+            return time.Time{}, nil
+        default:
+            return nil, err
+        }
     }
     return t, nil
 }
