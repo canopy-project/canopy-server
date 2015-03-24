@@ -383,8 +383,41 @@ func (device *CassDevice)addBucket(varName string, bucket *bucketStruct) error {
     }
 }
 
+func varTableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
+    switch datatype {
+    case sddl.DATATYPE_VOID:
+        return "varsample_void", nil
+    case sddl.DATATYPE_STRING:
+        return "varsample_string", nil
+    case sddl.DATATYPE_BOOL:
+        return "varsample_boolean", nil
+    case sddl.DATATYPE_INT8:
+        return "varsample_int", nil
+    case sddl.DATATYPE_UINT8:
+        return "varsample_int", nil
+    case sddl.DATATYPE_INT16:
+        return "varsample_int", nil
+    case sddl.DATATYPE_UINT16:
+        return "varsample_int", nil
+    case sddl.DATATYPE_INT32:
+        return "varsample_int", nil
+    case sddl.DATATYPE_UINT32:
+        return "varsample_int", nil
+    case sddl.DATATYPE_FLOAT32:
+        return "varsample_float", nil
+    case sddl.DATATYPE_FLOAT64:
+        return "varsample_double", nil
+    case sddl.DATATYPE_DATETIME:
+        return "varsample_timestamp", nil
+    case sddl.DATATYPE_INVALID:
+        return "", fmt.Errorf("DATATYPE_INVALID not allowed in varTableNameByDatatype");
+    default: 
+        return "", fmt.Errorf("Unexpected datatype in varTableNameByDatatype: %d", datatype);
+    }
+}
+
 // Insert a sample into the database for a particular LOD level, discarding the
-// sample if the stratification chunk already contains a sample .
+// sample if the stratification chunk already contains a sample.
 func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdateTime, 
         lod lodEnum, 
         t time.Time, 
@@ -397,11 +430,18 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
         return nil
     }
 
+    // Get table name
+    tableName, err := varTableNameByDatatype(varDef.Datatype())
+    if err != nil {
+        return err
+    }
+
     // insert sample
     bucket := getBucket(t, lod)
     propname := varDev.Name()
     err := device.conn.session.Query(`
-            INSERT INTO varsample_float (device_id, propname, timeprefix, time, value)
+            INSERT INTO ` + tableName + ` 
+                (device_id, propname, timeprefix, time, value)
             VALUES (?, ?, ?, ?, ?)
     `, device.ID(), propname, bucket.Name(), t, value).Exec()
     if err != nil {
@@ -493,11 +533,16 @@ func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value in
 // <endTime> to <apendee>
 func fetchAndAppendBucketSamples(apendee []cloudvar.CloudVarSample, 
         conn CassConnection, 
+        datatype sddl.DatatypeEnum,
         startTime, 
         endTime time.Time, 
         bucketName string) ([]cloudvar.CloudVarSample, error) {
 
-    tableName := "varsample_float" // TODO: Make generic
+    // Get table name
+    tableName, err := varTableNameByDatatype(varDef.Datatype())
+    if err != nil {
+        return err
+    }
 
     query := device.conn.session.Query(`
             SELECT time, value
@@ -694,7 +739,6 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
         lod lodEnum) error {
 
     // Get list of expired buckets for that LOD
-    // TODO: error checking
     var bucketName string
     var endtime time.Time
     bucketsToRemove := []string{}
