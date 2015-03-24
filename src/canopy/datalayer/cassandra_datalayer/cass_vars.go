@@ -456,7 +456,7 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
             canolog.Error("Error adding sample bucket: ", err)
             // don't return!  We still need to do garbage collection!
         }
-        device.garbageCollectLOD(t, varDef, lod)
+        device.garbageCollectLOD(t, varDef, lod, false)
     }
 }
 
@@ -734,9 +734,12 @@ func bucketExpired(curTime,
 }
 
 // Remove old buckets for a single cloud variable and LOD
+// Set <deleteAll> to false for normal garbage collection (only expired buckets
+// are removed).  Set <deleteAll> to true to delete all data, expired or not.
 func (device *CassDevice)garbageCollectLOD(curTime time.Time, 
-        varDef sddl.VarDef, 
-        lod lodEnum) error {
+        varDef sddl.VarDef,
+        lod lodEnum,
+        deleteAll bool) error {
 
     // Get list of expired buckets for that LOD
     var bucketName string
@@ -756,7 +759,7 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
     for iter.Scan(&bucketName, &endtime) {
         // determine expiration time
         // TODO: Handle tiers
-        if bucketExpired(curTime, endTime, TIER_STANDARD, lod) {
+        if deleteAll || bucketExpired(curTime, endTime, TIER_STANDARD, lod) {
             bucketsToRemove = append(bucketsToRemove, bucketName)
         }
     }
@@ -794,9 +797,9 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
     }
 }
 
-// Remove old buckets for a single cloud variable
-func (device *CassDevice)garbageCollect(curTime time.Time, varDef sddl.VarDef) {
+func (device *CassDevice)ClearVarData(varDef sddl.VarDef) {
+    // Delete all buckets
     for lod := LOD_0; lod < LOD_END; LOD++ {
-        device.garbageCollectLOD(curTime, varDef, lod)
+        device.garbageCollectLOD(curTime, varDef, lod, true)
     }
 }
