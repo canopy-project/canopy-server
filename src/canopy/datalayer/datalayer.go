@@ -162,10 +162,10 @@ type Device interface {
     ExtendSDDL(jsn map[string]interface{}) error
 
     // Get historic sample data for a Cloud Variable.
-    HistoricData(varDef sddl.VarDef, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
+    HistoricData(varDef sddl.VarDef, curTime, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
 
     // Get historic sample data for a Cloud Variable, by name.
-    HistoricDataByName(cloudVarName string, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
+    HistoricDataByName(cloudVarName string, curTime, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
 
     // Get historic notifications originating from this device
     HistoricNotifications() ([]Notification, error)

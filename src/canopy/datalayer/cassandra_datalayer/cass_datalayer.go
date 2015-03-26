@@ -24,6 +24,7 @@ import (
     "github.com/gocql/gocql"
 )
 
+
 //
 // Cassandra stores data in column families (aka tables).  Each column family
 // (table) has multiple rows.  Each row has a row key.  Each row also has an
@@ -69,7 +70,7 @@ import (
 //      +---------------------------------+
 //      |                                 |
 //
-// Instead we use:
+// Instead we should use:
 //
 //      CREATE TABLE propval_<datatype> (
 //          device_id uuid,
@@ -128,6 +129,50 @@ import (
 //
 //  So instead, we create a separate table for each datatype.
 //
+//  DATA ROLLUP (LOD & DATA TRIMMING)
+//
+//  Another consideration is that we want to be able to:
+//      - Delete old data.
+//      - Quickly lookup "low res" data over long time ranges (i.e.: give me 1
+//      sample/day for each day last year).
+//
+//  To achieve this, we put part of the timestamp in the row key:
+//
+//      CREATE TABLE propval_<datatype> (
+//          device_id uuid,
+//          propname text,
+//          timeprefix text,
+//          time timestamp,
+//          value <datatype>,
+//          PRIMARY KEY ((device_id, propname, timeprefix), time)
+//      ) WITH COMPACT STORAGE
+//
+//      +--------------------------------------------+
+//      | device_id|propname|timeprefix (row key)    |
+//      |      timestamp : value                     |
+//      |      timestamp : value                     |
+//      |      timestamp : value                     |
+//      +--------------------------------------------+
+//      |                                            |
+//
+//  We then insert each sample multiple times, with different length prefixes:
+//
+//      TIME_PREFIX      EXAMPLE                         MEANING
+//      YY               83f0a...|temperature|15         Year worth of samples
+//      YYMM             83f0a...|temperature|1503       Month worth of samples
+//      YYMMDD           83f0a...|temperature|150314     Day worth of samples
+//      YYMMDDHH         83f0a...|temperature|15031403   Hour worth of samples
+//
+//  For weekly data, we specify the first day (monday) of the week and append
+//  the letter "w":
+//
+//      YYMMDDw         83f0a...|temperature|150309w    Week worth of samples
+//
+//  Our software ensures that each bucket contains a reasonable number of
+//  samples.  For example, a YY bucket containing a Year's worth of samples may
+//  only have 1 sample/day, whereas a YYMMDD bucket containing a Day's worth of
+//  samples may have a sample every 5 minutes.  We can easily trim away old
+//  samples by deleting the appropriate rows.
 //
 //  You can gain insight into the actual structure of a CF by running:
 //
@@ -138,9 +183,40 @@ import (
 //  Also useful:
 //      > nodetool cfstats
 //
+//
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 var creationQueries []string = []string{
+    // Keeps track of last update time for cloud variable
+    `CREATE TABLE var_lastupdatetime (
+        device_id uuid,
+        var_name text,
+        last_update timestamp,
+        PRIMARY KEY(device_id, var_name)
+    ) WITH COMPACT STORAGE`,
+
+    // Keeps track of which buckets have been created for use by garbage
+    // collector.
+    `CREATE TABLE var_buckets (
+        device_id uuid,
+        var_name text,
+        lod int,
+        timeprefix text,
+        endtime timestamp,
+        PRIMARY KEY((device_id, var_name, lod), timeprefix)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  float32
+    `CREATE TABLE varsample_float (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value float,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
     // used for:
     //  uint8
     //  int8
