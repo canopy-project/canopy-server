@@ -241,26 +241,26 @@ func (bucket bucketStruct)Name() string {
     // Assumes StartTime has already been rounded.
     switch bucket.BucketSize() {
     case BUCKET_SIZE_15MIN:
-        return fmt.Sprintf("%2d%2d%2d%2d%2d",
+        return fmt.Sprintf("%02d%02d%02d%02d%02dq",
                 t.Year() % 100,
                 t.Month(),
                 t.Day(),
                 t.Hour(),
                 t.Minute())
     case BUCKET_SIZE_HOUR:
-        return fmt.Sprintf("%2d%2d%2d%2d",
+        return fmt.Sprintf("%02d%02d%02d%02d",
                 t.Year() % 100,
                 t.Month(),
                 t.Day(),
                 t.Hour())
     case BUCKET_SIZE_DAY:
-        return fmt.Sprintf("%2d%2d%2d", t.Year() % 100, t.Month(), t.Day())
+        return fmt.Sprintf("%02d%02d%02d", t.Year() % 100, t.Month(), t.Day())
     case BUCKET_SIZE_WEEK:
-        return fmt.Sprintf("%2d%2d%2dw", t.Year() % 100, t.Month(), t.Day())
+        return fmt.Sprintf("%02d%02d%02dw", t.Year() % 100, t.Month(), t.Day())
     case BUCKET_SIZE_MONTH:
-        return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
+        return fmt.Sprintf("%02d%02d", t.Year() % 100, t.Month())
     case BUCKET_SIZE_YEAR:
-        return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
+        return fmt.Sprintf("%02d%02d", t.Year() % 100, t.Month())
     default:
         panic("Problemo")
     }
@@ -340,7 +340,7 @@ func getBucketsForTimeRange(start, end time.Time, lod lodEnum) []bucketStruct {
 
     out := []bucketStruct{}
     startBucket := getBucket(start, lod)
-    for bucket := startBucket; bucket.EndTime().Before(end); bucket = bucket.Next() {
+    for bucket := startBucket; bucket.StartTime().Before(end); bucket = bucket.Next() {
         out = append(out, bucket)
     }
 
@@ -366,7 +366,7 @@ func crossesStratificationBoundary(t0, t1 time.Time,
     period := stratificationPeriod[stratification]
     sb0 := stratificationBoundary(t0, period)
     sb1 := stratificationBoundary(t1, period)
-    canolog.Info("Stratification boundary", sb0, sb1)
+    canolog.Info("Stratification boundary", sb0, "(matches/mismatches ", sb1, ")")
     return !sb0.Equal(sb1)
 }
 
@@ -511,6 +511,8 @@ func (device *CassDevice)varSetLastUpdateTime(varName string, t time.Time) error
 
 // Insert a cloud variable data sample.
 func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
+    // Convert to UTC before inserting
+    t = t.UTC()
     canolog.Info("Inserting sample", varDef.Name(), t)
 
     // check last update time
@@ -562,7 +564,7 @@ func (device *CassDevice) fetchAndAppendBucketSamples(varDef sddl.VarDef,
             FROM ` + tableName + `
             WHERE device_id = ?
                 AND propname = ?
-                AND timprefix = ?
+                AND timeprefix = ?
                 AND time >= ?
                 AND time <= ?
     `, device.ID(), varDef.Name(), bucketName, startTime, endTime).Consistency(gocql.One)
@@ -652,18 +654,21 @@ func (device *CassDevice) historicDataLOD(
     end time.Time,
     lod lodEnum) ([]cloudvar.CloudVarSample, error) {
 
+    var err error
     samples := []cloudvar.CloudVarSample{}
 
     // Get list of all buckets containing samples we are interested in.
     // TODO: This could happen in parallel w/ map-reduce-like algo
     buckets := getBucketsForTimeRange(start, end, lod)
+    canolog.Info("Using buckets: ", buckets)
     for _, bucket := range buckets {
-        samples, err := device.fetchAndAppendBucketSamples(varDef, samples, start, end, bucket.Name())
-        canolog.Info("Fetched ", len(samples), "samples from bucket", bucket.Name())
+        samples, err = device.fetchAndAppendBucketSamples(varDef, samples, start, end, bucket.Name())
 
         if err != nil {
+            canolog.Info("Error: ", err)
             return samples, err
         }
+        canolog.Info("Fetched ", len(samples), "samples from bucket", bucket.Name())
     }
     return samples, nil
 }
@@ -714,7 +719,7 @@ func (device *CassDevice) HistoricData(
     canolog.Info("Fetching historic data for", varDef.Name(), startTime, endTime)
 
     // Figure out which resolution to use.
-    // Pick the lowest resolution that covers the entire requested period.
+    // Pick the highest resolution that covers the entire requested period.
     var lod lodEnum
     for lod = LOD_0; lod < LOD_END; lod++ {
         lodDuration := cloudVarLODDuration(TIER_STANDARD, lod)

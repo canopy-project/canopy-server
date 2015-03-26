@@ -200,10 +200,10 @@ var creationQueries []string = []string{
     `CREATE TABLE var_buckets (
         device_id uuid,
         var_name text,
-        lod int
+        lod int,
         timeprefix text,
         endtime timestamp,
-        PRIMARY KEY((device_id, propname, lod), timeprefix)
+        PRIMARY KEY((device_id, var_name, lod), timeprefix)
     ) WITH COMPACT STORAGE`,
 
     // used for:
