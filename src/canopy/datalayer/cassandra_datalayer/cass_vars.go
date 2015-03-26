@@ -815,9 +815,9 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
                     AND var_name = ?
                     AND lod = ?
                     AND timeprefix = ?
-            `, device.ID(), varDef.Name(), lod, bucketName)
+            `, device.ID(), varDef.Name(), lod, bucketName).Consistency(gocql.One).Exec()
             if err != nil {
-                canolog.Error("Problem cleaning var_buckets ", device.ID(), varDef.Name(), bucketName)
+                canolog.Error("Problem cleaning var_buckets ", device.ID(), varDef.Name(), bucketName, ":", err)
             }
         }
     }
