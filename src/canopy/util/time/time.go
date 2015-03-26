@@ -29,8 +29,8 @@ func EpochMicroseconds(t goTime.Time) uint64 {
 }
 
 // Get the current system time as an RFC3339-formatted string
-func NowRFC3339(t goTime.Time) string {
-    return goTime.Now().UTC().Format("2006-01-02T15:04:05.999999Z07:00")
+func NowRFC3339() string {
+    return RFC3339(goTime.Now().UTC())
 }
 
 func RFC3339(t goTime.Time) string {
