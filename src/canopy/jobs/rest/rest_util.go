@@ -95,19 +95,6 @@ func basicAuthFromRequest(r *http.Request) (username string, password string, er
 // datetime              string  -->    time.Time
 //
 
-type jsonDevices struct {
-    Devices []jsonDevicesItem `json:"devices"`
-}
-
-type jsonDevicesItem struct {
-    DeviceId string `json:"device_id"`
-    FriendlyName string `json:"friendly_name"`
-    Connected bool `json:"connected"`
-    ClassItems map[string]interface{} `json:"sddl_class"`
-    PropValues map[string]jsonSample `json:"property_values"`
-    Notifications []jsonNotification `json:"notifications"`
-}
-
 type jsonSample struct {
     Time string `json:"t"`
     Value interface{} `json:"v"`
@@ -139,7 +126,7 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
         "friendly_name" : device.Name(),
         "location_note" : device.LocationNote(),
         "status" : statusJsonObj,
-        "sddl" : nil,
+        "var_decls" : nil,
         "secret_key" : device.SecretKey(),
         "vars" : map[string]interface{} {},
         "notifs" : []interface{} {},
@@ -147,7 +134,7 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
 
     sddlDoc := device.SDDLDocument()
     if sddlDoc != nil {
-        out["sddl"] = sddlDoc.Json()
+        out["var_decls"] = sddlDoc.Json()
     }
 
     outDoc := device.SDDLDocument()

@@ -116,10 +116,10 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
                 continue;
             }
             device.SetLocationNote(locationNote);
-        case "sddl":
+        case "var_decls":
             sddlJsonObj, ok := value.(map[string]interface{})
             if !ok {
-                return nil, BadInputError("Expected object \"sddl\"")
+                return nil, BadInputError("Expected object \"var_decls\"")
             }
             err = device.ExtendSDDL(sddlJsonObj)
             if err != nil {
