@@ -17,11 +17,11 @@ package cassandra_datalayer
 
 import (
     "canopy/canolog"
-    "canopy/config"
-    "canopy/datalayer"
-    "canopy/datalayer/cassandra_datalayer/migrations"
+    "canopy/cloudvar"
+    "canopy/sddl"
     "fmt"
     "github.com/gocql/gocql"
+    "time"
 )
 
 // Canopy stores cloud variable timeseries data at multiple resolutions.  This
@@ -109,35 +109,35 @@ import (
 
 type lodEnum int
 const (
-    LOD_0 lodEnum = iota,
-    LOD_1,
-    LOD_2,
-    LOD_3,
-    LOD_4,
-    LOD_5,
-    LOD_END,
+    LOD_0 lodEnum = iota
+    LOD_1
+    LOD_2
+    LOD_3
+    LOD_4
+    LOD_5
+    LOD_END
 )
 
 // bucketSizeEnum describes the "size" (i.e. time duration) of a bucket of
 // samples.
 type bucketSizeEnum int
 const (
-    BUCKET_SIZE_INVALID bucketSizeEnum = iota,
-    BUCKET_SIZE_15MIN,  // Bucket contains 15 minutes worth of samples
-    BUCKET_SIZE_HOUR,   // Bucket contains 1 hour's worth of samples
-    BUCKET_SIZE_DAY,    // Bucket contains 1 day's worth of samples
-    BUCKET_SIZE_WEEK,   // Bucket contains 1 week's worth of samples
-    BUCKET_SIZE_MONTH,  // You get the idea..
-    BUCKET_SIZE_YEAR,
-    LAST_BUCKET_SIZE,
+    BUCKET_SIZE_INVALID bucketSizeEnum = iota
+    BUCKET_SIZE_15MIN  // Bucket contains 15 minutes worth of samples
+    BUCKET_SIZE_HOUR   // Bucket contains 1 hour's worth of samples
+    BUCKET_SIZE_DAY    // Bucket contains 1 day's worth of samples
+    BUCKET_SIZE_WEEK   // Bucket contains 1 week's worth of samples
+    BUCKET_SIZE_MONTH  // You get the idea..
+    BUCKET_SIZE_YEAR
+    LAST_BUCKET_SIZE
 
     // Certain routines will return buckets of mixed sizes
-    BUCKET_SIZE_MIXED,
+    BUCKET_SIZE_MIXED
 )
 
 
 // lodBucketSize maps LOD # to bucket size
-const lodBucketSize = map[lodEnum]bucketSizeEnum{
+var lodBucketSize = map[lodEnum]bucketSizeEnum{
     LOD_0: BUCKET_SIZE_15MIN,
     LOD_1: BUCKET_SIZE_HOUR,
     LOD_2: BUCKET_SIZE_DAY,
@@ -148,20 +148,20 @@ const lodBucketSize = map[lodEnum]bucketSizeEnum{
 
 // stratificationSize describes the "size" (i.e. time duration) of a stratification
 // chunk (which may contain at most 1 sample).
-type stratificationSize int
+type stratificationSizeEnum int
 const (
-    STRATIFICATION_SIZE_INVALID stratificationSizeEnum = iota,
-    STRATIFICATION_1_SEC,              // Store at most 1 sample / 1 sec.
-    STRATIFICATION_5_SEC,              // Store at most 1 sample / 5 sec.
-    STRATIFICATION_2_MIN,              // Store at most 1 sample / 2 min.
-    STRATIFICATION_15_MIN,             // Store at most 1 sample / 15 min.
-    STRATIFICATION_1_HOUR,             // Store at most 1 sample / hour.
-    STRATIFICATION_12_HOUR,            // Store at most 1 sample / hour.
-    STRATIFICATION_END,
+    STRATIFICATION_SIZE_INVALID stratificationSizeEnum = iota
+    STRATIFICATION_1_SEC              // Store at most 1 sample / 1 sec.
+    STRATIFICATION_5_SEC              // Store at most 1 sample / 5 sec.
+    STRATIFICATION_2_MIN              // Store at most 1 sample / 2 min.
+    STRATIFICATION_15_MIN             // Store at most 1 sample / 15 min.
+    STRATIFICATION_1_HOUR             // Store at most 1 sample / hour.
+    STRATIFICATION_12_HOUR            // Store at most 1 sample / hour.
+    STRATIFICATION_END
 )
 
 // lodStratificationSize maps LOD # to stratificationSize
-const lodStratificationSize = map[lodEnum]stratificationSize{
+var lodStratificationSize = map[lodEnum]stratificationSizeEnum{
     LOD_0: STRATIFICATION_1_SEC,
     LOD_1: STRATIFICATION_5_SEC,
     LOD_2: STRATIFICATION_2_MIN,
@@ -171,13 +171,13 @@ const lodStratificationSize = map[lodEnum]stratificationSize{
 }
 
 // stratificationPeriod maps stratificationSizeEnum value to time duration
-const stratificationPeriod = map[stratificationSizeEnum]time.Duration {
-    STRATIFICATION_1_SEC: time.SECOND,
-    STRATIFICATION_5_SEC: 5*time.SECOND,
-    STRATIFICATION_2_MIN: 2*time.MINUTE,
-    STRATIFICATION_15_MIN: 15*time.MINUTE,
-    STRATIFICATION_1_HOUR: 1*time.HOUR,
-    STRATIFICATION_12_HOUR: 12*time.HOUR
+var stratificationPeriod = map[stratificationSizeEnum]time.Duration {
+    STRATIFICATION_1_SEC: time.Second,
+    STRATIFICATION_5_SEC: 5*time.Second,
+    STRATIFICATION_2_MIN: 2*time.Minute,
+    STRATIFICATION_15_MIN: 15*time.Minute,
+    STRATIFICATION_1_HOUR: 1*time.Hour,
+    STRATIFICATION_12_HOUR: 12*time.Hour,
 }
 
 // storateTierEnum describes the cloud variable's "storage tier".
@@ -189,7 +189,7 @@ const (
 )
 
 // lodStratificationPeriod maps LOD # to stratification time duration
-func lodStratificationPeriod(lod lodEnum) {
+func lodStratificationPeriod(lod lodEnum) time.Duration{
     return stratificationPeriod[lodStratificationSize[lod]]
 }
 
@@ -221,14 +221,14 @@ func (bucket bucketStruct)EndTime() time.Time {
 }
 
 // Get the preceding bucket
-func (bucket bucketStruct)Prev() bucketStruct {
+/*func (bucket bucketStruct)Prev() bucketStruct {
     t := decTimeByBucketSize(bucket.startTime, bucket.BucketSize())
     return getBucket(t, bucket.BucketSize())
-}
+}*/
 
 // Get the following bucket
 func (bucket bucketStruct)Next() bucketStruct {
-    return getBucket(bucket.EndTime(), bucket.BucketSize())
+    return getBucket(bucket.EndTime(), bucket.LOD())
 }
 
 // Get the name of the bucket.  The bucket's name is also sometimes referred to
@@ -240,29 +240,30 @@ func (bucket bucketStruct)Name() string {
 
     // Assumes StartTime has already been rounded.
     switch bucket.BucketSize() {
-        case BUCKET_SIZE_15MIN:
-            return fmt.Sprintf("%2d%2d%2d%2d%2d",
-                    t.Year() % 100,
-                    t.Month(),
-                    t.Day(),
-                    t.Hour(),
-                    t.Min())
-        case BUCKET_SIZE_HOUR:
-            return fmt.Sprintf("%2d%2d%2d%2d",
-                    t.Year() % 100,
-                    t.Month(),
-                    t.Day(),
-                    t.Hour())
-        case BUCKET_SIZE_DAY:
-            return fmt.Sprintf("%2d%2d%2d", t.Year() % 100, t.Month(), t.Day())
-        case BUCKET_SIZE_WEEK:
-            return fmt.Sprintf("%2d%2d%2dw", t.Year() % 100, t.Month(), t.Day())
-        case BUCKET_SIZE_MONTH:
-            return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
-        case BUCKET_SIZE_YEAR:
-            return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
-        default:
-            panic("Problemo")
+    case BUCKET_SIZE_15MIN:
+        return fmt.Sprintf("%2d%2d%2d%2d%2d",
+                t.Year() % 100,
+                t.Month(),
+                t.Day(),
+                t.Hour(),
+                t.Minute())
+    case BUCKET_SIZE_HOUR:
+        return fmt.Sprintf("%2d%2d%2d%2d",
+                t.Year() % 100,
+                t.Month(),
+                t.Day(),
+                t.Hour())
+    case BUCKET_SIZE_DAY:
+        return fmt.Sprintf("%2d%2d%2d", t.Year() % 100, t.Month(), t.Day())
+    case BUCKET_SIZE_WEEK:
+        return fmt.Sprintf("%2d%2d%2dw", t.Year() % 100, t.Month(), t.Day())
+    case BUCKET_SIZE_MONTH:
+        return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
+    case BUCKET_SIZE_YEAR:
+        return fmt.Sprintf("%2d%2d", t.Year() % 100, t.Month())
+    default:
+        panic("Problemo")
+    }
 }
 
 // Get bucket object that contains time <t> for LOD <lod>.
@@ -270,8 +271,8 @@ func getBucket(t time.Time, lod lodEnum) bucketStruct {
     bucketSize := lodBucketSize[lod]
     startTime := roundTimeToBucketStart(t, bucketSize)
     return bucketStruct{
-        lod: lod
-        startTime: startTime
+        lod: lod,
+        startTime: startTime,
     }
 }
 
@@ -279,23 +280,23 @@ func getBucket(t time.Time, lod lodEnum) bucketStruct {
 // into.
 func roundTimeToBucketStart(t time.Time, bucketSize bucketSizeEnum) time.Time {
     switch bucketSize {
-        case BUCKET_SIZE_15MIN:
-            t = t.Truncate(15*time.MINUTE) // TODO: Does this work?
-        case BUCKET_SIZE_HOUR:
-            t = t.Truncate(time.Hour)
-        case BUCKET_SIZE_DAY:
-            t = t.Truncate(time.Hour)
-        case BUCKET_SIZE_WEEK:
-            // Rewind to Sunday
-            dayOfWeek := t.Weekday()
-            t = t.Add(-dayOfWeek*24*time.HOUR)
-            t = t.Truncate(time.Hour)
-        case BUCKET_SIZE_MONTH:
-            t := time.Date(t.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
-        case BUCKET_SIZE_YEAR:
-            t := time.Date(t.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
-        default:
-            panic("Problemo")
+    case BUCKET_SIZE_15MIN:
+        t = t.Truncate(15*time.Minute) // TODO: Does this work?
+    case BUCKET_SIZE_HOUR:
+        t = t.Truncate(time.Hour)
+    case BUCKET_SIZE_DAY:
+        t = t.Truncate(time.Hour)
+    case BUCKET_SIZE_WEEK:
+        // Rewind to Sunday
+        dayOfWeek := t.Weekday()
+        t = t.Add(-time.Duration(int(dayOfWeek))*24*time.Hour)
+        t = t.Truncate(time.Hour)
+    case BUCKET_SIZE_MONTH:
+        t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
+    case BUCKET_SIZE_YEAR:
+        t = time.Date(t.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+    default:
+        panic("Problemo")
     }
     return t
 }
@@ -312,10 +313,10 @@ func incTimeByBucketSize(t time.Time, bucketSize bucketSizeEnum) time.Time {
         case BUCKET_SIZE_WEEK:
             t = t.AddDate(0, 0, 7)
         case BUCKET_SIZE_MONTH:
-            t := time.Date(t.Year(), start.Month(), 1, 0, 0, 0, 0, time.UTC)
+            t = time.Date(t.Year(), t.Month(), 1, 0, 0, 0, 0, time.UTC)
             t = t.AddDate(0, 1, 0)
         case BUCKET_SIZE_YEAR:
-            t := time.Date(t.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
+            t = time.Date(t.Year(), 1, 1, 0, 0, 0, 0, time.UTC)
             t = t.AddDate(1, 0, 0)
         default:
             panic("Problemo")
@@ -324,7 +325,7 @@ func incTimeByBucketSize(t time.Time, bucketSize bucketSizeEnum) time.Time {
 }
 
 // Returns True if t0 and t1 are in different buckets (for given bucketSize)
-func crossesBucketBoundary(t0, t1 time.Time, bucketSize bucketSizeEnum) {
+func crossesBucketBoundary(t0, t1 time.Time, bucketSize bucketSizeEnum) bool {
     t0 = roundTimeToBucketStart(t0, bucketSize)
     t1 = roundTimeToBucketStart(t1, bucketSize)
     return !t0.Equal(t1)
@@ -333,8 +334,8 @@ func crossesBucketBoundary(t0, t1 time.Time, bucketSize bucketSizeEnum) {
 // Get list of buckets that span the <start> and <end> time.
 // If <end> is zero value, then time.UTCNow() is used.
 func getBucketsForTimeRange(start, end time.Time, lod lodEnum) []bucketStruct {
-    if time.IsZero(end) {
-        end = time.UTCNow()
+    if end.IsZero() {
+        end = time.Now().UTC()
     }
 
     out := []bucketStruct{}
@@ -349,19 +350,20 @@ func getBucketsForTimeRange(start, end time.Time, lod lodEnum) []bucketStruct {
 // Get the closest time before or equal to <t> that is an integer multiple of
 // <period>.
 func stratificationBoundary(t time.Time, period time.Duration) time.Time {
-    secsSinceEpoch := t.Unix()
+    return t.Round(period)
+    /*secsSinceEpoch := t.Unix()
     // TODO: Is it safe to use Unix for this?  Will leap seconds screw us up?
-    periodSecs := period/time.SECOND
+    periodSecs := int64(period)/int64(time.Second)
     // Round down to nearest stratification
     boundarySecsSinceEpoch := secsSinceEpoch - (secsSinceEpoch % periodSecs)
-    return time.Unix(boundarySecsSinceEpoch)
+    return time.Unix(boundarySecsSinceEpoch)*/
 }
 
 // Determine if <t0> and <t1> fall within the same stratification chunk.
 func crossesStratificationBoundary(t0, t1 time.Time, 
-        stratification stratificationSize) bool {
+        stratification stratificationSizeEnum) bool {
 
-    period := stratificationPeriod[stratificationSize]
+    period := stratificationPeriod[stratification]
     sb0 := stratificationBoundary(t0, period)
     sb1 := stratificationBoundary(t1, period)
     canolog.Info("Stratification boundary", sb0, sb1)
@@ -382,6 +384,7 @@ func (device *CassDevice)addBucket(varName string, bucket *bucketStruct) error {
     if err != nil {
         return err
     }
+    return nil
 }
 
 func varTableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
@@ -419,7 +422,8 @@ func varTableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
 
 // Insert a sample into the database for a particular LOD level, discarding the
 // sample if the stratification chunk already contains a sample.
-func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdateTime, 
+func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, 
+        lastUpdateTime time.Time,
         lod lodEnum, 
         t time.Time, 
         value interface{}) error {
@@ -440,21 +444,21 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
 
     // insert sample
     bucket := getBucket(t, lod)
-    propname := varDev.Name()
-    err := device.conn.session.Query(`
+    propname := varDef.Name()
+    err = device.conn.session.Query(`
             INSERT INTO ` + tableName + ` 
                 (device_id, propname, timeprefix, time, value)
             VALUES (?, ?, ?, ?, ?)
     `, device.ID(), propname, bucket.Name(), t, value).Exec()
     if err != nil {
-        return err;
+        return err
     }
     canolog.Info("LOD", lod, "sample inserted into bucket", bucket.Name())
 
     // Track new bucket (if any) for garbage collection purposes.
     // And garbage collect.
-    if crossesBucketBoundary(t0, t1, bucket.BucketSize()) {
-        err := addBucket(propname, bucket)
+    if crossesBucketBoundary(lastUpdateTime, t, bucket.BucketSize()) {
+        err := device.addBucket(propname, &bucket)
         canolog.Info("New bucket", bucket, "created")
         if err != nil {
             canolog.Error("Error adding sample bucket: ", err)
@@ -462,6 +466,8 @@ func (device *CassDevice) insertOrDiscardSampleLOD(varDef sddl.VarDef, lastUpdat
         }
         device.garbageCollectLOD(t, varDef, lod, false)
     }
+
+    return nil
 }
 
 // Get the last time a cloud variable was updated.  Returns (time.Time{} (zero
@@ -475,13 +481,13 @@ func (device *CassDevice)varLastUpdateTime(varName string) (time.Time, error) {
             WHERE device_id = ?
                 AND var_name = ?
     `, device.ID(), varName).Consistency(gocql.Quorum)
-    err = query.Scan(&t)
+    err := query.Scan(&t)
     if err != nil {
-        switch err.(type) {
+        switch err {
         case gocql.ErrNotFound:
             return time.Time{}, nil
         default:
-            return nil, err
+            return time.Time{}, err
         }
     }
     return t, nil
@@ -498,9 +504,9 @@ func (device *CassDevice)varSetLastUpdateTime(varName string, t time.Time) error
                 AND var_name = ?
     `, t, device.ID(), varName).Consistency(gocql.Quorum).Exec()
     if err != nil {
-        return nil, err
+        return err
     }
-    return t, nil
+    return nil
 }
 
 // Insert a cloud variable data sample.
@@ -520,27 +526,27 @@ func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value in
     }
 
     // update last update time
-    lastUpdateTime, err := device.varSetLastUpdateTime(varDef.Name(), t)
+    err = device.varSetLastUpdateTime(varDef.Name(), t)
     if err != nil {
         return err
     }
 
     // For each LOD, insert or discard sample based on our
     // stratification algorithm.
-    for lod := LOD_0; lod < LOD_END; LOD++ {
-        err = insertOrDiscardSampleLOD(varDef, lastUpdateTime, lod, t, value)
+    for lod := LOD_0; lod < LOD_END; lod++ {
+        err = device.insertOrDiscardSampleLOD(varDef, lastUpdateTime, lod, t, value)
         if err != nil {
             // TODO: Transactionize/rollback?
             return err
         }
     }
+    return nil
 }
 
 // Append the samples in bucket <bucketName> that fall between <startTime> and
 // <endTime> to <apendee>
-func fetchAndAppendBucketSamples(apendee []cloudvar.CloudVarSample, 
-        conn CassConnection, 
-        datatype sddl.DatatypeEnum,
+func (device *CassDevice) fetchAndAppendBucketSamples(varDef sddl.VarDef, 
+        apendee []cloudvar.CloudVarSample, 
         startTime, 
         endTime time.Time, 
         bucketName string) ([]cloudvar.CloudVarSample, error) {
@@ -548,7 +554,7 @@ func fetchAndAppendBucketSamples(apendee []cloudvar.CloudVarSample,
     // Get table name
     tableName, err := varTableNameByDatatype(varDef.Datatype())
     if err != nil {
-        return err
+        return []cloudvar.CloudVarSample{}, err
     }
 
     query := device.conn.session.Query(`
@@ -559,11 +565,12 @@ func fetchAndAppendBucketSamples(apendee []cloudvar.CloudVarSample,
                 AND timprefix = ?
                 AND time >= ?
                 AND time <= ?
-    `, device.ID(), propname, bucketName, startTime, endTime).Consistency(gocql.One)
+    `, device.ID(), varDef.Name(), bucketName, startTime, endTime).Consistency(gocql.One)
 
     iter := query.Iter()
 
-    switch datatype {
+    var timestamp time.Time
+    switch varDef.Datatype() {
     case sddl.DATATYPE_VOID:
         var value interface{}
         for iter.Scan(&timestamp) {
@@ -627,10 +634,10 @@ func fetchAndAppendBucketSamples(apendee []cloudvar.CloudVarSample,
     case sddl.DATATYPE_INVALID:
         return []cloudvar.CloudVarSample{}, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
     default:
-        return []cloudvar.CloudVarSample{}, fmt.Errorf("Cannot get property values for datatype %d", datatype);
+        return []cloudvar.CloudVarSample{}, fmt.Errorf("Cannot get property values for datatype %d", varDef.Datatype());
     }
 
-    err := iter.Close(); 
+    err = iter.Close(); 
     if err != nil {
         return []cloudvar.CloudVarSample{}, err
     }
@@ -641,18 +648,17 @@ func fetchAndAppendBucketSamples(apendee []cloudvar.CloudVarSample,
 // Fetch the historic timeseries data for a particular LOD.
 func (device *CassDevice) historicDataLOD(
     varDef sddl.VarDef, 
-    startTime, 
-    endTime time.Time,
+    start, 
+    end time.Time,
     lod lodEnum) ([]cloudvar.CloudVarSample, error) {
 
     samples := []cloudvar.CloudVarSample{}
 
     // Get list of all buckets containing samples we are interested in.
     // TODO: This could happen in parallel w/ map-reduce-like algo
-    buckets = getBucketsForTimeRange(start, end, lod)
+    buckets := getBucketsForTimeRange(start, end, lod)
     for _, bucket := range buckets {
-        samples, err = fetchAndAppendBucketSamples(
-                samples, device.conn, startTime, endTime, bucket.Name())
+        samples, err := device.fetchAndAppendBucketSamples(varDef, samples, start, end, bucket.Name())
         canolog.Info("Fetched ", len(samples), "samples from bucket", bucket.Name())
 
         if err != nil {
@@ -665,43 +671,43 @@ func (device *CassDevice) historicDataLOD(
 // For a given bucket size, we store several buckets of that size depending on
 // the Cloud Variable's upgrade tier.  This returns the time duration spanned
 // by the buckets of a particular size, given the upgrade tier.
-func cloudVarLODDuration(tier cloudVarTierEnum, lod lodEnum) time.Duration {
+func cloudVarLODDuration(tier storageTierEnum, lod lodEnum) time.Duration {
     type LODTier struct {
         lod lodEnum
-        tier cloudVarTierEnum
+        tier storageTierEnum
     }
     return map[LODTier]time.Duration {
-        LODTier{LOD_0, TIER_STANDARD}: 15*time.MINUTE,
-        LODTier{LOD_0, TIER_ENHANCED}: time.HOUR,
-        LODTier{LOD_0, TIER_ULTRA}: 24*time.HOUR,
+        LODTier{LOD_0, TIER_STANDARD}: 15*time.Minute,
+        LODTier{LOD_0, TIER_ENHANCED}: time.Hour,
+        LODTier{LOD_0, TIER_ULTRA}: 24*time.Hour,
 
-        LODTier{LOD_1, TIER_STANDARD}: time.HOUR,
-        LODTier{LOD_1, TIER_ENHANCED}: 24*time.HOUR,
-        LODTier{LOD_1, TIER_ULTRA}: 7*24*time.HOUR,
+        LODTier{LOD_1, TIER_STANDARD}: time.Hour,
+        LODTier{LOD_1, TIER_ENHANCED}: 24*time.Hour,
+        LODTier{LOD_1, TIER_ULTRA}: 7*24*time.Hour,
 
-        LODTier{LOD_2, TIER_STANDARD}: 7*time.HOUR,
-        LODTier{LOD_2, TIER_ENHANCED}: 7*24*time.HOUR,
-        LODTier{LOD_2, TIER_ULTRA}: 31*24*time.HOUR, // TBD
+        LODTier{LOD_2, TIER_STANDARD}: 7*time.Hour,
+        LODTier{LOD_2, TIER_ENHANCED}: 7*24*time.Hour,
+        LODTier{LOD_2, TIER_ULTRA}: 31*24*time.Hour, // TBD
 
-        LODTier{LOD_3, TIER_STANDARD}: 7*24*time.HOUR,
-        LODTier{LOD_3, TIER_ENHANCED}: 31*24*time.HOUR, // TBD
-        LODTier{LOD_3, TIER_ULTRA}: 365*24*time.HOUR,
+        LODTier{LOD_3, TIER_STANDARD}: 7*24*time.Hour,
+        LODTier{LOD_3, TIER_ENHANCED}: 31*24*time.Hour, // TBD
+        LODTier{LOD_3, TIER_ULTRA}: 365*24*time.Hour,
 
-        LODTier{LOD_4, TIER_STANDARD}: 31*24*time.HOUR, // TBD
-        LODTier{LOD_4, TIER_ENHANCED}: 365*24*time.HOUR,
-        LODTier{LOD_4, TIER_ULTRA}: 4*365*24*time.HOUR,
+        LODTier{LOD_4, TIER_STANDARD}: 31*24*time.Hour, // TBD
+        LODTier{LOD_4, TIER_ENHANCED}: 365*24*time.Hour,
+        LODTier{LOD_4, TIER_ULTRA}: 4*365*24*time.Hour,
 
-        LODTier{LOD_5, TIER_STANDARD}: 365*31*24*time.HOUR,
-        LODTier{LOD_5, TIER_ENHANCED}: 4*365*24*time.HOUR,
-        LODTier{LOD_5, TIER_ULTRA}: 4*365*24*time.HOUR,
-    }[lod, tier]
+        LODTier{LOD_5, TIER_STANDARD}: 365*31*24*time.Hour,
+        LODTier{LOD_5, TIER_ENHANCED}: 4*365*24*time.Hour,
+        LODTier{LOD_5, TIER_ULTRA}: 4*365*24*time.Hour,
+    }[LODTier{lod, tier}]
 }
 
 // Fetch historic time series data for a cloud variable. The resolution is
 // automatically selected.
 func (device *CassDevice) HistoricData(
     varDef sddl.VarDef, 
-    curTime
+    curTime,
     startTime, 
     endTime time.Time) ([]cloudvar.CloudVarSample, error) {
 
@@ -710,11 +716,12 @@ func (device *CassDevice) HistoricData(
     // Figure out which resolution to use.
     // Pick the lowest resolution that covers the entire requested period.
     var lod lodEnum
-    for lod = LOD_0; lod < LOD_END; LOD++ {
-        lodDuration := cloudVarLODDuration(TIER_STANDARD, lodBucketSize[lod])
+    for lod = LOD_0; lod < LOD_END; lod++ {
+        lodDuration := cloudVarLODDuration(TIER_STANDARD, lod)
         // TODO: Should we use curTime or lastUpdateTime for this?
-        if startTime.After(curTime.Sub(lodDuration))
+        if startTime.After(curTime.Add(-lodDuration)) {
             break;
+        }
     }
     if lod == LOD_END {
         lod = LOD_5
@@ -723,20 +730,13 @@ func (device *CassDevice) HistoricData(
     canolog.Info("Using LOD", lod)
 
     // Fetch the data from that LOD
-    return historicDataLOD(varDef, startTime, endTime, lod)
-}
-
-// Determine if <t0> and <t1> fall into different buckets
-func crossedBucketThreshold(t0, t1 time.Time, bucketSize bucketSizeEnum) bool {
-    bucket0 := getBucketName(t0, bucketSize)
-    bucket1 := getBucketName(t1, bucketSize)
-    return bucket0 != bucket1
+    return device.historicDataLOD(varDef, startTime, endTime, lod)
 }
 
 // Determine if bucket has expired (and should be garbage collected).
 func bucketExpired(curTime, 
         endTime time.Time, 
-        tier cloudVarTierEnum, 
+        tier storageTierEnum, 
         lod lodEnum) bool {
 
     // # amount of time after endTime that a bucket should stick around
@@ -757,20 +757,20 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
 
     // Get list of expired buckets for that LOD
     var bucketName string
-    var endtime time.Time
     bucketsToRemove := []string{}
 
-    err := conn.session.Query(`
+    query := device.conn.session.Query(`
             SELECT timeprefix, endtime
             FROM var_buckets
             WHERE device_id = ?
                 AND var_name = ?
                 AND lod = ?
-    `, device.ID(), varName, lod).Consistency(gocql.One)
+    `, device.ID(), varDef.Name(), lod).Consistency(gocql.One)
 
     iter := query.Iter()
 
-    for iter.Scan(&bucketName, &endtime) {
+    var endTime time.Time
+    for iter.Scan(&bucketName, &endTime) {
         // determine expiration time
         // TODO: Handle tiers
         if deleteAll || bucketExpired(curTime, endTime, TIER_STANDARD, lod) {
@@ -778,13 +778,13 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
         }
     }
 
-    err = iter.Close(); 
+    err := iter.Close(); 
     if err != nil {
         return fmt.Errorf("Error garbage collecting cloudvar: %s", err.Error())
     }
 
     // Remove buckets
-    for _ bucketName := range bucketsToRemove {
+    for _, bucketName := range bucketsToRemove {
         // Get table name
         tableName, err := varTableNameByDatatype(varDef.Datatype())
         if err != nil {
@@ -793,34 +793,35 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
 
         // Remove expired bucket
         canolog.Info("Removing expired bucket", varDef.Name(), bucketName)
-        err := conn.session.Query(`
+        err = device.conn.session.Query(`
                 DELETE FROM ` + tableName + `
                 WHERE device_id = ?
                     AND propname = ?
                     AND timeprefix = ?
-        `, device.ID(), varName, bucketName).Consistency(gocql.One).Exec()
+        `, device.ID(), varDef.Name(), bucketName).Consistency(gocql.One).Exec()
         if err != nil {
-            canolog.Error("Problem deleting bucket ", device_id, propname, bucketName)
+            canolog.Error("Problem deleting bucket ", device.ID(), varDef.Name(), bucketName)
         } else {
             // Cleanup var_buckets table, but only if we actually deleted the
             // bucket in the previous step
-            err := conn.session.Query(`
+            err := device.conn.session.Query(`
                 DELETE FROM var_buckets
                 WHERE device_id = ?
                     AND var_name = ?
                     AND lod = ?
                     AND timeprefix = ?
-            `, device.ID(), varName, lod, bucketName)
+            `, device.ID(), varDef.Name(), lod, bucketName)
             if err != nil {
-                canolog.Error("Problem cleaning var_buckets ", device_id, propname, bucketName)
+                canolog.Error("Problem cleaning var_buckets ", device.ID(), varDef.Name(), bucketName)
             }
         }
     }
+    return nil
 }
 
 func (device *CassDevice)ClearVarData(varDef sddl.VarDef) {
     // Delete all buckets
-    for lod := LOD_0; lod < LOD_END; LOD++ {
-        device.garbageCollectLOD(curTime, varDef, lod, true)
+    for lod := LOD_0; lod < LOD_END; lod++ {
+        device.garbageCollectLOD(time.Now(), varDef, lod, true)
     }
 }

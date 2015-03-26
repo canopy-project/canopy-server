@@ -183,16 +183,16 @@ func (device *CassDevice) ExtendSDDL(jsn map[string]interface{}) error {
     return nil
 }
 
-func (device *CassDevice) HistoricData(varDef sddl.VarDef, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
+/*func (device *CassDevice) HistoricData(varDef sddl.VarDef, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
     return device.getHistoricData_generic(varDef.Name(), varDef.Datatype(), startTime, endTime)
-}
+}*/
 
-func (device *CassDevice) HistoricDataByName(cloudVarName string, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
+func (device *CassDevice) HistoricDataByName(cloudVarName string, curTime, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
     varDef, err := device.LookupVarDef(cloudVarName)
     if err != nil {
         return []cloudvar.CloudVarSample{}, err
     }
-    return device.HistoricData(varDef, startTime, endTime)
+    return device.HistoricData(varDef, curTime, startTime, endTime)
 }
 
 func (device *CassDevice) ID() gocql.UUID {
@@ -331,7 +331,7 @@ func (device *CassDevice) insertSensorSample_string(propname string, t time.Time
 }
 
 
-func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
+/*func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
     varname := varDef.Name()
 
     switch varDef.Datatype() {
@@ -406,7 +406,7 @@ func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value in
     default:
         return fmt.Errorf("InsertSample unsupported datatype ", varDef.Datatype())
     }
-}
+}*/
 
 func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.DatatypeEnum) (*cloudvar.CloudVarSample, error) {
     var timestamp time.Time
