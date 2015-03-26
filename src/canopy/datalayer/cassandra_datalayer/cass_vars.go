@@ -770,16 +770,24 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
             WHERE device_id = ?
                 AND var_name = ?
                 AND lod = ?
+            ORDER BY timeprefix DESC
     `, device.ID(), varDef.Name(), lod).Consistency(gocql.One)
 
     iter := query.Iter()
 
     var endTime time.Time
+    // NOTE: As a special case, we never delete the most recent LOD0 bucket,
+    // even if it has expired, because we need it for LastUpdateTime.
+    skipFirst := (lod == LOD_0)
     for iter.Scan(&bucketName, &endTime) {
         // determine expiration time
         // TODO: Handle tiers
         if deleteAll || bucketExpired(curTime, endTime, TIER_STANDARD, lod) {
-            bucketsToRemove = append(bucketsToRemove, bucketName)
+            if skipFirst {
+                skipFirst = false
+            } else {
+                bucketsToRemove = append(bucketsToRemove, bucketName)
+            }
         }
     }
 
@@ -829,4 +837,108 @@ func (device *CassDevice)ClearVarData(varDef sddl.VarDef) {
     for lod := LOD_0; lod < LOD_END; lod++ {
         device.garbageCollectLOD(time.Now(), varDef, lod, true)
     }
+}
+
+func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.DatatypeEnum) (*cloudvar.CloudVarSample, error) {
+    var timestamp time.Time
+    var sample *cloudvar.CloudVarSample
+
+    // Get table name
+    tableName, err := varTableNameByDatatype(datatype)
+    if err != nil {
+        return nil, err
+    }
+
+    // Get most recent LOD0 bucket
+    query := device.conn.session.Query(`
+            SELECT timeprefix
+            FROM var_buckets
+            WHERE device_id = ?
+                AND var_name = ?
+                AND lod = ?
+            ORDER BY timeprefix DESC
+            LIMIT 1
+    `, device.ID(), varname, LOD_0).Consistency(gocql.One)
+
+    var timeprefix string
+    err = query.Scan(&timeprefix)
+    if err != nil {
+        canolog.Error("Error getting most recent LOD_0 bucket", err)
+        return nil, err
+    }
+
+    // Get most recent sample in most recent LOD0 bucket
+    query = device.conn.session.Query(`
+            SELECT time, value
+            FROM ` + tableName + `
+            WHERE device_id = ?
+                AND propname = ?
+                AND timeprefix = ?
+            ORDER BY time DESC
+            LIMIT 1
+    `, device.ID(), varname, timeprefix).Consistency(gocql.One)
+
+    switch datatype {
+    case sddl.DATATYPE_VOID:
+        err = query.Scan(&timestamp)
+        sample = &cloudvar.CloudVarSample{timestamp, nil}
+    case sddl.DATATYPE_STRING:
+        var value string
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_BOOL:
+        var value bool
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_INT8:
+        var value int8
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_UINT8:
+        var value uint8
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_INT16:
+        var value int16
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_UINT16:
+        var value uint16
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_INT32:
+        var value int32
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_UINT32:
+        var value uint32
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_FLOAT32:
+        var value float32
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_FLOAT64:
+        var value float64
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_DATETIME:
+        var value time.Time
+        err = query.Scan(&timestamp, &value)
+        sample = &cloudvar.CloudVarSample{timestamp, value}
+    case sddl.DATATYPE_INVALID:
+        return nil, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
+    default:
+        return nil, fmt.Errorf("Cannot get property values for datatype %d", datatype);
+    }
+
+    if err != nil {
+        return nil, fmt.Errorf("Error reading latest property value: ", err)
+    }
+
+    return sample, nil
+}
+
+func (device *CassDevice) LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error) {
+    return device.getLatestData_generic(varDef.Name(), varDef.Datatype())
 }

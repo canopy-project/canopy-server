@@ -207,6 +207,22 @@ var creationQueries []string = []string{
     ) WITH COMPACT STORAGE`,
 
     // used for:
+    //  uint8
+    //  int8
+    //  int16
+    //  uint16
+    //  int32
+    //  uint32
+    `CREATE TABLE varsample_int (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value int,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
     //  float32
     `CREATE TABLE varsample_float (
         device_id uuid,
@@ -214,6 +230,61 @@ var creationQueries []string = []string{
         timeprefix text,
         time timestamp,
         value float,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  float64
+    `CREATE TABLE varsample_double (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value double,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  datetime
+    `CREATE TABLE varsample_timestamp (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  bool
+    `CREATE TABLE varsample_boolean (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  void
+    `CREATE TABLE varsample_boolean (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  string
+    `CREATE TABLE varsample_string (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value text,
         PRIMARY KEY((device_id, propname, timeprefix), time)
     ) WITH COMPACT STORAGE`,
 

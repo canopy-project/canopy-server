@@ -155,19 +155,9 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
         }
     }
 
-    /*msg := &pigeon.PigeonMessage {
-        Data : info.BodyObj,
-    }
-    canolog.Info("Sending pigeon message", msg);
-    err = info.PigeonSys.SendMessage(deviceIdString, msg, time.Duration(100*time.Millisecond))
+    out, err := deviceToJsonObj(device)
     if err != nil {
-        canolog.Warn("Problem sending WS message! ", err);
-        // TODO: Are there certain errors here that shouldn't be ignored?
-        //return nil, rest_errors.NewInternalServerError("SendMessage failed")
-    }*/
-    // TODO: Use new pigeon system for this
-
-    return map[string]interface{} {
-        "result" : "ok",
-    }, nil
+        return nil, InternalServerError("Generating JSON")
+    }
+    return out, nil
 }

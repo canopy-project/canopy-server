@@ -408,7 +408,7 @@ func (device *CassDevice) insertSensorSample_string(propname string, t time.Time
     }
 }*/
 
-func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.DatatypeEnum) (*cloudvar.CloudVarSample, error) {
+/*func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.DatatypeEnum) (*cloudvar.CloudVarSample, error) {
     var timestamp time.Time
     var sample *cloudvar.CloudVarSample
 
@@ -484,11 +484,11 @@ func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.Da
     }
 
     return sample, nil
-}
+}*/
 
-func (device *CassDevice) LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error) {
+/*func (device *CassDevice) LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error) {
     return device.getLatestData_generic(varDef.Name(), varDef.Datatype())
-}
+}*/
 
 
 func (device *CassDevice) LatestDataByName(varName string) (*cloudvar.CloudVarSample, error) {
