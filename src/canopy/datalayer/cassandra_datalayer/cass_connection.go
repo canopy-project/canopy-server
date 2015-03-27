@@ -84,8 +84,11 @@ func validatePassword(password string) error {
     return nil
 }
 
+var emailPattern = regexp.MustCompile("[\\w!#$%&'*+/=?^_`{|}~-]+(?:\\.[\\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\\w](?:[\\w-]*[\\w])?\\.)+[a-zA-Z0-9](?:[\\w-]*[\\w])?")
 func validateEmail(email string) error {
-    // TODO
+    if !emailPattern.MatchString(email) {
+        return fmt.Errorf("Invalid email address")
+    }
     return nil
 }
 
