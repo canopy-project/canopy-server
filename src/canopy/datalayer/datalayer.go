@@ -279,3 +279,15 @@ type PigeonSystem interface {
     // Register that a worker exists
     RegisterWorker(hostname string) error
 }
+
+type ValidationError struct {
+    msg string
+}
+
+func (err ValidationError) Error() string {
+    return err.msg
+}
+
+func NewValidationError(msg string) *ValidationError {
+    return &ValidationError{msg}
+}

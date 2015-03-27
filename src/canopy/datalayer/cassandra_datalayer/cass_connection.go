@@ -20,7 +20,6 @@ import(
     "canopy/datalayer"
     "canopy/sddl"
     "canopy/util/random"
-    "fmt"
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
     "regexp"
@@ -58,17 +57,17 @@ func (conn *CassConnection) Close() {
 
 func validateUsername(username string) error {
     if username == "leela" {
-        return fmt.Errorf("Username reserved")
+        return datalayer.NewValidationError("Username reserved")
     }
     if len(username) < 5 {
-        return fmt.Errorf("Username too short")
+        return datalayer.NewValidationError("Username too short")
     }
     if len(username) > 24 {
-        return fmt.Errorf("Username too long")
+        return datalayer.NewValidationError("Username too long")
     }
-    matched, err := regexp.MatchString("[a-zA-Z][a-zA-Z0-9_]+", username)
+    matched, err := regexp.MatchString("^[a-zA-Z][a-zA-Z0-9_]+$", username)
     if !matched || err != nil {
-        return fmt.Errorf("Invalid characters in username")
+        return datalayer.NewValidationError("Invalid username")
     }
 
     return nil
@@ -76,10 +75,10 @@ func validateUsername(username string) error {
 
 func validatePassword(password string) error {
     if len(password) < 6 {
-        return fmt.Errorf("Password too short")
+        return datalayer.NewValidationError("Password too short")
     }
     if len(password) > 120 {
-        return fmt.Errorf("Password too long")
+        return datalayer.NewValidationError("Password too long")
     }
     return nil
 }
@@ -87,7 +86,7 @@ func validatePassword(password string) error {
 var emailPattern = regexp.MustCompile("[\\w!#$%&'*+/=?^_`{|}~-]+(?:\\.[\\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\\w](?:[\\w-]*[\\w])?\\.)+[a-zA-Z0-9](?:[\\w-]*[\\w])?")
 func validateEmail(email string) error {
     if !emailPattern.MatchString(email) {
-        return fmt.Errorf("Invalid email address")
+        return datalayer.NewValidationError("Invalid email address")
     }
     return nil
 }

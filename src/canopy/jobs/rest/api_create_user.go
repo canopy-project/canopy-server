@@ -15,6 +15,7 @@
 package rest
 
 import (
+    "canopy/datalayer"
     "canopy/mail/messages"
 )
 
@@ -60,7 +61,12 @@ func ApiCreateUserHandler(info *RestRequestInfo, sideEffect *RestSideEffects) (m
 
     account, err = info.Conn.CreateAccount(username, email, password)
     if err != nil {
-        return nil, InternalServerError("Problem Creating Account" + err.Error()).Log()
+        switch err.(type) {
+        case *datalayer.ValidationError:
+            return nil, BadInputError(err.Error()).Log()
+        default:
+            return nil, InternalServerError("Problem Creating Account: " + err.Error()).Log()
+        }
     }
 
     sideEffect.SetCookie("logged_in_username", username)
