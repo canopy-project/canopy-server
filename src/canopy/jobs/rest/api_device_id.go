@@ -161,3 +161,21 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
     }
     return out, nil
 }
+
+// Delete device
+func DELETE__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (map[string]interface{}, RestError) {
+    device, restErr := getDeviceByIdString(info)
+    if device == nil {
+        return nil, restErr
+    }
+
+    // Delete device
+    err := info.Conn.DeleteDevice(device.ID())
+    if err != nil {
+        return nil, InternalServerError("Problem deleting device: " + err.Error()).Log()
+    }
+
+    return map[string]interface{}{
+        "result" : "ok",
+    }, nil
+}

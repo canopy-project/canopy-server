@@ -54,6 +54,7 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys jobqueue.System) erro
     forwardAsPigeonJob("/api/create_user", "POST", "api/create_user")
     forwardAsPigeonJob("/api/device/{id}", "GET", "GET:api/device/id")
     forwardAsPigeonJob("/api/device/{id}", "POST", "POST:api/device/id")
+    forwardAsPigeonJob("/api/device/{id}", "DELETE", "DELETE:api/device/id")
     forwardAsPigeonJob("/api/device/{id}/{var}", "GET", "api/device/id/var")
     forwardAsPigeonJob("/api/devices", "GET", "api/devices")
     forwardAsPigeonJob("/api/finish_share_transaction", "POST", "api/finish_share_transaction")

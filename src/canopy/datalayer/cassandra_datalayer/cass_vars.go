@@ -542,6 +542,8 @@ func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value in
             return err
         }
     }
+
+    // TODO: Do we need to update in-memory device object?
     return nil
 }
 

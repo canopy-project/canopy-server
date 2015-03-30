@@ -87,6 +87,9 @@ type Connection interface {
     // Remove a user account from the database.
     DeleteAccount(username string) error
 
+    // Remove a device from the database.
+    DeleteDevice(deviceId gocql.UUID) error
+
     // Lookup a user account from the database (without password verification).
     LookupAccount(usernameOrEmail string) (Account, error)
 

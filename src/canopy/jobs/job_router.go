@@ -46,6 +46,7 @@ func InitJobServer(cfg config.Config, pigeonServer jobqueue.Server) error {
         "api/create_user": rest.RestJobWrapper(rest.ApiCreateUserHandler),
         "GET:api/device/id": rest.RestJobWrapper(rest.GET__api__device__id),
         "POST:api/device/id": rest.RestJobWrapper(rest.POST__api__device__id),
+        "DELETE:api/device/id": rest.RestJobWrapper(rest.DELETE__api__device__id),
         "api/device/id/var": rest.RestJobWrapper(rest.GET__api__device__id__var),
         "api/devices": rest.RestJobWrapper(rest.GET__api__devices),
         "api/finish_share_transaction": rest.RestJobWrapper(rest.POST__api__finish_share_transaction),

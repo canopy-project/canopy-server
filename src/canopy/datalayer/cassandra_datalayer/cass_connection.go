@@ -201,13 +201,18 @@ func (conn *CassConnection) DeleteAccount(username string) error {
     // TODO: We should archive the account, not actually delete it.
     // TODO: If we are really deleting it, then we need to also cleanup
     // all the other data (permissions, orphanded devices, etc).
-    account, _ := conn.LookupAccount(username)
+    account, err := conn.LookupAccount(username)
+    if err != nil {
+        canolog.Error("Error looking up account for deletion: ", err)
+        return err
+    }
+
     email := account.Email()
 
     // TODO: Transactionize.  This might be done by adding a txn state field to
     // the table.
 
-    err := conn.session.Query(`
+    err = conn.session.Query(`
             DELETE FROM device_group
             WHERE username = ?
     `, username).Exec()
@@ -231,6 +236,7 @@ func (conn *CassConnection) DeleteAccount(username string) error {
     `, email).Exec()
     if err != nil {
         canolog.Error("Error deleting account email", err)
+        return err
     }
 
     err = conn.session.Query(`
@@ -242,6 +248,30 @@ func (conn *CassConnection) DeleteAccount(username string) error {
         return err
     }
 
+    return nil
+}
+
+func (conn *CassConnection)DeleteDevice(deviceId gocql.UUID) error {
+    // TODO: Should we archive the device, not actually delete it?
+    device, err := conn.LookupDevice(deviceId)
+    if err != nil {
+        canolog.Error("Error deleting device", err)
+        return err
+    }
+
+    err = conn.session.Query(`
+            DELETE FROM devices
+            WHERE device_id = ?
+    `, device.ID()).Exec()
+    if err != nil {
+        canolog.Error("Error deleting from devices table", err)
+        return err
+    }
+
+    // TODO: How to cleanup device_permissions?
+
+    // TODO: transactionize
+    // TODO: Cleanup cloud variable data
     return nil
 }
 
