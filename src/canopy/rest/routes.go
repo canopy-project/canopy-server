@@ -56,7 +56,6 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys jobqueue.System) erro
     forwardAsPigeonJob("/api/device/{id}", "POST", "POST:api/device/id")
     forwardAsPigeonJob("/api/device/{id}", "DELETE", "DELETE:api/device/id")
     forwardAsPigeonJob("/api/device/{id}/{var}", "GET", "api/device/id/var")
-    forwardAsPigeonJob("/api/devices", "GET", "api/devices")
     forwardAsPigeonJob("/api/finish_share_transaction", "POST", "api/finish_share_transaction")
     forwardAsPigeonJob("/api/info", "GET", "api/info")
     forwardAsPigeonJob("/api/login", "POST", "api/login")
@@ -65,7 +64,7 @@ func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys jobqueue.System) erro
     forwardAsPigeonJob("/api/user/self", "GET", "GET:api/user/self")
     forwardAsPigeonJob("/api/user/self", "POST", "POST:api/user/self")
     forwardAsPigeonJob("/api/user/self", "DELETE", "DELETE:api/user/self")
-    forwardAsPigeonJob("/api/me/devices", "GET", "api/devices")
+    forwardAsPigeonJob("/api/user/self/devices", "GET", "api/devices")
     forwardAsPigeonJob("/api/reset_password", "POST", "api/reset_password")
     forwardAsPigeonJob("/api/share", "POST", "api/share")
 
