@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-TARGETS := build/canopy-server build/canodevtool
+TARGETS := build/canopy-server build/canopy-ops
 
 .PHONY: all
 .DEFAULT: all
@@ -28,11 +28,11 @@ build/canopy-server:
 	mkdir -p build/
 	mv canopy-server build/canopy-server
 
-build/canodevtool:
+build/canopy-ops:
 	mkdir -p ~/.canopy/golang
-	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy_cmd.go
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-ops.go
 	mkdir -p build/
-	mv canopy_cmd build/canodevtool
+	mv canopy-ops build/canopy-ops
 
 .PHONY: go_get_deps
 go_get_deps:

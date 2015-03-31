@@ -50,7 +50,7 @@ func NewDefaultConfig() Config {
         enableHTTPS: true,
         httpPort: 80,
         httpsPort: 443,
-        logFile: "/var/log/canopy/canopy-server.log",
+        logFile: "/var/log/canopy/server.log",
         passwordHashCost: 10,
     }
 }
