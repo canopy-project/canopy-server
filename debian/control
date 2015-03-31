@@ -1,0 +1,12 @@
+Source: canopy-server
+Maintainer: Greg Prisament <greg@canopy.link>
+Section: misc
+Priority: optional
+Standards-Version: 3.9.2
+Build-Depends: debhelper (>= 9)
+
+Package: canopy-server
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Canopy Server
+    open source cloud platform for the internet of things
