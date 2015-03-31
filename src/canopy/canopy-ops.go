@@ -18,6 +18,7 @@ package main
 import (
     "github.com/gocql/gocql"
     "canopy/canolog"
+    "canopy/canopy_ops"
     "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
@@ -26,6 +27,10 @@ import (
     "fmt"
 //    "time"
 )
+
+var cmds = []canopy_ops.Command{
+    canopy_ops.HelpCommand{},
+}
 
 func main() {
     cfg := config.NewDefaultConfig()
@@ -40,8 +45,9 @@ func main() {
         return
     }
     flag.Parse()
-    if flag.Arg(0) == "help" {
-        fmt.Println("Usage:");
+    cmd := canopy_ops.FindCommand(cmds, flag.Arg(0))
+    if cmd != nil {
+        cmd.Perform()
     } else if flag.Arg(0) == "erase-db" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         dl.EraseDb("canopy")
