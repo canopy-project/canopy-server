@@ -34,6 +34,7 @@ var cmds = []canopy_ops.Command{
     canopy_ops.CreateDBCommand{},
     canopy_ops.EraseDBCommand{},
     canopy_ops.ResetDBCommand{},
+    canopy_ops.WorkersCommand{},
 }
 
 func main() {
@@ -50,11 +51,12 @@ func main() {
     }
     flag.Parse()
     cmd := canopy_ops.FindCommand(cmds, flag.Arg(0))
+    info := canopy_ops.CommandInfo{
+        CmdList: cmds,
+        Cfg: cfg,
+        Args: flag.Args(),
+    }
     if cmd != nil {
-        info := canopy_ops.CommandInfo{
-            CmdList: cmds,
-            Cfg: cfg,
-        }
         cmd.Perform(info)
     } else if flag.Arg(0) == "create-account" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
@@ -164,7 +166,9 @@ func main() {
         }
         dl := cassandra_datalayer.NewDatalayer(cfg)
         dl.MigrateDB("canopy", startVersion, endVersion)
+    } else if len(flag.Args()) == 0 {
+        cmds[0].Perform(info)
     } else {
-        fmt.Println("Unknown command: ", flag.Arg(0))
+        fmt.Println("Unknown command '" + flag.Arg(0) + "'.  See 'canopy-ops help'.")
     }
 }

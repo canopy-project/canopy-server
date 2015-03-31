@@ -21,6 +21,9 @@ import (
 )
 
 type Command interface {
+    // Print help for this command
+    Help()
+
     // Get short description of command
     HelpOneLiner() string
 
@@ -34,6 +37,7 @@ type Command interface {
 type CommandInfo struct {
     CmdList []Command
     Cfg config.Config
+    Args []string
 }
 
 // Given a list of command objects, finds the first one that handles

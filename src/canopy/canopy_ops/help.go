@@ -26,15 +26,28 @@ func (HelpCommand)HelpOneLiner() string {
     return "    help        Display help for a topic or command."
 }
 
+func (HelpCommand)Help() {
+    fmt.Println("Sounds like you really need some help!")
+}
+
 func (HelpCommand)Match(cmdString string) bool {
     return (cmdString == "help")
 }
 
 func (HelpCommand)Perform(info CommandInfo) {
-    fmt.Println("Usage: canopy-ops <cmd> [<args>]")
-    fmt.Println("")
-    fmt.Println("Commands:")
-    for _, cmd := range info.CmdList {
-        fmt.Println(cmd.HelpOneLiner())
+    if len(info.Args) == 2 {
+        cmd := FindCommand(info.CmdList, info.Args[1])
+        if cmd != nil {
+            cmd.Help()
+        } else {
+            fmt.Println("No manual entry for", info.Args[1])
+        }
+    } else {
+        fmt.Println("Usage: canopy-ops <cmd> [<args>]")
+        fmt.Println("")
+        fmt.Println("Commands:")
+        for _, cmd := range info.CmdList {
+            fmt.Println(cmd.HelpOneLiner())
+        }
     }
 }
