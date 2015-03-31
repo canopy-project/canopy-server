@@ -391,10 +391,10 @@ var creationQueries []string = []string{
         device_id uuid,
         secret_key text,
         friendly_name text,
-        location_note text,
         sddl text,
         public_access_level int,
         last_seen timestamp,
+        location_note text,
         ws_connected boolean,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
@@ -550,6 +550,12 @@ func (dl *CassDatalayer) migrateNext(session *gocql.Session, startVersion string
             return startVersion, err
         }
         return "0.9.1", nil
+    } else if startVersion == "0.9.1" {
+        err := migrations.Migrate_0_9_1_to_15_04_03(session)
+        if err != nil {
+            return startVersion, err
+        }
+        return "15.04.03", nil
     }
     return  startVersion, fmt.Errorf("Unknown DB version %s", startVersion)
 }
