@@ -30,6 +30,11 @@ func (HelpCommand)Match(cmdString string) bool {
     return (cmdString == "help")
 }
 
-func (HelpCommand)Perform() {
+func (HelpCommand)Perform(info CommandInfo) {
     fmt.Println("Usage: canopy-ops <cmd> [<args>]")
+    fmt.Println("")
+    fmt.Println("Commands:")
+    for _, cmd := range info.CmdList {
+        fmt.Println(cmd.HelpOneLiner())
+    }
 }

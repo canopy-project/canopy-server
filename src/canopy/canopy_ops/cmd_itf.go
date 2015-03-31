@@ -16,6 +16,10 @@ package canopy_ops
 
 // Abstract interface that all canopy-op commands must implement
 
+import (
+    "canopy/config"
+)
+
 type Command interface {
     // Get short description of command
     HelpOneLiner() string
@@ -24,7 +28,12 @@ type Command interface {
     Match(cmdString string) bool
 
     // Carry out the command
-    Perform()
+    Perform(info CommandInfo)
+}
+
+type CommandInfo struct {
+    CmdList []Command
+    Cfg config.Config
 }
 
 // Given a list of command objects, finds the first one that handles

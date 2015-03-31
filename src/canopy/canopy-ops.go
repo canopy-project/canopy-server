@@ -29,7 +29,11 @@ import (
 )
 
 var cmds = []canopy_ops.Command{
-    canopy_ops.HelpCommand{},
+    canopy_ops.HelpCommand{}, // must come first
+
+    canopy_ops.CreateDBCommand{},
+    canopy_ops.EraseDBCommand{},
+    canopy_ops.ResetDBCommand{},
 }
 
 func main() {
@@ -39,7 +43,7 @@ func main() {
         fmt.Printf("Error loading config")
     }
 
-    err = canolog.Init("/var/log/canopy/canotool.log")
+    err = canolog.Init(".canopy-ops.log")
     if (err != nil) {
         fmt.Println(err)
         return
@@ -47,16 +51,11 @@ func main() {
     flag.Parse()
     cmd := canopy_ops.FindCommand(cmds, flag.Arg(0))
     if cmd != nil {
-        cmd.Perform()
-    } else if flag.Arg(0) == "erase-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        dl.EraseDb("canopy")
-    } else if flag.Arg(0) == "create-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        err := dl.PrepDb("canopy")
-        if err != nil {
-            fmt.Println(err)
+        info := canopy_ops.CommandInfo{
+            CmdList: cmds,
+            Cfg: cfg,
         }
+        cmd.Perform(info)
     } else if flag.Arg(0) == "create-account" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
@@ -65,10 +64,6 @@ func main() {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
         conn.DeleteAccount(flag.Arg(1))
-    } else if flag.Arg(0) == "reset-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        dl.EraseDb("canopy")
-        dl.PrepDb("canopy")
     } else if flag.Arg(0) == "create-device" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
