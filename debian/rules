@@ -7,7 +7,6 @@
 export GOPATH=$(CURDIR):$(CURDIR)/golang
 
 PKGDIR=debian/canopy-server
-export GOBIN=$(PKGDIR)/usr/bin
 
 %:
 	dh $@ 
@@ -23,8 +22,14 @@ binary-arch: clean
 	dh_installdirs
 	#cd $(GOPATH)/src && find * -name '*.go' -exec dirname {} \; | xargs -n1 go install $(PKGDIR)/usr/bin/
 	cd src/canopy && go build canopy-server.go
-	mkdir -p $(PKGDIR)/usr/bin
-	cp src/canopy/canopy-server $(PKGDIR)/usr/bin/
+	mkdir -p $(PKGDIR)/usr/local/bin
+	cp src/canopy/canopy-server $(PKGDIR)/usr/local/bin/
+	mkdir -p $(PKGDIR)/etc/init.d
+	cp scripts/canopy-cloud-service $(PKGDIR)/etc/init.d/
+	mkdir -p $(PKGDIR)/etc/canopy
+	cp scripts/server.conf $(PKGDIR)/etc/canopy/
+	mkdir -p $(PKGDIR)/var/log/canopy
+	touch $(PKGDIR)/var/log/canopy/server.log
 	dh_strip
 	dh_compress
 	dh_fixperms
