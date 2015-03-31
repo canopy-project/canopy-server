@@ -28,6 +28,6 @@ func GET__api__info(info *RestRequestInfo, sideEffect *RestSideEffects) (map[str
         "clock_us" : canotime.EpochMicroseconds(t),
         "clock_utc" : canotime.RFC3339(t),
         "service-name" : "Canopy Cloud Service",
-        "version" : "0.9.2-beta",
+        "version" : "15.04.03",
     }, nil
 }
