@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-TARGETS := build/canopy-cloud-service build/canodevtool
+TARGETS := build/canopy-server build/canodevtool
 
 .PHONY: all
 .DEFAULT: all
@@ -22,11 +22,11 @@ all: $(TARGETS)
 
 .PHONY: $(TARGETS)
 
-build/canopy-cloud-service:
+build/canopy-server:
 	mkdir -p ~/.canopy/golang
 	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-server.go
 	mkdir -p build/
-	mv canopy-server build/canopy-cloud-service
+	mv canopy-server build/canopy-server
 
 build/canodevtool:
 	mkdir -p ~/.canopy/golang
@@ -48,7 +48,7 @@ go_get_deps:
 .PHONY: install
 install:
 	cp $(TARGETS) /usr/local/bin
-	cp ../../scripts/canopy-cloud-service /etc/init.d
+	cp ../../scripts/canopy-server /etc/init.d
 	mkdir -p /etc/canopy
 	cp -u ../../scripts/server.conf /etc/canopy
 	../../scripts/create-canopy-group-user.sh
@@ -64,9 +64,9 @@ install:
 
 .PHONY: update
 update:
-	-/etc/init.d/canopy-cloud-service stop
+	-/etc/init.d/canopy-server stop
 	cp $(TARGETS) /usr/local/bin
-	-/etc/init.d/canopy-cloud-service start
+	-/etc/init.d/canopy-server start
 
 .PHONY: clean
 clean:

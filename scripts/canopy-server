@@ -15,7 +15,7 @@
 # limitations under the License.
 
 ### BEGIN INIT INFO
-# Provides:       canopy-cloud-service
+# Provides:       canopy-server
 # Required-Start: $cassandra $network
 # Required-Stop:  $cassandra #network
 # Default-Start:  3 4 5
@@ -24,12 +24,12 @@
 ### END INIT INFO
 
 DESC="Canopy Cloud Service"
-NAME=canopy-cloud-service
+NAME=canopy-server
 PIDFILE=/var/run/canopy/$NAME.pid
 SCRIPTNAME=/etc/init.d/$NAME
 CONFDIR=/etc/canopy
 
-CCS_BIN=/usr/local/bin/canopy-cloud-service
+CCS_BIN=/usr/local/bin/canopy-server
 test -x $CCS_BIN || echo "$CCS_BIN not installed" || exit 0
 
 # Load the VERBOSE setting and other rcS variables
@@ -46,7 +46,7 @@ test -x $CCS_BIN || echo "$CCS_BIN not installed" || exit 0
 # process is not running but the pidfile exists (to match the exit codes for
 # the "status" command; see LSB core spec 3.1, section 20.2)
 #
-CMD_PATT="canopy-cloud-service"
+CMD_PATT="canopy-server"
 is_running()
 {
     if [ -f $PIDFILE ]; then
@@ -69,8 +69,8 @@ do_start()
     [ -e `dirname "$PIDFILE"` ] || \
         install -d -ocanopy -gcanopy -m750 `dirname $PIDFILE`
 
-    start-stop-daemon -S -c root -a /usr/local/bin/canopy-cloud-service -q -p "$PIDFILE" -t >/dev/null || return 1
-    start-stop-daemon -S -c root -a /usr/local/bin/canopy-cloud-service -b -m -p "$PIDFILE" -- > /dev/null || return 2
+    start-stop-daemon -S -c root -a /usr/local/bin/canopy-server -q -p "$PIDFILE" -t >/dev/null || return 1
+    start-stop-daemon -S -c root -a /usr/local/bin/canopy-server -b -m -p "$PIDFILE" -- > /dev/null || return 2
 }
 
 #
