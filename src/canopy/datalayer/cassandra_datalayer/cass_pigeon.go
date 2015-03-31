@@ -65,3 +65,21 @@ func (pigeonsys *CassPigeonSystem) RegisterWorker(hostname string) error {
     }
     return nil
 }
+
+func (pigeonsys *CassPigeonSystem) Workers() ([]string, error) {
+    workers := []string{}
+    iter := pigeonsys.conn.session.Query(`
+            SELECT name FROM workers
+    `).Consistency(gocql.One).Iter()
+
+    var hostname string
+    for iter.Scan(&hostname) {
+        workers = append(workers, hostname)
+    }
+    err := iter.Close()
+    if err != nil {
+        return []string{}, err
+    }
+
+    return workers, nil
+}

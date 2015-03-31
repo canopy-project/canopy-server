@@ -275,12 +275,16 @@ type PigeonSystem interface {
     // List all workers that are listening for <key>.
     // Returns list of hostnames
     GetListeners(key string) ([]string, error)
-    
+
     // Register that a worker is listening for <key>.
     RegisterListener(hostname, key string) error
 
     // Register that a worker exists
     RegisterWorker(hostname string) error
+    
+    // List all workers.
+    // Returns list of hostnames
+    Workers() ([]string, error)
 }
 
 type ValidationError struct {

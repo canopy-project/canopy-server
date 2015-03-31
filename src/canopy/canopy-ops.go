@@ -18,6 +18,7 @@ package main
 import (
     "github.com/gocql/gocql"
     "canopy/canolog"
+    "canopy/canopy_ops"
     "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
@@ -27,6 +28,15 @@ import (
 //    "time"
 )
 
+var cmds = []canopy_ops.Command{
+    canopy_ops.HelpCommand{}, // must come first
+
+    canopy_ops.CreateDBCommand{},
+    canopy_ops.EraseDBCommand{},
+    canopy_ops.ResetDBCommand{},
+    canopy_ops.WorkersCommand{},
+}
+
 func main() {
     cfg := config.NewDefaultConfig()
     err := cfg.LoadConfig()
@@ -34,23 +44,20 @@ func main() {
         fmt.Printf("Error loading config")
     }
 
-    err = canolog.Init("/var/log/canopy/canotool.log")
+    err = canolog.Init(".canopy-ops.log")
     if (err != nil) {
         fmt.Println(err)
         return
     }
     flag.Parse()
-    if flag.Arg(0) == "help" {
-        fmt.Println("Usage:");
-    } else if flag.Arg(0) == "erase-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        dl.EraseDb("canopy")
-    } else if flag.Arg(0) == "create-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        err := dl.PrepDb("canopy")
-        if err != nil {
-            fmt.Println(err)
-        }
+    cmd := canopy_ops.FindCommand(cmds, flag.Arg(0))
+    info := canopy_ops.CommandInfo{
+        CmdList: cmds,
+        Cfg: cfg,
+        Args: flag.Args(),
+    }
+    if cmd != nil {
+        cmd.Perform(info)
     } else if flag.Arg(0) == "create-account" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
@@ -59,10 +66,6 @@ func main() {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
         conn.DeleteAccount(flag.Arg(1))
-    } else if flag.Arg(0) == "reset-db" {
-        dl := cassandra_datalayer.NewDatalayer(cfg)
-        dl.EraseDb("canopy")
-        dl.PrepDb("canopy")
     } else if flag.Arg(0) == "create-device" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
@@ -163,7 +166,9 @@ func main() {
         }
         dl := cassandra_datalayer.NewDatalayer(cfg)
         dl.MigrateDB("canopy", startVersion, endVersion)
+    } else if len(flag.Args()) == 0 {
+        cmds[0].Perform(info)
     } else {
-        fmt.Println("Unknown command: ", flag.Arg(0))
+        fmt.Println("Unknown command '" + flag.Arg(0) + "'.  See 'canopy-ops help'.")
     }
 }
