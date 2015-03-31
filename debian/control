@@ -1,12 +1,13 @@
 Source: canopy-server
-Maintainer: Greg Prisament <greg@canopy.link>
-Section: misc
-Priority: optional
-Standards-Version: 3.9.2
-Build-Depends: debhelper (>= 9)
+Section: devel
+Priority: extra
+Maintainer: Greg P <greg@canopy.link>
+Build-Depends: debhelper (>= 7.0.50~), golang-go
+Standards-Version: 3.9.1
+Homepage: http://canopy.link
 
 Package: canopy-server
-Architecture: any
-Depends: ${shlibs:Depends}, ${misc:Depends}
-Description: Canopy Server
-    open source cloud platform for the internet of things
+Architecture: amd64 i386 armel
+Depends: ${misc:Depends}
+Description: Go language compiler and tools (gc)
+ Command line tool for optimizing Launchpad interactions.
