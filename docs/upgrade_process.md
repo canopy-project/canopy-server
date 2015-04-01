@@ -16,16 +16,20 @@ Upgrade Process
 
 *** Migrate the database ***
 
-    canodevtool migrate-db "0.9.1" "15.04.03"
+    canopy-ops migrate-db "0.9.1" "15.04.03"
 
 *** Stop the old version and start the new version ***
 
     sudo /etc/init.d/canopy-cloud-service stop
     sudo /etc/init.d/canopy-server start
 
-*** Cleanup obsolete files ***
+*** Optionally cleanup obsolete files ***
 
-    sudo rm /etc/init.d/canopy-cloud-service
+    sudo rm /etc/init.d/canopy-cloud-service \
+        /usr/local/bin/canodevtool \
+        /usr/local/bin/canopy-cloud-service \
+        /var/log/canopy/ccs.log \
+        /var/log/canopy/ccs-errors.log
 
 0.9.0 to 0.9.1
 -------------------------------------------------------------------------------
