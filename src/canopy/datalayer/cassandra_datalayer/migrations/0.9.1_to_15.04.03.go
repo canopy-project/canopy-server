@@ -98,17 +98,6 @@ var migrationQueries_0_9_1_to_15_04_03 []string = []string{
     ) WITH COMPACT STORAGE`,
 
     // used for:
-    //  void
-    `CREATE TABLE varsample_boolean (
-        device_id uuid,
-        propname text,
-        timeprefix text,
-        time timestamp,
-        value timestamp,
-        PRIMARY KEY((device_id, propname, timeprefix), time)
-    ) WITH COMPACT STORAGE`,
-
-    // used for:
     //  string
     `CREATE TABLE varsample_string (
         device_id uuid,
@@ -142,7 +131,6 @@ func Migrate_0_9_1_to_15_04_03(session *gocql.Session) error {
         if err := session.Query(query).Exec(); err != nil {
             // Ignore errors (just print them).
             canolog.Warn(query, ": ", err)
-            return err
         }
     }
     return nil

@@ -1,6 +1,32 @@
 Upgrade Process
 -------------------------------------------------------------------------------
 
+0.9.1 to 15.04.03
+-------------------------------------------------------------------------------
+*** Backup Database ***
+
+    nodetool -h localhost -p 7199 snapshot canopy
+
+*** Upgrade source ***
+
+    git fetch
+    git checkout v15.04.03
+    make
+    sudo make install
+
+*** Migrate the database ***
+
+    canodevtool migrate-db "0.9.1" "15.04.03"
+
+*** Stop the old version and start the new version ***
+
+    sudo /etc/init.d/canopy-cloud-service stop
+    sudo /etc/init.d/canopy-server start
+
+*** Cleanup obsolete files ***
+
+    sudo rm /etc/init.d/canopy-cloud-service
+
 0.9.0 to 0.9.1
 -------------------------------------------------------------------------------
 
