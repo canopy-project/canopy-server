@@ -50,17 +50,14 @@ install:
 	cp $(TARGETS) /usr/local/bin
 	cp ../../scripts/canopy-server /etc/init.d
 	mkdir -p /etc/canopy
-	cp -u ../../scripts/server.conf /etc/canopy
+	cp -n ../../scripts/server.conf /etc/canopy
 	../../scripts/create-canopy-group-user.sh
 	mkdir -p /var/log/canopy
-	touch /var/log/canopy/ccs.log
-	touch /var/log/canopy/ccs-errors.log
+	touch /var/log/canopy/server.log
 	chown canopy /var/log/canopy
 	chgrp canopy /var/log/canopy
-	chown canopy /var/log/canopy/ccs.log
-	chgrp canopy /var/log/canopy/ccs.log
-	chown canopy /var/log/canopy/ccs-errors.log
-	chgrp canopy /var/log/canopy/ccs-errors.log
+	chown canopy /var/log/canopy/server.log
+	chgrp canopy /var/log/canopy/server.log
 
 .PHONY: update
 update:
