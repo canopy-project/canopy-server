@@ -1,0 +1,13 @@
+Source: canopy-server
+Section: devel
+Priority: extra
+Maintainer: Greg P <greg@canopy.link>
+Build-Depends: debhelper (>= 7.0.50~), golang-go
+Standards-Version: 3.9.1
+Homepage: http://canopy.link
+
+Package: canopy-server
+Architecture: amd64 i386 armel
+Depends: ${misc:Depends}
+Description: Go language compiler and tools (gc)
+ Command line tool for optimizing Launchpad interactions.

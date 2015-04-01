@@ -14,9 +14,9 @@
 # limitations under the License.
 #
 
-.DEFAULT: build
-.PHONY: build
-build:
+.DEFAULT: all
+.PHONY: all
+all:
 	$(MAKE) -C src/canopy go_get_deps
 	$(MAKE) -C src/canopy all
 

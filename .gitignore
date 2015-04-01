@@ -1,1 +1,3 @@
 *.swp
+_debbuild
+canopy-server*.tar.gz
