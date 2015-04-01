@@ -165,7 +165,10 @@ func main() {
             return
         }
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        dl.MigrateDB("canopy", startVersion, endVersion)
+        err := dl.MigrateDB("canopy", startVersion, endVersion)
+        if err != nil {
+            fmt.Println(err.Error())
+        }
     } else if len(flag.Args()) == 0 {
         cmds[0].Perform(info)
     } else {
