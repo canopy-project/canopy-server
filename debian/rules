@@ -22,10 +22,12 @@ binary-arch: clean
 	dh_installdirs
 	#cd $(GOPATH)/src && find * -name '*.go' -exec dirname {} \; | xargs -n1 go install $(PKGDIR)/usr/bin/
 	cd src/canopy && go build canopy-server.go
+	cd src/canopy && go build canopy-ops.go
 	mkdir -p $(PKGDIR)/usr/local/bin
 	cp src/canopy/canopy-server $(PKGDIR)/usr/local/bin/
+	cp src/canopy/canopy-ops $(PKGDIR)/usr/local/bin/
 	mkdir -p $(PKGDIR)/etc/init.d
-	cp scripts/canopy-cloud-service $(PKGDIR)/etc/init.d/
+	cp scripts/canopy-server $(PKGDIR)/etc/init.d/
 	mkdir -p $(PKGDIR)/etc/canopy
 	cp scripts/server.conf $(PKGDIR)/etc/canopy/
 	mkdir -p $(PKGDIR)/var/log/canopy
