@@ -456,7 +456,7 @@ var creationQueries []string = []string{
     ) WITH COMPACT STORAGE`,
 
     `CREATE TABLE listeners (
-        key text
+        key text,
         workers set<text>,
         PRIMARY KEY(key)
     ) `,

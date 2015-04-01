@@ -115,7 +115,7 @@ var migrationQueries_0_9_1_to_15_04_03 []string = []string{
     ) WITH COMPACT STORAGE`,
 
     `CREATE TABLE listeners (
-        key text
+        key text,
         workers set<text>,
         PRIMARY KEY(key)
     ) `,
