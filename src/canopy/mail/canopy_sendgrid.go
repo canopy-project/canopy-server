@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package mail
 
 import (
+    "canopy/canolog"
     "errors"
     "fmt"
     "github.com/sendgrid/sendgrid-go"
@@ -59,7 +60,12 @@ func (client *CanopySGClient) Send(m MailMessage) error {
     if !ok {
         return errors.New("Message was not constructed with CanopySGClient")
     }
+
+    canolog.Info("Sending email: " + fmt.Sprint(mail.sgmail))
     err := client.sg.Send(mail.sgmail)
+    if err != nil {
+        canolog.Warn("Error sending email: " + err.Error())
+    }
     return err
 }
 

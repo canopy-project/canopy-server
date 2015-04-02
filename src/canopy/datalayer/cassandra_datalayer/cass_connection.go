@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -20,7 +20,6 @@ import(
     "canopy/datalayer"
     "canopy/sddl"
     "canopy/util/random"
-    "fmt"
     "github.com/gocql/gocql"
     "code.google.com/p/go.crypto/bcrypt"
     "regexp"
@@ -58,17 +57,17 @@ func (conn *CassConnection) Close() {
 
 func validateUsername(username string) error {
     if username == "leela" {
-        return fmt.Errorf("Username reserved")
+        return datalayer.NewValidationError("Username reserved")
     }
     if len(username) < 5 {
-        return fmt.Errorf("Username too short")
+        return datalayer.NewValidationError("Username too short")
     }
     if len(username) > 24 {
-        return fmt.Errorf("Username too long")
+        return datalayer.NewValidationError("Username too long")
     }
-    matched, err := regexp.MatchString("[a-zA-Z][a-zA-Z0-9_]+", username)
+    matched, err := regexp.MatchString("^[a-zA-Z][a-zA-Z0-9_]+$", username)
     if !matched || err != nil {
-        return fmt.Errorf("Invalid characters in username")
+        return datalayer.NewValidationError("Invalid username")
     }
 
     return nil
@@ -76,16 +75,19 @@ func validateUsername(username string) error {
 
 func validatePassword(password string) error {
     if len(password) < 6 {
-        return fmt.Errorf("Password too short")
+        return datalayer.NewValidationError("Password too short")
     }
     if len(password) > 120 {
-        return fmt.Errorf("Password too long")
+        return datalayer.NewValidationError("Password too long")
     }
     return nil
 }
 
+var emailPattern = regexp.MustCompile("[\\w!#$%&'*+/=?^_`{|}~-]+(?:\\.[\\w!#$%&'*+/=?^_`{|}~-]+)*@(?:[\\w](?:[\\w-]*[\\w])?\\.)+[a-zA-Z0-9](?:[\\w-]*[\\w])?")
 func validateEmail(email string) error {
-    // TODO
+    if !emailPattern.MatchString(email) {
+        return datalayer.NewValidationError("Invalid email address")
+    }
     return nil
 }
 
@@ -190,26 +192,87 @@ func (conn *CassConnection) CreateDevice(
         doc: sddl.Sys.NewEmptyDocument(),
         docString: "",
         publicAccessLevel: publicAccessLevel,
+        locationNote: "",
+        wsConnected: false,
     }, nil
 }
 
-func (conn *CassConnection) DeleteAccount(username string) {
-    account, _ := conn.LookupAccount(username)
+func (conn *CassConnection) DeleteAccount(username string) error {
+    // TODO: We should archive the account, not actually delete it.
+    // TODO: If we are really deleting it, then we need to also cleanup
+    // all the other data (permissions, orphanded devices, etc).
+    account, err := conn.LookupAccount(username)
+    if err != nil {
+        canolog.Error("Error looking up account for deletion: ", err)
+        return err
+    }
+
     email := account.Email()
 
-    if err := conn.session.Query(`
-            DELETE FROM accounts
+    // TODO: Transactionize.  This might be done by adding a txn state field to
+    // the table.
+
+    err = conn.session.Query(`
+            DELETE FROM device_group
             WHERE username = ?
-    `, username).Exec(); err != nil {
-        canolog.Error("Error deleting account", err)
+    `, username).Exec()
+    if err != nil {
+        canolog.Error("Error deleting account's device groups", err)
+        return err
     }
 
-    if err := conn.session.Query(`
+    err = conn.session.Query(`
+            DELETE FROM device_permissions
+            WHERE username = ?
+    `, username).Exec()
+    if err != nil {
+        canolog.Error("Error deleting account's permission", err)
+        return err
+    }
+
+    err = conn.session.Query(`
             DELETE FROM account_emails
             WHERE email = ?
-    `, email).Exec(); err != nil {
+    `, email).Exec()
+    if err != nil {
         canolog.Error("Error deleting account email", err)
+        return err
     }
+
+    err = conn.session.Query(`
+            DELETE FROM accounts
+            WHERE username = ?
+    `, username).Exec()
+    if err != nil {
+        canolog.Error("Error deleting account", err)
+        return err
+    }
+
+    return nil
+}
+
+func (conn *CassConnection)DeleteDevice(deviceId gocql.UUID) error {
+    // TODO: Should we archive the device, not actually delete it?
+    device, err := conn.LookupDevice(deviceId)
+    if err != nil {
+        canolog.Error("Error deleting device", err)
+        return err
+    }
+
+    err = conn.session.Query(`
+            DELETE FROM devices
+            WHERE device_id = ?
+    `, device.ID()).Exec()
+    if err != nil {
+        canolog.Error("Error deleting from devices table", err)
+        return err
+    }
+
+    // TODO: How to cleanup device_permissions?
+
+    // TODO: transactionize
+    // TODO: Cleanup cloud variable data
+    return nil
 }
 
 func (conn *CassConnection) LookupAccount(
@@ -294,17 +357,20 @@ func (conn *CassConnection) LookupDevice(
 
     device.deviceId = deviceId
     device.conn = conn
-    var last_seen time.Time;
+    var last_seen time.Time
+    var ws_connected bool
 
     err := conn.session.Query(`
-        SELECT friendly_name, secret_key, sddl, last_seen
+        SELECT friendly_name, location_note, secret_key, sddl, last_seen, ws_connected
         FROM devices
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
+            &device.locationNote,
             &device.secretKey,
             &device.docString,
-            &last_seen)
+            &last_seen,
+            &ws_connected)
     if err != nil {
         canolog.Error(err)
         return nil, err
@@ -316,6 +382,8 @@ func (conn *CassConnection) LookupDevice(
     } else {
         device.last_seen = &last_seen
     }
+
+    device.wsConnected = ws_connected
 
     if device.docString != "" {
         device.doc, err = sddl.Sys.ParseDocumentString(device.docString)
@@ -367,4 +435,8 @@ func (conn *CassConnection) LookupDeviceByStringIDVerifySecretKey(
         return nil, err
     }
     return conn.LookupDeviceVerifySecretKey(deviceId, secret)
+}
+
+func (conn *CassConnection) PigeonSystem() datalayer.PigeonSystem {
+    return &CassPigeonSystem{conn}
 }

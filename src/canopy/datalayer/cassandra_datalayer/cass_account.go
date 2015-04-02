@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copyright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -16,6 +16,7 @@
 package cassandra_datalayer
 
 import (
+    "canopy/canolog"
     "canopy/datalayer"
     "canopy/util/random"
     "code.google.com/p/go.crypto/bcrypt"
@@ -204,6 +205,62 @@ func (account *CassAccount) SetPassword(password string) error {
 
     account.password_hash = password_hash;
     return nil;
+}
+
+func (account *CassAccount)SetEmail(newEmail string) error {
+    // validate new email address
+    err := validateEmail(newEmail)
+    if err != nil {
+        return err
+    }
+
+    // generate new activation code
+    newActivationCode, err := random.Base64String(24)
+    if err != nil {
+        return err
+    }
+
+    // TODO: transactionize
+    // update accounts table
+    err = account.conn.session.Query(`
+            UPDATE accounts
+            SET email = ?,
+                activated = false,
+                activation_code = ?
+            WHERE username = ?
+    `, newEmail, newActivationCode, account.Username()).Exec()
+    if err != nil {
+        canolog.Error("Error changing email address to", newEmail, ":", err)
+        return err
+    }
+
+    // Update account_emails table
+    // Remove old email address
+    err = account.conn.session.Query(`
+            DELETE FROM account_emails
+            WHERE email = ?
+    `, account.Email()).Exec()
+    if err != nil {
+        canolog.Error("Error removing old email while changing email address to", newEmail, ":", err)
+        return err
+    }
+
+    // Add new email address
+    err = account.conn.session.Query(`
+            INSERT INTO account_emails (email, username)
+            VALUES (?, ?)
+    `, newEmail, account.Username()).Exec()
+    if err != nil {
+        canolog.Error("Error adding new email while changing email address to", newEmail, ":", err)
+        return err
+    }
+
+    // update local copy
+    account.activated = false
+    account.activation_code = newActivationCode
+    account.email = newEmail
+
+    return nil
 }
 
 func (account *CassAccount)Username() string {

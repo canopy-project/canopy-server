@@ -14,7 +14,7 @@
 # limitations under the License.
 #
 
-TARGETS := build/canopy-cloud-service build/canodevtool
+TARGETS := build/canopy-server build/canopy-ops
 
 .PHONY: all
 .DEFAULT: all
@@ -22,17 +22,17 @@ all: $(TARGETS)
 
 .PHONY: $(TARGETS)
 
-build/canopy-cloud-service:
+build/canopy-server:
 	mkdir -p ~/.canopy/golang
-	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-cloud-service.go
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-server.go
 	mkdir -p build/
-	mv canopy-cloud-service build/
+	mv canopy-server build/canopy-server
 
-build/canodevtool:
+build/canopy-ops:
 	mkdir -p ~/.canopy/golang
-	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy_cmd.go
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-ops.go
 	mkdir -p build/
-	mv canopy_cmd build/canodevtool
+	mv canopy-ops build/canopy-ops
 
 .PHONY: go_get_deps
 go_get_deps:
@@ -48,25 +48,22 @@ go_get_deps:
 .PHONY: install
 install:
 	cp $(TARGETS) /usr/local/bin
-	cp ../../scripts/canopy-cloud-service /etc/init.d
+	cp ../../scripts/canopy-server /etc/init.d
 	mkdir -p /etc/canopy
-	cp -u ../../scripts/server.conf /etc/canopy
+	cp -n ../../scripts/server.conf /etc/canopy
 	../../scripts/create-canopy-group-user.sh
 	mkdir -p /var/log/canopy
-	touch /var/log/canopy/ccs.log
-	touch /var/log/canopy/ccs-errors.log
+	touch /var/log/canopy/server.log
 	chown canopy /var/log/canopy
 	chgrp canopy /var/log/canopy
-	chown canopy /var/log/canopy/ccs.log
-	chgrp canopy /var/log/canopy/ccs.log
-	chown canopy /var/log/canopy/ccs-errors.log
-	chgrp canopy /var/log/canopy/ccs-errors.log
+	chown canopy /var/log/canopy/server.log
+	chgrp canopy /var/log/canopy/server.log
 
 .PHONY: update
 update:
-	-/etc/init.d/canopy-cloud-service stop
+	-/etc/init.d/canopy-server stop
 	cp $(TARGETS) /usr/local/bin
-	-/etc/init.d/canopy-cloud-service start
+	-/etc/init.d/canopy-server start
 
 .PHONY: clean
 clean:

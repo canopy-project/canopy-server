@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copyright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -85,7 +85,10 @@ type Connection interface {
     CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel AccessLevel) (Device, error)
 
     // Remove a user account from the database.
-    DeleteAccount(username string)
+    DeleteAccount(username string) error
+
+    // Remove a device from the database.
+    DeleteDevice(deviceId gocql.UUID) error
 
     // Lookup a user account from the database (without password verification).
     LookupAccount(usernameOrEmail string) (Account, error)
@@ -108,6 +111,9 @@ type Connection interface {
     // Lookup a device from the database, using string representation of its
     // UUID, and verify the secret key.
     LookupDeviceByStringIDVerifySecretKey(id, secret string) (Device, error)
+
+    // Get the datalayer interface for the Pigeon system
+    PigeonSystem() PigeonSystem
 }
 
 // Account is a user account
@@ -138,6 +144,11 @@ type Account interface {
     // Code, and invalidates <code> on success.
     ResetPassword(code, newPassword string) error
 
+    // Set email.  This also causes the account to go back to un-activated
+    // status and a new activation code is generated.  Saves changes to the
+    // database.
+    SetEmail(newEmail string) error
+
     // Set password
     SetPassword(string) error
 
@@ -154,10 +165,10 @@ type Device interface {
     ExtendSDDL(jsn map[string]interface{}) error
 
     // Get historic sample data for a Cloud Variable.
-    HistoricData(varDef sddl.VarDef, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
+    HistoricData(varDef sddl.VarDef, curTime, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
 
     // Get historic sample data for a Cloud Variable, by name.
-    HistoricDataByName(cloudVarName string, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
+    HistoricDataByName(cloudVarName string, curTime, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error)
 
     // Get historic notifications originating from this device
     HistoricNotifications() ([]Notification, error)
@@ -231,6 +242,14 @@ type Device interface {
     // activity timestamp is set to *t.
     // Saves the data to the database.
     UpdateLastActivityTime(t *time.Time) error
+
+    // Update websocket connectivity status
+    // Saves the data to the database
+    UpdateWSConnected(connected bool) error
+
+    // Gets whether or not this device is connected to the database.
+    // (Does not fetch from DB)
+    WSConnected() bool
 }
 
 // Notification is a record of a message sent to the device owner originiating
@@ -252,3 +271,30 @@ type Notification interface {
     NotifyType() int
 }
 
+type PigeonSystem interface {
+    // List all workers that are listening for <key>.
+    // Returns list of hostnames
+    GetListeners(key string) ([]string, error)
+
+    // Register that a worker is listening for <key>.
+    RegisterListener(hostname, key string) error
+
+    // Register that a worker exists
+    RegisterWorker(hostname string) error
+    
+    // List all workers.
+    // Returns list of hostnames
+    Workers() ([]string, error)
+}
+
+type ValidationError struct {
+    msg string
+}
+
+func (err ValidationError) Error() string {
+    return err.msg
+}
+
+func NewValidationError(msg string) *ValidationError {
+    return &ValidationError{msg}
+}

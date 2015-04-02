@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Gregory Prisament
+ * Copright 2014-2015 Canopy Services, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -23,6 +23,7 @@ import (
     "fmt"
     "github.com/gocql/gocql"
 )
+
 
 //
 // Cassandra stores data in column families (aka tables).  Each column family
@@ -69,7 +70,7 @@ import (
 //      +---------------------------------+
 //      |                                 |
 //
-// Instead we use:
+// Instead we should use:
 //
 //      CREATE TABLE propval_<datatype> (
 //          device_id uuid,
@@ -128,6 +129,50 @@ import (
 //
 //  So instead, we create a separate table for each datatype.
 //
+//  DATA ROLLUP (LOD & DATA TRIMMING)
+//
+//  Another consideration is that we want to be able to:
+//      - Delete old data.
+//      - Quickly lookup "low res" data over long time ranges (i.e.: give me 1
+//      sample/day for each day last year).
+//
+//  To achieve this, we put part of the timestamp in the row key:
+//
+//      CREATE TABLE propval_<datatype> (
+//          device_id uuid,
+//          propname text,
+//          timeprefix text,
+//          time timestamp,
+//          value <datatype>,
+//          PRIMARY KEY ((device_id, propname, timeprefix), time)
+//      ) WITH COMPACT STORAGE
+//
+//      +--------------------------------------------+
+//      | device_id|propname|timeprefix (row key)    |
+//      |      timestamp : value                     |
+//      |      timestamp : value                     |
+//      |      timestamp : value                     |
+//      +--------------------------------------------+
+//      |                                            |
+//
+//  We then insert each sample multiple times, with different length prefixes:
+//
+//      TIME_PREFIX      EXAMPLE                         MEANING
+//      YY               83f0a...|temperature|15         Year worth of samples
+//      YYMM             83f0a...|temperature|1503       Month worth of samples
+//      YYMMDD           83f0a...|temperature|150314     Day worth of samples
+//      YYMMDDHH         83f0a...|temperature|15031403   Hour worth of samples
+//
+//  For weekly data, we specify the first day (monday) of the week and append
+//  the letter "w":
+//
+//      YYMMDDw         83f0a...|temperature|150309w    Week worth of samples
+//
+//  Our software ensures that each bucket contains a reasonable number of
+//  samples.  For example, a YY bucket containing a Year's worth of samples may
+//  only have 1 sample/day, whereas a YYMMDD bucket containing a Day's worth of
+//  samples may have a sample every 5 minutes.  We can easily trim away old
+//  samples by deleting the appropriate rows.
 //
 //  You can gain insight into the actual structure of a CF by running:
 //
@@ -138,9 +183,111 @@ import (
 //  Also useful:
 //      > nodetool cfstats
 //
+//
 
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 var creationQueries []string = []string{
+    // Keeps track of last update time for cloud variable
+    `CREATE TABLE var_lastupdatetime (
+        device_id uuid,
+        var_name text,
+        last_update timestamp,
+        PRIMARY KEY(device_id, var_name)
+    ) WITH COMPACT STORAGE`,
+
+    // Keeps track of which buckets have been created for use by garbage
+    // collector.
+    `CREATE TABLE var_buckets (
+        device_id uuid,
+        var_name text,
+        lod int,
+        timeprefix text,
+        endtime timestamp,
+        PRIMARY KEY((device_id, var_name, lod), timeprefix)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  uint8
+    //  int8
+    //  int16
+    //  uint16
+    //  int32
+    //  uint32
+    `CREATE TABLE varsample_int (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value int,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  float32
+    `CREATE TABLE varsample_float (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value float,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  float64
+    `CREATE TABLE varsample_double (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value double,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  datetime
+    `CREATE TABLE varsample_timestamp (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  bool
+    `CREATE TABLE varsample_boolean (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  void
+    `CREATE TABLE varsample_boolean (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
+    // used for:
+    //  string
+    `CREATE TABLE varsample_string (
+        device_id uuid,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value text,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
+
     // used for:
     //  uint8
     //  int8
@@ -247,6 +394,8 @@ var creationQueries []string = []string{
         sddl text,
         public_access_level int,
         last_seen timestamp,
+        location_note text,
+        ws_connected boolean,
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 
@@ -298,6 +447,18 @@ var creationQueries []string = []string{
         msg text,
         notify_type int,
         PRIMARY KEY(device_id, time_issued)
+    ) `,
+
+    `CREATE TABLE workers (
+        name text,
+        status text,
+        PRIMARY KEY(name)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE listeners (
+        key text,
+        workers set<text>,
+        PRIMARY KEY(key)
     ) `,
 }
 
@@ -351,7 +512,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
     // Create keyspace.
     err = session.Query(`
             CREATE KEYSPACE ` + keyspace + `
-            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 3}
+            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}
     `).Exec()
     if err != nil {
         // Ignore errors (just log them).
@@ -389,6 +550,12 @@ func (dl *CassDatalayer) migrateNext(session *gocql.Session, startVersion string
             return startVersion, err
         }
         return "0.9.1", nil
+    } else if startVersion == "0.9.1" {
+        err := migrations.Migrate_0_9_1_to_15_04_03(session)
+        if err != nil {
+            return startVersion, err
+        }
+        return "15.04.03", nil
     }
     return  startVersion, fmt.Errorf("Unknown DB version %s", startVersion)
 }

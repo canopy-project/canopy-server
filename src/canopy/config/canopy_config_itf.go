@@ -1,4 +1,4 @@
-// Copyright 2014-2015 SimpleThings, Inc.
+// Copright 2014-2015 Canopy Services, Inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -50,7 +50,7 @@ func NewDefaultConfig() Config {
         enableHTTPS: true,
         httpPort: 80,
         httpsPort: 443,
-        logFile: "/var/log/canopy/canopy-server.log",
+        logFile: "/var/log/canopy/server.log",
         passwordHashCost: 10,
     }
 }
