@@ -32,6 +32,7 @@ binary-arch: clean
 	cp scripts/server.conf $(PKGDIR)/etc/canopy/
 	mkdir -p $(PKGDIR)/var/log/canopy
 	touch $(PKGDIR)/var/log/canopy/server.log
+	mkdir -p $(PKGDIR)/var/run/canopy
 	dh_strip
 	dh_compress
 	dh_fixperms
