@@ -34,6 +34,10 @@ import (
     "syscall"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
 func shutdown() {
     canolog.Shutdown()
 }
@@ -42,7 +46,7 @@ func main() {
 
     r := mux.NewRouter()
 
-    cfg := config.NewDefaultConfig()
+    cfg := config.NewDefaultConfig(buildVersion, buildDate, buildCommit)
     err := cfg.LoadConfig()
     if err != nil {
         logFilename := config.JustGetOptLogFile()
@@ -65,6 +69,9 @@ func main() {
     }
 
     canolog.Info("Starting Canopy Cloud Service")
+    canolog.Info("Version:", cfg.BuildVersion())
+    canolog.Info("Build Date:", cfg.BuildDate())
+    canolog.Info("Build Commit:", cfg.BuildCommit())
 
     // Log crashes
     defer func() {

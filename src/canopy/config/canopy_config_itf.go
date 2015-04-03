@@ -15,8 +15,9 @@
 package config
 
 type Config interface {
-    ToString() string
-    ToJsonObject() map[string]interface{}
+    BuildVersion() string
+    BuildDate() string
+    BuildCommit() string
 
     LoadConfig() error
     LoadConfigFile(filename string) error
@@ -43,10 +44,16 @@ type Config interface {
     OptSendgridUsername() string
     OptSendgridSecretKey() string
     OptWebManagerPath() string
+
+    ToString() string
+    ToJsonObject() map[string]interface{}
 }
 
-func NewDefaultConfig() Config {
+func NewDefaultConfig(buildVersion, buildDate, buildCommit string) Config {
     return &CanopyConfig{
+        buildVersion: buildVersion,
+        buildDate: buildDate,
+        buildCommit: buildCommit,
         enableHTTPS: true,
         httpPort: 80,
         httpsPort: 443,

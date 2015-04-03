@@ -38,7 +38,7 @@ var cmds = []canopy_ops.Command{
 }
 
 func main() {
-    cfg := config.NewDefaultConfig()
+    cfg := config.NewDefaultConfig("", "", "")
     err := cfg.LoadConfig()
     if err != nil {
         fmt.Printf("Error loading config")

@@ -26,6 +26,9 @@ import (
 type CanopyConfig struct {
     allowAnonDevices bool
     allowOrigin string
+    buildDate string
+    buildCommit string
+    buildVersion string
     emailService string
     enableHTTP bool
     enableHTTPS bool
@@ -82,6 +85,16 @@ func (config *CanopyConfig) ToJsonObject() map[string]interface{}{
         "sendgrid-username" : config.sendgridUsername,
         "web-manager-path" : config.webManagerPath,
     }
+}
+
+func (config *CanopyConfig) BuildDate() string {
+    return config.buildDate
+}
+func (config *CanopyConfig) BuildCommit() string {
+    return config.buildCommit
+}
+func (config *CanopyConfig) BuildVersion() string {
+    return config.buildVersion
 }
 
 func (config *CanopyConfig) LoadConfig() error {
