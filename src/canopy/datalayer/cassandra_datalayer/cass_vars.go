@@ -480,7 +480,7 @@ func (device *CassDevice)varLastUpdateTime(varName string) (time.Time, error) {
             FROM var_lastupdatetime
             WHERE device_id = ?
                 AND var_name = ?
-    `, device.ID(), varName).Consistency(gocql.Quorum)
+    `, device.ID(), varName).Consistency(gocql.One)
     err := query.Scan(&t)
     if err != nil {
         switch err {
@@ -497,12 +497,13 @@ func (device *CassDevice)varLastUpdateTime(varName string) (time.Time, error) {
 // downsampling.
 func (device *CassDevice)varSetLastUpdateTime(varName string, t time.Time) error {
     // TODO: How to use QUORUM for writes?
+    // QUORUM causes error to get thrown on some instances.
     err := device.conn.session.Query(`
             UPDATE var_lastupdatetime
             SET last_update = ?
             WHERE device_id = ?
                 AND var_name = ?
-    `, t, device.ID(), varName).Consistency(gocql.Quorum).Exec()
+    `, t, device.ID(), varName).Consistency(gocql.One).Exec()
     if err != nil {
         return err
     }
@@ -518,6 +519,7 @@ func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value in
     // check last update time
     lastUpdateTime, err := device.varLastUpdateTime(varDef.Name())
     if err != nil {
+        canolog.Error("Error inserting sample:", err.Error())
         return err
     }
     canolog.Info("Last update time was", lastUpdateTime)
