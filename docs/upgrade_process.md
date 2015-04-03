@@ -14,13 +14,16 @@ Upgrade Process
     make
     sudo make install
 
+*** Stop the old version ***
+
+    sudo /etc/init.d/canopy-cloud-service stop
+
 *** Migrate the database ***
 
     canopy-ops migrate-db "0.9.1" "15.04.03"
 
-*** Stop the old version and start the new version ***
+*** Start the new version ***
 
-    sudo /etc/init.d/canopy-cloud-service stop
     sudo /etc/init.d/canopy-server start
 
 *** Optionally cleanup obsolete files ***
