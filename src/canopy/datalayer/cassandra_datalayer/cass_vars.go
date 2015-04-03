@@ -269,10 +269,10 @@ func (bucket bucketStruct)Name() string {
 // Get bucket object that contains time <t> for LOD <lod>.
 func getBucket(t time.Time, lod lodEnum) bucketStruct {
     bucketSize := lodBucketSize[lod]
-    startTime := roundTimeToBucketStart(t, bucketSize)
+    startTime := roundTimeToBucketStart(t.UTC(), bucketSize)
     return bucketStruct{
         lod: lod,
-        startTime: startTime,
+        startTime: startTime.UTC(),
     }
 }
 
