@@ -16,7 +16,7 @@ package rest
 
 import(
     "canopy/canolog"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "fmt"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"

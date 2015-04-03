@@ -18,7 +18,7 @@ package rest
 import (
     "canopy/config"
     "canopy/canolog"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "github.com/gorilla/mux"
     "github.com/gorilla/sessions"
     "net/http"

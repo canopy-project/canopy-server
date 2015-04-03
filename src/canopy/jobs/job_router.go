@@ -18,7 +18,7 @@ import (
     "canopy/config"
     "canopy/mail"
     "canopy/datalayer/cassandra_datalayer"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "canopy/jobs/rest"
 )
 

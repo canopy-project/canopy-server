@@ -26,7 +26,7 @@ import (
     "canopy/config"
     "canopy/datalayer"
     "canopy/datalayer/cassandra_datalayer"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "canopy/service"
 )
 

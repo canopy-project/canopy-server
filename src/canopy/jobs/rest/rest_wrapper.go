@@ -19,7 +19,7 @@ import (
     "canopy/canolog"
     "canopy/config"
     "canopy/datalayer"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "canopy/mail"
     "encoding/base64"
     "encoding/json"

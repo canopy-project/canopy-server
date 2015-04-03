@@ -16,7 +16,7 @@ package main
 import (
     "canopy/canolog"
     "canopy/config"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "canopy/jobs"
     "canopy/rest"
     "canopy/webapp"
