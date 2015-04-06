@@ -67,6 +67,7 @@ func CanopyRestJobForwarder(
         // Launch backend job
         payload := map[string]interface{}{
             "url-vars" : mux.Vars(r),
+            "query" : r.URL.Query(), // map[string][]string
             "auth-header" : r.Header["Authorization"],
             "cookie-username" : cookieUsername,
             "http-body" : bodyString,

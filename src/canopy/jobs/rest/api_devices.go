@@ -27,9 +27,16 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
     if err != nil {
         return nil, InternalServerError("Device lookup failed")
     }
+
+    timestamps := info.Query["timestamps"]
+    timestamp_type := "epoch_us"
+    if timestamps != nil && timestamps[0] == "rfc3339" {
+        timestamp_type = "rfc3339"
+    }
+
     //out, err := devicesToJsonObj(info.PigeonSys, devices)
     // TODO: How do we tell ws connectivity status?
-    out, err := devicesToJsonObj(devices)
+    out, err := devicesToJsonObj(devices, timestamp_type)
     if err != nil {
         return nil, InternalServerError("Generating JSON")
     }
