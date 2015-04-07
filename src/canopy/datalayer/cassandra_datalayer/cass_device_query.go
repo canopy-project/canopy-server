@@ -19,6 +19,7 @@ import (
     "canopy/datalayer"
     "github.com/gocql/gocql"
     "fmt"
+    "sort"
 )
 
 type CassDeviceQuery struct {
@@ -39,8 +40,10 @@ func (dq *CassDeviceQuery)SetFilter(expr string) (datalayer.DeviceQuery, error) 
     return nil, fmt.Errorf("Filter not yet implemented")
 }
 
-func (dq *CassDeviceQuery)SetSortOrder(...string) (datalayer.DeviceQuery, error) {
-    return nil, fmt.Errorf("Sort not yet implemented")
+func (dq *CassDeviceQuery)SetSortOrder(order ...string) (datalayer.DeviceQuery, error) {
+    out := dq.Copy()
+    out.sortOrder = order
+    return out, nil
 }
 
 func (dq *CassDeviceQuery)SetLimits(start, count int32) (datalayer.DeviceQuery, error) {
@@ -48,6 +51,33 @@ func (dq *CassDeviceQuery)SetLimits(start, count int32) (datalayer.DeviceQuery, 
     out.limitStart = start
     out.limitCount = count
     return out, nil
+}
+
+type sortData struct {
+    devices []datalayer.Device
+    sortOrder []string
+}
+
+func (data sortData) Len() int {
+    return len(data.devices)
+}
+func (data sortData) Swap(i, j int) {
+    data.devices[i], data.devices[j] = data.devices[j], data.devices[i]
+}
+func (data sortData) Less(i, j int) bool {
+    sampleA, errA := data.devices[i].LatestDataByName(data.sortOrder[0])
+    sampleB, errB := data.devices[i].LatestDataByName(data.sortOrder[0])
+
+    // TODO: support non-float32 datatypes
+    if errA != nil {
+        return true
+    } else if errB != nil {
+        return false
+    }
+
+    // TOOD: support descending
+    // TODO: support secondary, tertiary, etc
+    return (sampleA.Value.(float32) < sampleB.Value.(float32))
 }
 
 func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
@@ -73,6 +103,15 @@ func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
     }
     if err := iter.Close(); err != nil {
         return []datalayer.Device{}, err
+    }
+
+    // Sort
+    if dq.sortOrder != nil {
+        data := sortData{
+            devices: devices,
+            sortOrder: dq.sortOrder,
+        }
+        sort.Sort(data)
     }
 
     // Apply limits
