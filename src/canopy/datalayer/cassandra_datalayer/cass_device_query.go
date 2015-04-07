@@ -16,6 +16,7 @@
 package cassandra_datalayer
 
 import (
+    "canopy/cloudvar"
     "canopy/datalayer"
     "github.com/gocql/gocql"
     "fmt"
@@ -65,10 +66,20 @@ func (data sortData) Swap(i, j int) {
     data.devices[i], data.devices[j] = data.devices[j], data.devices[i]
 }
 func (data sortData) Less(i, j int) bool {
-    sampleA, errA := data.devices[i].LatestDataByName(data.sortOrder[0])
-    sampleB, errB := data.devices[j].LatestDataByName(data.sortOrder[0])
+    varDefA, errA := data.devices[i].LookupVarDef(data.sortOrder[0])
+    varDefB, errB := data.devices[j].LookupVarDef(data.sortOrder[0])
 
-    // TODO: support non-float32 datatypes
+    if errA != nil && errB != nil {
+        return data.devices[i].IDString() < data.devices[j].IDString()
+    } else if errA != nil {
+        return false
+    } else if errB != nil {
+        return true
+    }
+
+    sampleA, errA := data.devices[i].LatestData(varDefA)
+    sampleB, errB := data.devices[j].LatestData(varDefB)
+
     if errA != nil && errB != nil {
         return data.devices[i].IDString() < data.devices[j].IDString()
     } else if errA != nil {
@@ -79,7 +90,9 @@ func (data sortData) Less(i, j int) bool {
 
     // TOOD: support descending
     // TODO: support secondary, tertiary, etc
-    return (sampleA.Value.(float32) < sampleB.Value.(float32))
+    // TODO: What happens if datatype differs?
+    less, _ := cloudvar.Less(varDefA.Datatype(), sampleA.Value, sampleB.Value)
+    return less
 }
 
 func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {

@@ -52,6 +52,125 @@ type CloudVar struct {
     value CloudVarValue
 }
 
+func Less(datatype sddl.DatatypeEnum, value0, value1 CloudVarValue) (bool, error) {
+    switch datatype {
+    case sddl.DATATYPE_VOID:
+        return false, nil
+    case sddl.DATATYPE_STRING:
+        v0, ok := value0.(string)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects string value for v0")
+        }
+        v1, ok := value1.(string)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects string value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_BOOL:
+        v0, ok := value0.(bool)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects bool value for v0")
+        }
+        v1, ok := value1.(bool)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects bool value for v1")
+        }
+        return (!v0 && v1), nil
+    case sddl.DATATYPE_INT8:
+        v0, ok := value0.(int8)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects int8 value for v0")
+        }
+        v1, ok := value1.(int8)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects int8 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_UINT8:
+        v0, ok := value0.(uint8)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects uint8 value for v0")
+        }
+        v1, ok := value1.(uint8)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects uint8 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_INT16:
+        v0, ok := value0.(int16)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects int16 value for v0")
+        }
+        v1, ok := value1.(int16)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects int16 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_UINT16:
+        v0, ok := value0.(uint16)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects uint16 value for v0")
+        }
+        v1, ok := value1.(uint16)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects uint16 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_INT32:
+        v0, ok := value0.(int32)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects int32 value for v0")
+        }
+        v1, ok := value1.(int32)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects int32 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_UINT32:
+        v0, ok := value0.(uint32)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects uint32 value for v0")
+        }
+        v1, ok := value1.(uint32)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects uint32 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_FLOAT32:
+        v0, ok := value0.(float32)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects float32 value for v0")
+        }
+        v1, ok := value1.(float32)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects float32 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_FLOAT64:
+        v0, ok := value0.(float64)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects float64 value for v0")
+        }
+        v1, ok := value1.(float64)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects float64 value for v1")
+        }
+        return (v0 < v1), nil
+    case sddl.DATATYPE_DATETIME:
+        v0, ok := value0.(time.Time)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects time.Time value for v0")
+        }
+        v1, ok := value1.(time.Time)
+        if !ok {
+            return false, fmt.Errorf("cloudvar.Less expects time.Time value for v1")
+        }
+        return v0.Before(v1), nil
+    default:
+        return false, fmt.Errorf("cloudvar.Less unsupported datatype ", datatype)
+    }
+}
+
 func JsonToCloudVarValue(varDef sddl.VarDef, value interface{}) (interface{}, error) {
     switch varDef.Datatype() {
     case sddl.DATATYPE_VOID:
