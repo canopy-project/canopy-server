@@ -81,6 +81,7 @@ func GET__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (m
     if err != nil {
         return nil, InternalServerError("Generating JSON")
     }
+    out["result"] = "ok"
 
     return out, nil
 }
@@ -171,6 +172,7 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
     if err != nil {
         return nil, InternalServerError("Generating JSON")
     }
+    out["result"] = "ok"
     return out, nil
 }
 
