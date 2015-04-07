@@ -29,6 +29,13 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
 
     dq := info.Account.Devices()
 
+
+    // Paging
+    totalCount, err := dq.Count()
+    if err != nil {
+        return nil, InternalServerError("Error determining device count: " + err.Error())
+    }
+
     limit := info.Query["limit"]
     if limit != nil {
         limitStrings := strings.Split(limit[0], ",")
@@ -76,6 +83,9 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
         return nil, InternalServerError("Generating JSON")
     }
     out["result"] = "ok"
+    out["paging"] = map[string]interface{}{
+        "total_count" : totalCount,
+    }
 
     return out, nil
 }

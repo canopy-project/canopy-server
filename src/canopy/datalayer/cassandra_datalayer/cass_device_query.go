@@ -113,7 +113,7 @@ func (data sortData) Less(i, j int) bool {
     // Tie breaker: Device name
     if data.devices[i].Name() < data.devices[j].Name() {
         return true
-    } else if data.devices[i].Name() < data.devices[j].Name() {
+    } else if data.devices[j].Name() < data.devices[i].Name() {
         return false
     }
 
@@ -150,13 +150,13 @@ func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
     }
 
     // Sort
+    var data sortData
     if dq.sortOrder != nil {
-        data := sortData{
-            devices: devices,
-            sortOrder: dq.sortOrder,
-        }
-        sort.Sort(data)
+        data = sortData{ devices: devices, sortOrder: dq.sortOrder }
+    } else {
+        data = sortData{ devices: devices, sortOrder: []string{}}
     }
+    sort.Sort(data)
 
     // Apply limits
     out := []datalayer.Device{}
