@@ -76,6 +76,7 @@ func GET__api__device__id__var(info *RestRequestInfo, sideEffect *RestSideEffect
 
     // Convert samples to JSON
     out := map[string]interface{}{}
+    out["result"] = "ok"
     out["samples"] = []interface{}{}
     for _, sample := range samples {
         out["samples"] = append(out["samples"].([]interface{}), map[string]interface{}{

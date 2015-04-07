@@ -41,6 +41,7 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
     if err != nil {
         return nil, InternalServerError("Generating JSON")
     }
+    out["result"] = "ok"
 
     return out, nil
 }
