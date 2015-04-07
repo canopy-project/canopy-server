@@ -68,15 +68,22 @@ func (data sortData) Swap(i, j int) {
 func (data sortData) Less(i, j int) bool {
     var s int
     for s = 0; s < len(data.sortOrder); s++ {
-        varDefA, errA := data.devices[i].LookupVarDef(data.sortOrder[s])
-        varDefB, errB := data.devices[j].LookupVarDef(data.sortOrder[s])
+        descending := ([]rune(data.sortOrder[s])[0] == '-')
+        var sortKey string
+        if descending {
+            sortKey = data.sortOrder[s][1:]
+        } else {
+            sortKey = data.sortOrder[s]
+        }
+        varDefA, errA := data.devices[i].LookupVarDef(sortKey)
+        varDefB, errB := data.devices[j].LookupVarDef(sortKey)
 
         if errA != nil && errB != nil {
             continue
         } else if errA != nil && errB == nil{
-            return false
+            return !descending
         } else if errA == nil && errB != nil {
-            return true
+            return descending
         }
 
         sampleA, errA := data.devices[i].LatestData(varDefA)
@@ -85,9 +92,9 @@ func (data sortData) Less(i, j int) bool {
         if errA != nil && errB != nil {
             continue
         } else if errA != nil {
-            return false
+            return !descending
         } else if errB != nil {
-            return true
+            return descending
         }
 
         // TOOD: support descending
@@ -95,11 +102,11 @@ func (data sortData) Less(i, j int) bool {
         // TODO: What happens if datatype differs?
         less, _ := cloudvar.Less(varDefA.Datatype(), sampleA.Value, sampleB.Value)
         if less {
-            return true
+            return !descending
         }
         greater, _ := cloudvar.Greater(varDefA.Datatype(), sampleA.Value, sampleB.Value)
         if greater {
-            return false
+            return descending
         }
     }
 
@@ -111,7 +118,10 @@ func (data sortData) Less(i, j int) bool {
     }
 
     // Ultimate tie breaker: Device UUID
-    return data.devices[i].IDString() < data.devices[j].IDString()
+    if (data.devices[i].IDString() < data.devices[j].IDString()) {
+        return true
+    }
+    return false
 }
 
 func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
