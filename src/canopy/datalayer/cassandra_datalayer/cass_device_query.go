@@ -66,13 +66,15 @@ func (data sortData) Swap(i, j int) {
 }
 func (data sortData) Less(i, j int) bool {
     sampleA, errA := data.devices[i].LatestDataByName(data.sortOrder[0])
-    sampleB, errB := data.devices[i].LatestDataByName(data.sortOrder[0])
+    sampleB, errB := data.devices[j].LatestDataByName(data.sortOrder[0])
 
     // TODO: support non-float32 datatypes
-    if errA != nil {
-        return true
-    } else if errB != nil {
+    if errA != nil && errB != nil {
+        return data.devices[i].IDString() < data.devices[j].IDString()
+    } else if errA != nil {
         return false
+    } else if errB != nil {
+        return true
     }
 
     // TOOD: support descending

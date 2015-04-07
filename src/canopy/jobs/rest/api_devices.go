@@ -21,6 +21,8 @@ import (
 )
 
 func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
+    var err error
+
     if info.Account == nil {
         return nil, NotLoggedInError()
     }
@@ -42,6 +44,15 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
             return nil, BadInputError("Expected int for limit count")
         }
         dq, err = dq.SetLimits(int32(start), int32(count))
+        if err != nil {
+            return nil, InternalServerError("Unable to set limits").Log()
+        }
+    }
+
+    sort := info.Query["sort"]
+    if sort != nil {
+        sortStrings := strings.Split(sort[0], ",")
+        dq, err = dq.SetSortOrder(sortStrings...)
         if err != nil {
             return nil, InternalServerError("Unable to set limits").Log()
         }
