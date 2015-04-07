@@ -16,6 +16,8 @@
 package rest
 
 import (
+    "strconv"
+    "strings"
 )
 
 func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
@@ -24,6 +26,27 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
     }
 
     dq := info.Account.Devices()
+
+    limit := info.Query["limit"]
+    if limit != nil {
+        limitStrings := strings.Split(limit[0], ",")
+        if len(limitStrings) != 2 {
+            return nil, BadInputError("Expected \"start,count\" for \"limit\"")
+        }
+        start, err := strconv.ParseInt(limitStrings[0], 10, 32)
+        if err != nil {
+            return nil, BadInputError("Expected int for limit start")
+        }
+        count, err := strconv.ParseInt(limitStrings[1], 10, 32)
+        if err != nil {
+            return nil, BadInputError("Expected int for limit count")
+        }
+        dq, err = dq.SetLimits(int32(start), int32(count))
+        if err != nil {
+            return nil, InternalServerError("Unable to set limits").Log()
+        }
+    }
+
     devices, err := dq.DeviceList()
     if err != nil {
         return nil, InternalServerError("Device lookup failed")
