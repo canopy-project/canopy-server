@@ -65,7 +65,16 @@ func (account *CassAccount) Activate(username, code string) error {
 
 
 // Obtain list of devices I have access to.
-func (account *CassAccount) Devices() ([]datalayer.Device, error) {
+func (account *CassAccount) Devices() datalayer.DeviceQuery {
+    return &CassDeviceQuery{
+        account: account,
+        limitStart: 0,
+        limitCount: -1,
+    }
+}
+
+/*
+    ([]datalayer.Device, error) {
     devices := []datalayer.Device{}
     var deviceId gocql.UUID
     var accessLevel int
@@ -91,6 +100,7 @@ func (account *CassAccount) Devices() ([]datalayer.Device, error) {
 
     return devices, nil
 }
+*/
 
 // Obtain specific device, if I have permission.
 func (account *CassAccount) Device(id gocql.UUID) (datalayer.Device, error) {

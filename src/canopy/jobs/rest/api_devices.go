@@ -23,7 +23,8 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
         return nil, NotLoggedInError()
     }
 
-    devices, err := info.Account.Devices()
+    dq := info.Account.Devices()
+    devices, err := dq.DeviceList()
     if err != nil {
         return nil, InternalServerError("Device lookup failed")
     }
