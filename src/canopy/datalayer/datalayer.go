@@ -125,7 +125,7 @@ type Account interface {
     Activate(username, code string) error
 
     // Get all devices that user has access to.
-    Devices() ([]Device, error)
+    Devices() DeviceQuery
 
     // Get device by ID, but only if this account has access to it.
     Device(id gocql.UUID) (Device, error)
@@ -157,6 +157,15 @@ type Account interface {
 
     // Verify user's password.  Returns true if password is correct.
     VerifyPassword(password string) bool
+}
+
+// DeviceQuery
+type DeviceQuery interface {
+    SetSortOrder(...string) (DeviceQuery, error)
+    SetFilter(expr string) (DeviceQuery, error)
+    SetLimits(start, end int32) (DeviceQuery, error)
+    Count() (int32, error)
+    DeviceList() ([]Device, error)
 }
 
 // Device is a Canopy-enabled device
