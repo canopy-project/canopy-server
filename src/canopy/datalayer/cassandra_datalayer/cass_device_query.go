@@ -66,33 +66,52 @@ func (data sortData) Swap(i, j int) {
     data.devices[i], data.devices[j] = data.devices[j], data.devices[i]
 }
 func (data sortData) Less(i, j int) bool {
-    varDefA, errA := data.devices[i].LookupVarDef(data.sortOrder[0])
-    varDefB, errB := data.devices[j].LookupVarDef(data.sortOrder[0])
+    var s int
+    for s = 0; s < len(data.sortOrder); s++ {
+        varDefA, errA := data.devices[i].LookupVarDef(data.sortOrder[s])
+        varDefB, errB := data.devices[j].LookupVarDef(data.sortOrder[s])
 
-    if errA != nil && errB != nil {
-        return data.devices[i].IDString() < data.devices[j].IDString()
-    } else if errA != nil {
-        return false
-    } else if errB != nil {
-        return true
+        if errA != nil && errB != nil {
+            continue
+        } else if errA != nil && errB == nil{
+            return false
+        } else if errA == nil && errB != nil {
+            return true
+        }
+
+        sampleA, errA := data.devices[i].LatestData(varDefA)
+        sampleB, errB := data.devices[j].LatestData(varDefB)
+
+        if errA != nil && errB != nil {
+            continue
+        } else if errA != nil {
+            return false
+        } else if errB != nil {
+            return true
+        }
+
+        // TOOD: support descending
+        // TODO: support secondary, tertiary, etc
+        // TODO: What happens if datatype differs?
+        less, _ := cloudvar.Less(varDefA.Datatype(), sampleA.Value, sampleB.Value)
+        if less {
+            return true
+        }
+        greater, _ := cloudvar.Greater(varDefA.Datatype(), sampleA.Value, sampleB.Value)
+        if greater {
+            return false
+        }
     }
 
-    sampleA, errA := data.devices[i].LatestData(varDefA)
-    sampleB, errB := data.devices[j].LatestData(varDefB)
-
-    if errA != nil && errB != nil {
-        return data.devices[i].IDString() < data.devices[j].IDString()
-    } else if errA != nil {
-        return false
-    } else if errB != nil {
+    // Tie breaker: Device name
+    if data.devices[i].Name() < data.devices[j].Name() {
         return true
+    } else if data.devices[i].Name() < data.devices[j].Name() {
+        return false
     }
 
-    // TOOD: support descending
-    // TODO: support secondary, tertiary, etc
-    // TODO: What happens if datatype differs?
-    less, _ := cloudvar.Less(varDefA.Datatype(), sampleA.Value, sampleB.Value)
-    return less
+    // Ultimate tie breaker: Device UUID
+    return data.devices[i].IDString() < data.devices[j].IDString()
 }
 
 func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
