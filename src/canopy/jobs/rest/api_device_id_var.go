@@ -69,7 +69,7 @@ func GET__api__device__id__var(info *RestRequestInfo, sideEffect *RestSideEffect
         return nil, URLNotFoundError()
     }
 
-    samples, err := device.HistoricData(varDef, time.Now(), time.Now().Add(-4*time.Hour), time.Now())
+    samples, err := device.HistoricData(varDef, time.Now(), time.Now().Add(-59*time.Minute), time.Now())
     if err != nil {
         return nil, InternalServerError("Could not obtain sample data: " + err.Error())
     }
