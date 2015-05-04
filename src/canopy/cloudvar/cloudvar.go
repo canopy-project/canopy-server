@@ -42,6 +42,17 @@ import (
 
 type CloudVarValue interface {}
 
+
+type CompareOpEnum int
+const (
+    EQ compareOpEnum = iota
+    NEQ
+    LT
+    LTE
+    GT
+    GTE
+)
+
 type CloudVarSample struct {
     Timestamp time.Time
     Value CloudVarValue
