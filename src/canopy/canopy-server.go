@@ -16,6 +16,7 @@ package main
 import (
     "canopy/canolog"
     "canopy/config"
+    "canopy/device_filter"
     "canopy/pigeon"
     "canopy/jobs"
     "canopy/rest"

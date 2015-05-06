@@ -42,10 +42,9 @@ import (
 
 type CloudVarValue interface {}
 
-
 type CompareOpEnum int
 const (
-    EQ compareOpEnum = iota
+    EQ CompareOpEnum = iota
     NEQ
     LT
     LTE
@@ -61,6 +60,90 @@ type CloudVarSample struct {
 type CloudVar struct {
     varDef sddl.VarDef
     value CloudVarValue
+}
+
+func CloudVarValueDatatype(value CloudVarValue) sddl.DatatypeEnum{
+    switch value.(type) {
+    case interface{}:
+        return sddl.DATATYPE_VOID
+    case string:
+        return sddl.DATATYPE_STRING
+    case bool:
+        return sddl.DATATYPE_BOOL
+    case int8:
+        return sddl.DATATYPE_INT8
+    case int16:
+        return sddl.DATATYPE_INT16
+    case int32:
+        return sddl.DATATYPE_INT32
+    case uint8:
+        return sddl.DATATYPE_UINT8
+    case uint16:
+        return sddl.DATATYPE_UINT16
+    case uint32:
+        return sddl.DATATYPE_UINT32
+    case float32:
+        return sddl.DATATYPE_FLOAT32
+    case float64:
+        return sddl.DATATYPE_FLOAT64
+    case time.Time:
+        return sddl.DATATYPE_DATETIME
+    }
+    return sddl.DATATYPE_INVALID
+}
+
+func cloudVarValueToFloat64(v CloudVarValue) (float64, bool) {
+    switch v := v.(type) {
+    case bool:
+        if v {
+            return 1, true
+        }
+        return 0, true
+    case int8:
+        return float64(v), true
+    case int16:
+        return float64(v), true
+    case int32:
+        return float64(v), true
+    case uint8:
+        return float64(v), true
+    case uint16:
+        return float64(v), true
+    case uint32:
+        return float64(v), true
+    case float32:
+        return float64(v), true
+    case float64:
+        return v, true
+    }
+    return 0, false
+}
+
+// Loose comparison (i.e. datatypes typically don't have to match exactly)
+func CompareValues(v0, v1 CloudVarValue, op CompareOpEnum) (bool, error) {
+    f0, ok := cloudVarValueToFloat64(v0)
+    if !ok {
+        return false, fmt.Errorf("Only numerics supported at this time")
+    }
+    f1, ok := cloudVarValueToFloat64(v1)
+    if !ok {
+        return false, fmt.Errorf("Only numerics supported at this time")
+    }
+    switch op {
+    case LT:
+        return (f0 < f1), nil
+    case LTE:
+        return (f0 <= f1), nil
+    case EQ:
+        return (f0 == f1), nil
+    case NEQ:
+        return (f0 != f1), nil
+    case GT:
+        return (f0 > f1), nil
+    case GTE:
+        return (f0 >= f1), nil
+    }
+    return false, fmt.Errorf("Unsupported comparison op")
 }
 
 func Greater(datatype sddl.DatatypeEnum, value0, value1 CloudVarValue) (bool, error) {
