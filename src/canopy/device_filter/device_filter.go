@@ -276,9 +276,30 @@ func tokenize(expr string) []*Token {
     return out
 }
 
+// Higher output means higher precendence.
+//
+// I.e. * is higher than +
+func operatorPrecedence(tok *Token) int32 {
+    switch tok.token_type {
+    case TOKEN_UNARY_OP:
+        // Unary ops have highest precedence
+        return 10
+    case TOKEN_BINARY_OP:
+        switch tok.binary_op {
+            case AND, OR:
+                return 9
+            case LT, LTE, EQ, NEQ, GT, GTE:
+                return 7
+            default:
+                return 0
+        }
+    default:
+        return 0
+    }
+}
+
 func operatorHasPrecedence(token0, token1 *Token) bool {
-    // for now no OoO
-    return true
+    return operatorPrecedence(token0) >= operatorPrecedence(token1)
 }
 
 func infixToPrefix(tokens []*Token) ([]*Token, error) {
@@ -287,7 +308,8 @@ func infixToPrefix(tokens []*Token) ([]*Token, error) {
     out := []*Token{}
 
     for _, token := range tokens {
-        fmt.Println(*token)
+        fmt.Println("")
+        fmt.Println("infixToPrefix: ", *token)
         switch token.token_type {
         case TOKEN_BOOLEAN_VALUE, TOKEN_STRING_VALUE, TOKEN_FLOAT_VALUE, TOKEN_SYMBOL:
             // If the scanned token is an operand, add it to the postfix array.
@@ -309,7 +331,7 @@ func infixToPrefix(tokens []*Token) ([]*Token, error) {
                     // pop the stack and push the popped element to postfix
                     // array
                     popped := stack[len(stack)-1]
-                    stack = stack[0:]
+                    stack = stack[0:len(stack)-1]
                     postfix = append(postfix, popped)
                 }
 
@@ -321,6 +343,8 @@ func infixToPrefix(tokens []*Token) ([]*Token, error) {
             fmt.Println("Unsupported token: ", *token)
             return nil, fmt.Errorf("Unexpected var")
         }
+        fmt.Println("stack:", stack)
+        fmt.Println("postfix:", postfix)
     }
 
     // Flush out anything remaining on stack

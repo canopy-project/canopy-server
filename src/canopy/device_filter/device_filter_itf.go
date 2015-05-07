@@ -81,7 +81,7 @@ func RunTests() error {
         return err
     }
 
-    filter, err = Compile("temperature > 18.0")
+    filter, err = Compile("temperature < 18.0 OR temperature > 19.8")
     if err != nil {
         return err
     }
