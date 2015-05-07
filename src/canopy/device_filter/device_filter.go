@@ -22,6 +22,7 @@ import (
     "fmt"
     "strings"
     "strconv"
+    "time"
 )
 
 type DeviceFilterCompiler struct {}
@@ -212,7 +213,7 @@ func isNumber(s string) bool {
 func stringToToken(s string) *Token {
     fmt.Println("Tokenizing ", s)
     switch {
-    case s == "=":
+    case s == "=", s == "==":
         return &Token{ token_type: TOKEN_BINARY_OP, binary_op: EQ }
     case s == "!=":
         return &Token{ token_type: TOKEN_BINARY_OP, binary_op: NEQ }
@@ -228,13 +229,13 @@ func stringToToken(s string) *Token {
         return &Token{ token_type: TOKEN_OPEN_PAREN }
     case s == ")":
         return &Token{ token_type: TOKEN_CLOSE_PAREN }
-    case s == "AND":
+    case s == "AND", s == "&&":
         return &Token{ token_type: TOKEN_BINARY_OP, binary_op: AND }
-    case s == "OR":
+    case s == "OR", s == "||":
         return &Token{ token_type: TOKEN_BINARY_OP, binary_op: OR }
-    case s == "NOT":
+    case s == "NOT", s == "!":
         return &Token{ token_type: TOKEN_UNARY_OP, unary_op: NOT }
-    case s == "HAS":
+    case strings.ToLower(s) == "has":
         return &Token{ token_type: TOKEN_UNARY_OP, unary_op: HAS }
     case strings.Trim(s, " ") == "":
         return nil
@@ -478,6 +479,21 @@ func (expr *ImmediateExpression)Value(device datalayer.Device) (cloudvar.CloudVa
 }
 
 func (expr *PropertyExpression)Value(device datalayer.Device) (cloudvar.CloudVarValue, error) {
+    switch expr.property {
+    case "system.activity_status":
+        // -1 = never connected
+        // 0 = inactive
+        // 1 = active
+        last := device.LastActivityTime()
+        if last == nil {
+            return -1, nil
+        } else if time.Now().UTC().Sub(*last) > time.Minute {
+            return 0, nil
+        }
+        return 1, nil
+    case "system.ws_connected":
+        return device.WSConnected(), nil
+    }
     sample, err := device.LatestDataByName(expr.property)
     if err != nil {
         return nil, err

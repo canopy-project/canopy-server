@@ -77,11 +77,13 @@ func RunTests() error {
     dl := cassandra_datalayer.NewDatalayer(cfg)
     conn, _ := dl.Connect("canopy")
     device, err := conn.LookupDeviceByStringID("59a0bb82-e5ff-430c-8226-5f603559813f")
+    //device, err := conn.LookupDeviceByStringID("bec836bd-b38c-4d46-8c36-b066cb5300d7")
     if err != nil {
         return err
     }
 
-    filter, err = Compile("temperature < 18.0 OR temperature > 19.8")
+    //filter, err = Compile("temperature < 18.0 OR temperature > 19.8")
+    filter, err = Compile("system.ws_connected = true")
     if err != nil {
         return err
     }
