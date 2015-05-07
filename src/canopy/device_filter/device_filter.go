@@ -33,6 +33,7 @@ const (
     TOKEN_FLOAT_VALUE
     TOKEN_STRING_VALUE
     TOKEN_BOOLEAN_VALUE
+    TOKEN_SYMBOL // keyword or variable name
     TOKEN_OPEN_PAREN
     TOKEN_CLOSE_PAREN
 )
@@ -245,17 +246,31 @@ func stringToToken(s string) *Token {
         fval, _ := strconv.ParseFloat(s, 64)
         return &Token{ token_type: TOKEN_FLOAT_VALUE, float_value: fval }
     default:
-        return &Token{ token_type: TOKEN_STRING_VALUE, string_value: s }
+        return &Token{ token_type: TOKEN_SYMBOL, string_value: s }
     }
 }
 
 func tokenize(expr string) []*Token {
     out := []*Token{}
-    tokStrings := multiSplit([]string{expr}, []string{" ", "(", ")"})
-    for _, tokString := range tokStrings {
-        tok := stringToToken(tokString)
-        if tok != nil {
-            out = append(out, tok)
+    tokStrings := multiSplit([]string{expr}, []string{" ", "(", ")", "\""})
+    for i, tokString := range tokStrings {
+
+        // Strings
+        if (tokString == "\"") {
+            tok := &Token{token_type: TOKEN_STRING_VALUE, string_value: ""}
+            // open quote.  Scan until close quote.
+            for j := i + 1; j < len(tokStrings); j++ {
+                if tokStrings[j] == "\"" {
+                    break
+                }
+                tok.string_value += tokStrings[j]
+            }
+        } else {
+        // All other tokens
+            tok := stringToToken(tokString)
+            if tok != nil {
+                out = append(out, tok)
+            }
         }
     }
     return out
@@ -274,7 +289,7 @@ func infixToPrefix(tokens []*Token) ([]*Token, error) {
     for _, token := range tokens {
         fmt.Println(*token)
         switch token.token_type {
-        case TOKEN_BOOLEAN_VALUE, TOKEN_STRING_VALUE, TOKEN_FLOAT_VALUE:
+        case TOKEN_BOOLEAN_VALUE, TOKEN_STRING_VALUE, TOKEN_FLOAT_VALUE, TOKEN_SYMBOL:
             // If the scanned token is an operand, add it to the postfix array.
             postfix = append(postfix, token)
 
@@ -332,7 +347,7 @@ func genExpressionTree(prefix []*Token) (Expression, []*Token, error) {
 
     token := prefix[0]
     switch token.token_type {
-    case TOKEN_BOOLEAN_VALUE, TOKEN_STRING_VALUE, TOKEN_FLOAT_VALUE:
+    case TOKEN_BOOLEAN_VALUE, TOKEN_STRING_VALUE, TOKEN_FLOAT_VALUE, TOKEN_SYMBOL:
         // Token is an operand.
 
         // consume it
@@ -347,10 +362,14 @@ func genExpressionTree(prefix []*Token) (Expression, []*Token, error) {
             expr =  &ImmediateExpression{value: token.float_value}
         case TOKEN_STRING_VALUE:
             expr =  &ImmediateExpression{value: token.string_value}
+        case TOKEN_SYMBOL:
+            // A "symbol" is a variable reference or other property name
+            expr = &PropertyExpression{property: token.string_value}
         default:
             return nil, nil, fmt.Errorf("Bad token type")
         }
         return expr, outPrefix, nil
+
     case TOKEN_BINARY_OP:
         // Recursive case.  Token is an binary operator.  Construct two child
         // filter trees as operands.

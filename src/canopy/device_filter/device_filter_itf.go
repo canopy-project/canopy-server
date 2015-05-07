@@ -17,6 +17,8 @@ package device_filter
 
 import (
     "canopy/datalayer"
+    "canopy/config"
+    "canopy/datalayer/cassandra_datalayer"
     "fmt"
 )
 
@@ -47,13 +49,45 @@ func Compile(expr string) (DeviceFilter, error) {
 
 
 func RunTests() error {
-    filter, err := Compile("5 == 4")
+    // TEST 1
+    fmt.Println("TEST 1")
+    filter, err := Compile("5 = 5")
     if err != nil {
         return err
     }
 
     sat, err := filter.SatisfiedBy(nil)
     fmt.Println("SAT: ", sat)
+    if err != nil {
+        return err
+    }
+    if !sat {
+        return fmt.Errorf("Expectected sat=true")
+    }
+
+    fmt.Println("TEST 2")
+
+    // TEST 2
+    cfg := config.NewDefaultConfig("", "", "")
+    err = cfg.LoadConfig()
+    if err != nil {
+        fmt.Printf("Error loading config")
+    }
+
+    dl := cassandra_datalayer.NewDatalayer(cfg)
+    conn, _ := dl.Connect("canopy")
+    device, err := conn.LookupDeviceByStringID("59a0bb82-e5ff-430c-8226-5f603559813f")
+    if err != nil {
+        return err
+    }
+
+    filter, err = Compile("temperature > 18.0")
+    if err != nil {
+        return err
+    }
+
+    sat, err = filter.SatisfiedBy(device)
+    fmt.Println("SAT2: ", sat)
     if err != nil {
         return err
     }
