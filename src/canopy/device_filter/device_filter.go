@@ -24,10 +24,11 @@ import (
     "strconv"
 )
 
+type DeviceFilterCompiler struct {}
+
 type TokenTypeEnum int
 const (
-    TOKEN_COMPARE_OP TokenTypeEnum = iota
-    TOKEN_BINARY_OP
+    TOKEN_BINARY_OP TokenTypeEnum = iota
     TOKEN_UNARY_OP
     TOKEN_FLOAT_VALUE
     TOKEN_STRING_VALUE
@@ -67,7 +68,7 @@ type Expression interface {
     Value(device datalayer.Device) (cloudvar.CloudVarValue, error)
 }
 
-type DeviceFilter struct {
+type DeviceFilterObj struct {
     expr Expression
 }
 
@@ -203,11 +204,12 @@ func multiSplit(texts []string, seps []string) []string {
 
 func isNumber(s string) bool {
     _, err := strconv.ParseFloat(s, 64)
-    return err != nil
+    return err == nil
 }
 
 // Temperature > 64 AND humidity < 23
 func stringToToken(s string) *Token {
+    fmt.Println("Tokenizing ", s)
     switch {
     case s == "=":
         return &Token{ token_type: TOKEN_BINARY_OP, binary_op: EQ }
@@ -270,12 +272,13 @@ func infixToPrefix(tokens []*Token) ([]*Token, error) {
     out := []*Token{}
 
     for _, token := range tokens {
+        fmt.Println(*token)
         switch token.token_type {
         case TOKEN_BOOLEAN_VALUE, TOKEN_STRING_VALUE, TOKEN_FLOAT_VALUE:
             // If the scanned token is an operand, add it to the postfix array.
             postfix = append(postfix, token)
 
-        case TOKEN_COMPARE_OP:
+        case TOKEN_BINARY_OP:
             // If the scanned token is an operator...
 
             if len(stack) == 0 {
@@ -300,6 +303,7 @@ func infixToPrefix(tokens []*Token) ([]*Token, error) {
             }
 
         default:
+            fmt.Println("Unsupported token: ", *token)
             return nil, fmt.Errorf("Unexpected var")
         }
     }
@@ -330,9 +334,23 @@ func genExpressionTree(prefix []*Token) (Expression, []*Token, error) {
     switch token.token_type {
     case TOKEN_BOOLEAN_VALUE, TOKEN_STRING_VALUE, TOKEN_FLOAT_VALUE:
         // Token is an operand.
+
+        // consume it
         outPrefix := prefix[1:]
-        filter, err := operandTokenToExpression(token)
-        return filter, outPrefix, err
+
+        // convert token to ImmediateExpression
+        var expr Expression
+        switch token.token_type {
+        case TOKEN_BOOLEAN_VALUE:
+            expr =  &ImmediateExpression{value: token.boolean_value}
+        case TOKEN_FLOAT_VALUE:
+            expr =  &ImmediateExpression{value: token.float_value}
+        case TOKEN_STRING_VALUE:
+            expr =  &ImmediateExpression{value: token.string_value}
+        default:
+            return nil, nil, fmt.Errorf("Bad token type")
+        }
+        return expr, outPrefix, nil
     case TOKEN_BINARY_OP:
         // Recursive case.  Token is an binary operator.  Construct two child
         // filter trees as operands.
@@ -344,7 +362,9 @@ func genExpressionTree(prefix []*Token) (Expression, []*Token, error) {
         if err != nil {
             return nil, nil, err
         }
-        expr :=  &BinaryOpExpression{token.binary_op, operand0, operand1}
+        // because prefix tree is reversed from the postfix tree, the operand
+        // order got swapped.
+        expr :=  &BinaryOpExpression{token.binary_op, operand1, operand0}
         return expr, newPrefix, err
     case TOKEN_UNARY_OP:
         // Recursive case.  Token is an unary operator.  Construct one child
@@ -359,19 +379,6 @@ func genExpressionTree(prefix []*Token) (Expression, []*Token, error) {
         return nil, nil, fmt.Errorf("Unexpected token")
     }
 }
-
-func Parse(expr string) (Expression, error) {
-    // TOKENIZE
-    tokens := tokenize(expr)
-
-    // CONVERT TO PREFIX
-    prefixTokens, err := infixToPrefix(tokens)
-
-    // PARSE INTO TO FILTER TREE
-    expression, _, err := genExpressionTree(prefixTokens)
-    return expression, err
-}
-
 
 func (expr *BinaryOpExpression)Value(device datalayer.Device) (cloudvar.CloudVarValue, error) {
     switch expr.operation {
@@ -457,4 +464,71 @@ func (expr *UnaryOpExpression)Value(device datalayer.Device) (cloudvar.CloudVarV
     default:
         return false, fmt.Errorf("Unexpected unary operation")
     }
+}
+
+func (filter *DeviceFilterObj)SatisfiedBy(device datalayer.Device) (bool, error) {
+    fmt.Println(filter)
+    fmt.Println(filter.expr)
+    val, err := filter.expr.Value(device)
+    if err != nil {
+        return false, err
+    }
+
+    valBool, ok := val.(bool)
+    if !ok {
+        return false, fmt.Errorf("Filter expected to evaluate to bool")
+    }
+
+    return valBool, nil
+}
+
+func (filter *DeviceFilterObj)Whittle(devices []datalayer.Device) ([]datalayer.Device, error) {
+    out := []datalayer.Device{}
+    for _, device := range devices {
+        sat, err := filter.SatisfiedBy(device)
+
+        // ignore errors because they're typically not fatal, they just mean
+        // there's no match.
+        if err == nil && sat {
+            out = append(out, device)
+        }
+    }
+    return out, nil
+}
+
+func (filter *DeviceFilterObj)CountMembers(devices []datalayer.Device) (uint32, error) {
+    subset, err := filter.Whittle(devices)
+    if err != nil {
+        return 0, err
+    }
+
+    return uint32(len(subset)), nil
+}
+
+func Parse(expr string) (Expression, error) {
+    // TOKENIZE
+    tokens := tokenize(expr)
+    fmt.Println(tokens)
+
+    // CONVERT TO PREFIX
+    prefixTokens, err := infixToPrefix(tokens)
+    fmt.Println(prefixTokens)
+
+    // PARSE INTO TO FILTER TREE
+    expression, _, err := genExpressionTree(prefixTokens)
+    return expression, err
+}
+
+
+func (compiler *DeviceFilterCompiler)Compile(exprString string) (DeviceFilter, error) {
+    fmt.Println("Compiling", exprString)
+    expr, err := Parse(exprString)
+    if err != nil {
+        return nil, err
+    }
+    fmt.Println(expr)
+
+    return &DeviceFilterObj{
+        expr,
+    }, nil
 }
