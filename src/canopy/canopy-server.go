@@ -43,7 +43,11 @@ func shutdown() {
 }
 
 func main() {
-
+    /*if true {
+        passed := device_filter.RunTests()
+        fmt.Println(passed)
+        return
+    }*/
     r := mux.NewRouter()
 
     cfg := config.NewDefaultConfig(buildVersion, buildDate, buildCommit)
