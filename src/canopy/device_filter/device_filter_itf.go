@@ -17,9 +17,6 @@ package device_filter
 
 import (
     "canopy/datalayer"
-    "canopy/config"
-    "canopy/datalayer/cassandra_datalayer"
-    "fmt"
 )
 
 type Compiler interface {
@@ -48,7 +45,7 @@ func Compile(expr string) (DeviceFilter, error) {
 }
 
 
-func RunTests() error {
+/*func RunTests() error {
     // TEST 1
     fmt.Println("TEST 1")
     filter, err := Compile("5 = 5")
@@ -97,4 +94,4 @@ func RunTests() error {
         return fmt.Errorf("Expectected sat=true")
     }
     return nil
-}
+}*/

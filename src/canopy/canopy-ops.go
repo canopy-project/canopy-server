@@ -97,7 +97,7 @@ func main() {
             return
         }
 
-        devices, err := account.Devices().DeviceList()
+        devices, err := account.Devices().DeviceList(0, -1)
         if err != nil {
             fmt.Println("Error reading devices: ", err)
             return

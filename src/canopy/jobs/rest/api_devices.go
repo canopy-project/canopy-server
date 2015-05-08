@@ -29,6 +29,11 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
 
     dq := info.Account.Devices()
 
+    // Filter
+    filterExpr := info.Query["filter"]
+    if filterExpr != nil {
+        dq = dq.Filter(filterExpr[0])
+    }
 
     // Paging
     totalCount, err := dq.Count()
@@ -37,35 +42,30 @@ func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map
     }
 
     limit := info.Query["limit"]
+    start := int64(0)
+    count := int64(-1)
     if limit != nil {
         limitStrings := strings.Split(limit[0], ",")
         if len(limitStrings) != 2 {
             return nil, BadInputError("Expected \"start,count\" for \"limit\"")
         }
-        start, err := strconv.ParseInt(limitStrings[0], 10, 32)
+        start, err = strconv.ParseInt(limitStrings[0], 10, 32)
         if err != nil {
             return nil, BadInputError("Expected int for limit start")
         }
-        count, err := strconv.ParseInt(limitStrings[1], 10, 32)
+        count, err = strconv.ParseInt(limitStrings[1], 10, 32)
         if err != nil {
             return nil, BadInputError("Expected int for limit count")
-        }
-        dq, err = dq.SetLimits(int32(start), int32(count))
-        if err != nil {
-            return nil, InternalServerError("Unable to set limits").Log()
         }
     }
 
     sort := info.Query["sort"]
     if sort != nil {
         sortStrings := strings.Split(sort[0], ",")
-        dq, err = dq.SetSortOrder(sortStrings...)
-        if err != nil {
-            return nil, InternalServerError("Unable to set limits").Log()
-        }
+        dq = dq.SortBy(sortStrings...)
     }
 
-    devices, err := dq.DeviceList()
+    devices, err := dq.DeviceList(int32(start), int32(count))
     if err != nil {
         return nil, InternalServerError("Device lookup failed")
     }

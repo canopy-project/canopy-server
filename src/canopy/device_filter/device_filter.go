@@ -486,11 +486,11 @@ func (expr *PropertyExpression)Value(device datalayer.Device) (cloudvar.CloudVar
         // 1 = active
         last := device.LastActivityTime()
         if last == nil {
-            return -1, nil
+            return float64(-1), nil
         } else if time.Now().UTC().Sub(*last) > time.Minute {
-            return 0, nil
+            return float64(0), nil
         }
-        return 1, nil
+        return float64(1), nil
     case "system.ws_connected":
         return device.WSConnected(), nil
     }

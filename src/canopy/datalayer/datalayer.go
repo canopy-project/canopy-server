@@ -161,11 +161,20 @@ type Account interface {
 
 // DeviceQuery
 type DeviceQuery interface {
-    SetSortOrder(...string) (DeviceQuery, error)
-    SetFilter(expr string) (DeviceQuery, error)
-    SetLimits(start, end int32) (DeviceQuery, error)
+    // Returns new device query with overridden sort order
+    SortBy(...string) DeviceQuery
+
+    // Returns new device query with overridden filter
+    // TODO: Should this be an additional filter that gets applied?
+    Filter(expr string) DeviceQuery
+
+    // Counts the total number of devices that satisfy this query
     Count() (int32, error)
-    DeviceList() ([]Device, error)
+
+    // Get list of devices that satisfy this query, ordered according to sort
+    // order, and limited by (start, count).  Use -1 for count to return all
+    // devices.
+    DeviceList(start, count int32) ([]Device, error)
 }
 
 // Device is a Canopy-enabled device

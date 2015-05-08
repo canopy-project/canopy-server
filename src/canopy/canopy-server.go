@@ -16,7 +16,6 @@ package main
 import (
     "canopy/canolog"
     "canopy/config"
-    "canopy/device_filter"
     "canopy/pigeon"
     "canopy/jobs"
     "canopy/rest"
@@ -44,12 +43,11 @@ func shutdown() {
 }
 
 func main() {
-    if true {
+    /*if true {
         passed := device_filter.RunTests()
         fmt.Println(passed)
         return
-    }
-
+    }*/
     r := mux.NewRouter()
 
     cfg := config.NewDefaultConfig(buildVersion, buildDate, buildCommit)

@@ -68,8 +68,6 @@ func (account *CassAccount) Activate(username, code string) error {
 func (account *CassAccount) Devices() datalayer.DeviceQuery {
     return &CassDeviceQuery{
         account: account,
-        limitStart: 0,
-        limitCount: -1,
     }
 }
 

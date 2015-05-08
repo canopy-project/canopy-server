@@ -18,17 +18,15 @@ package cassandra_datalayer
 import (
     "canopy/cloudvar"
     "canopy/datalayer"
+    "canopy/device_filter"
     "github.com/gocql/gocql"
-    "fmt"
     "sort"
 )
 
 type CassDeviceQuery struct {
     account *CassAccount
     sortOrder []string
-    limitStart int32
-    limitCount int32
-    filters map[string]interface{}
+    filterExpr string
 }
 
 func (dq *CassDeviceQuery)Copy() *CassDeviceQuery {
@@ -37,21 +35,16 @@ func (dq *CassDeviceQuery)Copy() *CassDeviceQuery {
     return out
 }
 
-func (dq *CassDeviceQuery)SetFilter(expr string) (datalayer.DeviceQuery, error) {
-    return nil, fmt.Errorf("Filter not yet implemented")
+func (dq *CassDeviceQuery)Filter(expr string) datalayer.DeviceQuery {
+    out := dq.Copy()
+    out.filterExpr = expr
+    return out
 }
 
-func (dq *CassDeviceQuery)SetSortOrder(order ...string) (datalayer.DeviceQuery, error) {
+func (dq *CassDeviceQuery)SortBy(order ...string) datalayer.DeviceQuery {
     out := dq.Copy()
     out.sortOrder = order
-    return out, nil
-}
-
-func (dq *CassDeviceQuery)SetLimits(start, count int32) (datalayer.DeviceQuery, error) {
-    out := dq.Copy()
-    out.limitStart = start
-    out.limitCount = count
-    return out, nil
+    return out
 }
 
 type sortData struct {
@@ -124,7 +117,7 @@ func (data sortData) Less(i, j int) bool {
     return false
 }
 
-func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
+func (dq *CassDeviceQuery)DeviceList(start, count int32) ([]datalayer.Device, error) {
     devices := []datalayer.Device{}
     var deviceId gocql.UUID
     var accessLevel int
@@ -149,6 +142,19 @@ func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
         return []datalayer.Device{}, err
     }
 
+    // Filter
+    if dq.filterExpr != "" {
+        filter, err := device_filter.Compile(dq.filterExpr)
+        if err != nil {
+            return []datalayer.Device{}, err
+        }
+
+        devices, err = filter.Whittle(devices)
+        if err != nil {
+            return []datalayer.Device{}, err
+        }
+    }
+
     // Sort
     var data sortData
     if dq.sortOrder != nil {
@@ -161,11 +167,9 @@ func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
     // Apply limits
     out := []datalayer.Device{}
     var i int32
-    start := dq.limitStart
     if start < 0 {
         start = 0
     }
-    count := dq.limitCount
     if count == -1 {
         count = int32(len(devices))
     }
@@ -183,7 +187,7 @@ func (dq *CassDeviceQuery)DeviceList() ([]datalayer.Device, error) {
 
 func (dq *CassDeviceQuery)Count() (int32, error) {
     // TODO: Inefficient
-    devices, err := dq.DeviceList()
+    devices, err := dq.DeviceList(0, -1)
     if err != nil {
         return 0, err
     }
