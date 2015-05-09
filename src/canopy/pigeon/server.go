@@ -21,6 +21,7 @@ import (
     "net"
     "net/rpc"
     "net/http"
+    "net/url"
     "math/rand"
     "runtime"
 )
@@ -97,6 +98,8 @@ func (server *PigeonServer) serveRPC() error {
     // TODO: Use direct TCP instead of HTML
     gob.Register(map[string]interface{}{})
     gob.Register(map[string]string{})
+    gob.Register(map[string][]string{})
+    gob.Register(url.Values{})
     PIGEON_RPC_PORT := ":1888"
     err := rpc.Register(server)
     if err != nil {

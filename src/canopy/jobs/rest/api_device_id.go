@@ -71,10 +71,17 @@ func GET__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (m
         return nil, restErr
     }
 
-    out, err := deviceToJsonObj(device)
+    timestamps := info.Query["timestamps"]
+    timestamp_type := "epoch_us"
+    if timestamps != nil && timestamps[0] == "rfc3339" {
+        timestamp_type = "rfc3339"
+    }
+
+    out, err := deviceToJsonObj(device, timestamp_type)
     if err != nil {
         return nil, InternalServerError("Generating JSON")
     }
+    out["result"] = "ok"
 
     return out, nil
 }
@@ -155,10 +162,17 @@ func POST__api__device__id(info *RestRequestInfo, sideEffect *RestSideEffects) (
         }
     }
 
-    out, err := deviceToJsonObj(device)
+    timestamps := info.Query["timestamps"]
+    timestamp_type := "epoch_us"
+    if timestamps != nil && timestamps[0] == "rfc3339" {
+        timestamp_type = "rfc3339"
+    }
+
+    out, err := deviceToJsonObj(device, timestamp_type)
     if err != nil {
         return nil, InternalServerError("Generating JSON")
     }
+    out["result"] = "ok"
     return out, nil
 }
 

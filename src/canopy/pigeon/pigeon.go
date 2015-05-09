@@ -1,95 +1,117 @@
-/*
- * Copyright 2015 Canopy Services, Inc.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *     http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-package pigeon
+// Copright 2014-2015 Canopy Services, Inc.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package jobqueue
 
 import (
-    "canopy/canolog"
+    "canopy/datalayer"
     "errors"
+    "fmt"
     "time"
 )
 
-/*
- * The "pigeon" package is a message-passing system for canopy.
- *
- * It is used to forward control instructions received over HTTP to the
- * appropriate go thread containing the websocket connection for the
- * appropriate device.
- *
- * For now, it only functions locally, but eventually it will work across
- * servers.
- *
- * TODO: fix all the race conditions
- * TODO: switch to buffered
- * TODO: expose 
- */
-
 type PigeonSystem struct {
-    mailboxes map[string]*PigeonMailbox
+    dl datalayer.PigeonSystem
 }
 
-type PigeonMailbox struct {
-    ch chan *PigeonMessage
-    id string
-    sys *PigeonSystem
+type PigeonRequest struct {
+    ReqJobKey string
+    ReqBody map[string]interface{}
 }
 
-type PigeonMessage struct {
-    Data map[string]interface{}
+type PigeonResponse struct {
+    RespBody map[string]interface{}
 }
 
-func InitPigeonSystem() (*PigeonSystem, error) {
-    return &PigeonSystem{mailboxes: map[string]*PigeonMailbox{}}, nil
+type PigeonRecieveHandler struct {
+    ch chan map[string]interface{}
 }
 
-func (pigeon *PigeonSystem)CreateMailbox(mailboxId string) (*PigeonMailbox) {
-    mailbox := PigeonMailbox{make(chan *PigeonMessage), mailboxId, pigeon}
-    pigeon.mailboxes[mailboxId] = &mailbox;
-    return &mailbox
-}
-
-func (pigeon *PigeonSystem)Mailbox(mailboxId string) (*PigeonMailbox) {
-    return pigeon.mailboxes[mailboxId];
-}
-
-func (pigeon *PigeonSystem)SendMessage(mailboxId string, msg *PigeonMessage, timeout time.Duration) error{
-    mailbox := pigeon.mailboxes[mailboxId]
-    if mailbox != nil {
-        select {
-            case mailbox.ch <- msg:
-                canolog.Info("Message sent to mailbox");
-                // message transferred
-                return nil
-            case <- time.After(timeout):
-                canolog.Warn("SendMessage timed out");
-                return errors.New("SendMessage timed out")
-        }
+func NewPigeonRecieveHandler() *PigeonRecieveHandler{
+    return &PigeonRecieveHandler{
+        ch: make(chan map[string]interface{}),
     }
-    canolog.Warn("Mailbox not found");
-    return errors.New("Mailbox not found")
 }
 
-func (mailbox *PigeonMailbox)RecieveMessage(timeout time.Duration) (*PigeonMessage, error) {
+func (recvHandler *PigeonRecieveHandler) Handle(jobkey string, 
+        userCtx interface{}, 
+        req Request, 
+        resp Response) {
+
+    // Send it into channel
+    recvHandler.ch <- req.Body()
+}
+
+func (recvHandler *PigeonRecieveHandler) Recieve(timeout time.Duration) (map[string]interface{}, error) {
+
     select {
-        case msg := <- mailbox.ch:
+        case msg := <- recvHandler.ch:
             return msg, nil
         case <- time.After(timeout):
-            return nil, errors.New("ReceiveMessage timed out")
+            return nil, errors.New("Recieve timed out")
+    }
+    
+}
+
+func (pigeon *PigeonSystem) NewOutbox() Outbox {
+    return &PigeonOutbox{
+        sys: pigeon,
+        timeoutms: -1,
     }
 }
 
-func (mailbox *PigeonMailbox)Close() {
-    delete(mailbox.sys.mailboxes, mailbox.id)
+func (pigeon *PigeonSystem) NewResponse() Response {
+    return &PigeonResponse{}
 }
+
+func (pigeon *PigeonSystem) StartServer(hostname string) (Server, error) {
+    server := &PigeonServer{
+        sys : pigeon,
+        hostname: hostname,
+        inboxesByMsgKey: map[string]([]*PigeonInbox){},
+    }
+
+    err := server.Start()
+    if err != nil {
+        return nil, err
+    }
+
+    return server, nil
+}
+
+func (pigeon *PigeonSystem) Server(hostname string) (Server, error) {
+    return nil, fmt.Errorf("Not Implemented")
+}
+
+func (pigeon *PigeonSystem) Servers() ([]Server, error) {
+    return nil, fmt.Errorf("Not Implemented")
+}
+
+func (resp *PigeonResponse) Body() map[string]interface{} {
+    return resp.RespBody
+}
+
+func (resp *PigeonResponse) SetBody(body map[string]interface{}) {
+    resp.RespBody = body
+}
+
+func (resp *PigeonResponse) AppendToBody(key string, value interface{}) {
+    resp.RespBody[key] = value
+}
+
+func (req *PigeonRequest) Body() map[string]interface{} {
+    return req.ReqBody
+}
+
+

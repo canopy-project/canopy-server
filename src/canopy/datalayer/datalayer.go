@@ -125,7 +125,7 @@ type Account interface {
     Activate(username, code string) error
 
     // Get all devices that user has access to.
-    Devices() ([]Device, error)
+    Devices() DeviceQuery
 
     // Get device by ID, but only if this account has access to it.
     Device(id gocql.UUID) (Device, error)
@@ -157,6 +157,24 @@ type Account interface {
 
     // Verify user's password.  Returns true if password is correct.
     VerifyPassword(password string) bool
+}
+
+// DeviceQuery
+type DeviceQuery interface {
+    // Returns new device query with overridden sort order
+    SortBy(...string) DeviceQuery
+
+    // Returns new device query with overridden filter
+    // TODO: Should this be an additional filter that gets applied?
+    Filter(expr string) DeviceQuery
+
+    // Counts the total number of devices that satisfy this query
+    Count() (int32, error)
+
+    // Get list of devices that satisfy this query, ordered according to sort
+    // order, and limited by (start, count).  Use -1 for count to return all
+    // devices.
+    DeviceList(start, count int32) ([]Device, error)
 }
 
 // Device is a Canopy-enabled device

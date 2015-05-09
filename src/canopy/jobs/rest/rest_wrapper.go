@@ -19,13 +19,14 @@ import (
     "canopy/canolog"
     "canopy/config"
     "canopy/datalayer"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "canopy/mail"
     "encoding/base64"
     "encoding/json"
     "errors"
     "fmt"
     "net/http"
+    "net/url"
     "runtime"
     "strings"
 )
@@ -57,6 +58,7 @@ type RestRequestInfo struct {
     Device datalayer.Device
     Cookies map[string]string
     PigeonOutbox jobqueue.Outbox
+    Query map[string][]string
     URLVars map[string]string
     UserCtx map[string]interface{}
 }
@@ -142,6 +144,13 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         info.URLVars, ok = body["url-vars"].(map[string]string)
         if !ok {
             RestSetError(resp, InternalServerError("Expected map[string]string for 'url-vars'").Log())
+            return
+        }
+
+        // Get URL query parameters from job request
+        info.Query, ok = body["query"].(url.Values)
+        if !ok {
+            RestSetError(resp, InternalServerError("Expected url.Values for 'query'").Log())
             return
         }
 

@@ -16,7 +16,7 @@ package main
 import (
     "canopy/canolog"
     "canopy/config"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "canopy/jobs"
     "canopy/rest"
     "canopy/webapp"
@@ -34,15 +34,23 @@ import (
     "syscall"
 )
 
+var buildVersion string
+var buildDate string
+var buildCommit string
+
 func shutdown() {
     canolog.Shutdown()
 }
 
 func main() {
-
+    /*if true {
+        passed := device_filter.RunTests()
+        fmt.Println(passed)
+        return
+    }*/
     r := mux.NewRouter()
 
-    cfg := config.NewDefaultConfig()
+    cfg := config.NewDefaultConfig(buildVersion, buildDate, buildCommit)
     err := cfg.LoadConfig()
     if err != nil {
         logFilename := config.JustGetOptLogFile()
@@ -65,6 +73,9 @@ func main() {
     }
 
     canolog.Info("Starting Canopy Cloud Service")
+    canolog.Info("Version:", cfg.BuildVersion())
+    canolog.Info("Build Date:", cfg.BuildDate())
+    canolog.Info("Build Commit:", cfg.BuildCommit())
 
     // Log crashes
     defer func() {

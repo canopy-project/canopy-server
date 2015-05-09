@@ -16,7 +16,7 @@ package rest
 
 import (
     "canopy/canolog"
-    "canopy/jobqueue"
+    "canopy/pigeon"
     "canopy/mail"
 )
 

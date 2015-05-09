@@ -16,6 +16,7 @@ package rest
 import (
     "canopy/cloudvar"
     "canopy/datalayer"
+    canotime "canopy/util/time"
     "encoding/base64"
     "encoding/json"
     "errors"
@@ -110,7 +111,7 @@ type jsonNotification struct {
     Msg string `json:"msg"`
 }
 
-func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
+func deviceToJsonObj(device datalayer.Device, timestamp_type string) (map[string]interface{}, error) {
     statusJsonObj := map[string]interface{} {
         "ws_connected" : device.WSConnected(),
     }
@@ -118,7 +119,11 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
     if lastSeen == nil {
         statusJsonObj["last_activity_time"] = nil
     } else {
-        statusJsonObj["last_activity_time"] = *lastSeen
+        if timestamp_type == "epoch_us" {
+            statusJsonObj["last_activity_time"] = canotime.EpochMicroseconds(*lastSeen)
+        } else {
+            statusJsonObj["last_activity_time"] = canotime.RFC3339(*lastSeen)
+        }
     }
 
     out := map[string]interface{}{
@@ -145,9 +150,16 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
             if err != nil {
                 continue
             }
-            out["vars"].(map[string]interface{})[varDef.Name()] = map[string]interface{} {
-                "t" : sample.Timestamp.Format(time.RFC3339),
-                "v" : sample.Value,
+            if timestamp_type == "epoch_us" {
+                out["vars"].(map[string]interface{})[varDef.Name()] = map[string]interface{} {
+                    "t" : canotime.EpochMicroseconds(sample.Timestamp),
+                    "v" : sample.Value,
+                }
+            } else {
+                out["vars"].(map[string]interface{})[varDef.Name()] = map[string]interface{} {
+                    "t" : canotime.RFC3339(sample.Timestamp),
+                    "v" : sample.Value,
+                }
             }
         }
 
@@ -176,8 +188,8 @@ func deviceToJsonObj(device datalayer.Device) (map[string]interface{}, error) {
     return out, nil
 
 }
-func deviceToJsonString(device datalayer.Device) (string, error) {
-    out, err := deviceToJsonObj(device)
+func deviceToJsonString(device datalayer.Device, timestamp_type string) (string, error) {
+    out, err := deviceToJsonObj(device, timestamp_type)
     if err != nil {
         return "", err;
     }
@@ -189,14 +201,14 @@ func deviceToJsonString(device datalayer.Device) (string, error) {
     return string(jsn), nil
 }
 
-func devicesToJsonObj(devices []datalayer.Device) (map[string]interface{}, error) {
+func devicesToJsonObj(devices []datalayer.Device, timestamp_type string) (map[string]interface{}, error) {
 
     out := map[string]interface{} {
         "devices" : []interface{} {},
     }
 
     for _, device := range devices {
-        deviceJsonObj, err := deviceToJsonObj(device)
+        deviceJsonObj, err := deviceToJsonObj(device, timestamp_type)
         if err != nil {
             continue
         }
@@ -207,8 +219,8 @@ func devicesToJsonObj(devices []datalayer.Device) (map[string]interface{}, error
     return out, nil
 }
 
-func devicesToJsonString(devices []datalayer.Device) (string, error) {
-    out, err := devicesToJsonObj(devices)
+func devicesToJsonString(devices []datalayer.Device, timestamp_type string) (string, error) {
+    out, err := devicesToJsonObj(devices, timestamp_type)
     if err != nil {
         return "", err;
     }
@@ -225,7 +237,7 @@ func samplesToJsonObj(samples []cloudvar.CloudVarSample) (map[string]interface{}
     out["samples"] = []interface{}{}
     for _, sample := range samples {
         out["samples"] = append(out["samples"].([]interface{}), map[string]interface{}{
-            "t" : sample.Timestamp.Format(time.RFC3339),
+            "t" : canotime.EpochMicroseconds(sample.Timestamp),
             "v" : sample.Value,
         })
     }

@@ -38,7 +38,7 @@ var cmds = []canopy_ops.Command{
 }
 
 func main() {
-    cfg := config.NewDefaultConfig()
+    cfg := config.NewDefaultConfig("", "", "")
     err := cfg.LoadConfig()
     if err != nil {
         fmt.Printf("Error loading config")
@@ -97,7 +97,7 @@ func main() {
             return
         }
 
-        devices, err := account.Devices()
+        devices, err := account.Devices().DeviceList(0, -1)
         if err != nil {
             fmt.Println("Error reading devices: ", err)
             return

@@ -24,7 +24,7 @@ all: $(TARGETS)
 
 build/canopy-server:
 	mkdir -p ~/.canopy/golang
-	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build canopy-server.go
+	GOPATH=$$(cd ~/.canopy/golang; pwd):$$(cd ../../; pwd) go build -ldflags "-X main.buildVersion `cat VERSION` -X main.buildDate `date -u +%Y-%m-%d.%H:%M:%S` -X main.buildCommit `git rev-parse HEAD || echo unknown`" canopy-server.go
 	mkdir -p build/
 	mv canopy-server build/canopy-server
 

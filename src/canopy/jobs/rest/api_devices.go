@@ -16,22 +16,75 @@
 package rest
 
 import (
+    "strconv"
+    "strings"
 )
 
 func GET__api__devices(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
+    var err error
+
     if info.Account == nil {
         return nil, NotLoggedInError()
     }
 
-    devices, err := info.Account.Devices()
+    dq := info.Account.Devices()
+
+    // Filter
+    filterExpr := info.Query["filter"]
+    if filterExpr != nil {
+        dq = dq.Filter(filterExpr[0])
+    }
+
+    // Paging
+    totalCount, err := dq.Count()
+    if err != nil {
+        return nil, InternalServerError("Error determining device count: " + err.Error())
+    }
+
+    limit := info.Query["limit"]
+    start := int64(0)
+    count := int64(-1)
+    if limit != nil {
+        limitStrings := strings.Split(limit[0], ",")
+        if len(limitStrings) != 2 {
+            return nil, BadInputError("Expected \"start,count\" for \"limit\"")
+        }
+        start, err = strconv.ParseInt(limitStrings[0], 10, 32)
+        if err != nil {
+            return nil, BadInputError("Expected int for limit start")
+        }
+        count, err = strconv.ParseInt(limitStrings[1], 10, 32)
+        if err != nil {
+            return nil, BadInputError("Expected int for limit count")
+        }
+    }
+
+    sort := info.Query["sort"]
+    if sort != nil {
+        sortStrings := strings.Split(sort[0], ",")
+        dq = dq.SortBy(sortStrings...)
+    }
+
+    devices, err := dq.DeviceList(int32(start), int32(count))
     if err != nil {
         return nil, InternalServerError("Device lookup failed")
     }
+
+    timestamps := info.Query["timestamps"]
+    timestamp_type := "epoch_us"
+    if timestamps != nil && timestamps[0] == "rfc3339" {
+        timestamp_type = "rfc3339"
+    }
+
     //out, err := devicesToJsonObj(info.PigeonSys, devices)
     // TODO: How do we tell ws connectivity status?
-    out, err := devicesToJsonObj(devices)
+    out, err := devicesToJsonObj(devices, timestamp_type)
     if err != nil {
         return nil, InternalServerError("Generating JSON")
+    }
+    out["result"] = "ok"
+    out["paging"] = map[string]interface{}{
+        "total_count" : totalCount,
     }
 
     return out, nil
