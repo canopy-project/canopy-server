@@ -1,6 +1,7 @@
-#!/bin/sh
-mkdir canopy-server-15.04.03
-cp -r src canopy-server-15.04.03
-tar -czvf canopy-server_15.04.03.src.tar.gz canopy-server-15.04.03
-rm -r canopy-server-15.04.03
+#!/bin/bash
+VERSION=`cat src/canopy/VERSION`
+mkdir canopy-server-$VERSION
+cp -r src canopy-server-$VERSION
+tar -czvf canopy-server_${VERSION}.src.tar.gz canopy-server-$VERSION
+rm -r canopy-server-$VERSION
 
