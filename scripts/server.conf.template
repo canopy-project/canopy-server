@@ -1,0 +1,18 @@
+{
+    "allow-anon-devices": true,
+    "allow-origin": "",
+    "enable-http": false,
+    "enable-https": true,
+    "email-service": "$CONF_CANOPY_EMAIL_SERVICE",
+    "forward-other-hosts": "",
+    "js-client-path": "$CONF_CANOPY_JS_CLIENT_PATH",
+    "hostname": "$CONF_CANOPY_HOSTNAME",
+    "https-cert-file": "/etc/canopy/cert.pem",
+    "https-priv-key-file": "/etc/canopy/key.pem",
+    "log-file": "/var/log/canopy/server.log",
+    "password-hash-cost" : 10,
+    "password-secret-salt" : "$CONF_CANOPY_SECRET_SALT",
+    "sendgrid-username": "$CONF_CANOPY_SENDGRID_USERNAME",
+    "sendgrid-secret-key": "$CONF_CANOPY_SENDGRID_SECRET_KEY",
+    "web-manager-path": "$CONF_CANOPY_WEB_MANAGER_PATH"
+}
