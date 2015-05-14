@@ -131,7 +131,7 @@ func deviceToJsonObj(device datalayer.Device, timestamp_type string) (map[string
         "friendly_name" : device.Name(),
         "location_note" : device.LocationNote(),
         "status" : statusJsonObj,
-        "var_decls" : []interface{} {},
+        "var_decls" : map[string]interface{} {},
         "secret_key" : device.SecretKey(),
         "vars" : map[string]interface{} {},
         "notifs" : []interface{} {},
@@ -139,7 +139,10 @@ func deviceToJsonObj(device datalayer.Device, timestamp_type string) (map[string
 
     sddlDoc := device.SDDLDocument()
     if sddlDoc != nil {
-        out["var_decls"] = sddlDoc.Json()
+        jsn := sddlDoc.Json()
+        if jsn != nil {
+            out["var_decls"] = jsn
+        }
     }
 
     outDoc := device.SDDLDocument()
