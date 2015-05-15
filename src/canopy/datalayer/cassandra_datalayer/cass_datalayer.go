@@ -262,13 +262,13 @@ var creationQueries []string = []string{
         propname text,
         timeprefix text,
         time timestamp,
-        value timestamp,
+        value bool,
         PRIMARY KEY((device_id, propname, timeprefix), time)
     ) WITH COMPACT STORAGE`,
 
     // used for:
     //  void
-    `CREATE TABLE varsample_boolean (
+    `CREATE TABLE varsample_void (
         device_id uuid,
         propname text,
         timeprefix text,
@@ -287,105 +287,6 @@ var creationQueries []string = []string{
         value text,
         PRIMARY KEY((device_id, propname, timeprefix), time)
     ) WITH COMPACT STORAGE`,
-
-    // used for:
-    //  uint8
-    //  int8
-    //  int16
-    //  uint16
-    //  int32
-    //  uint32
-    `CREATE TABLE propval_int (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value int,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    // used for:
-    //  float32
-    `CREATE TABLE propval_float (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value float,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    // used for:
-    //  float64
-    `CREATE TABLE propval_double (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value double,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    // used for:
-    //  datetime
-    `CREATE TABLE propval_timestamp (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value timestamp,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    // used for:
-    //  bool
-    `CREATE TABLE propval_boolean (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value boolean,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    // used for:
-    //  void
-    `CREATE TABLE propval_void (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    // used for:
-    //  string
-    `CREATE TABLE propval_string (
-        device_id uuid,
-        propname text,
-        time timestamp,
-        value text,
-        PRIMARY KEY((device_id, propname), time)
-    ) WITH COMPACT STORAGE`,
-
-    `CREATE TABLE var_sample_counts (
-        device_id uuid,
-        vardecl text,
-        count counter,
-        PRIMARY KEY(device_id, vardecl)
-    )`,
-    // var_info
-    // This table stores config and state relating to cloud variables.
-    //  device_id
-    //      Device that owns the cloud variable.
-    //
-    //  vardecl
-    //      Cloud variable declaration, such as "inout float32 humidity".
-    //      The combinatino of (deviceid, vardecl) uniquely identifies the
-    //      cloud variable.
-    //
-    //  sample_limit
-    //      Maximum number of samples to keep until we start discarding.
-    `CREATE TABLE var_info (
-        device_id uuid,
-        vardecl text,
-        sample_limit int,
-        PRIMARY KEY(device_id, vardecl)
-    )`,
 
     `CREATE TABLE devices (
         device_id uuid,
@@ -406,14 +307,6 @@ var creationQueries []string = []string{
         device_id uuid,
         device_friendly_name text,
         PRIMARY KEY(username, group_name, group_order)
-    )`,
-
-    `CREATE TABLE control_event (
-        device_id uuid,
-        time_issued timestamp,
-        control_name text,
-        value double,
-        PRIMARY KEY(device_id, time_issued)
     )`,
 
     `CREATE TABLE device_permissions (
