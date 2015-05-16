@@ -42,6 +42,7 @@ func (CreateDBCommand)Match(cmdString string) bool {
 }
 
 func (CreateDBCommand)Perform(info CommandInfo) {
+    fmt.Println("Running create-db:")
     dl := cassandra_datalayer.NewDatalayer(info.Cfg)
     err := dl.PrepDb("canopy")
     if err != nil {

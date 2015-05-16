@@ -188,6 +188,12 @@ import (
 /* Very useful: http://www.datastax.com/dev/blog/thrift-to-cql3 */
 var creationQueries []string = []string{
     // Keeps track of last update time for cloud variable
+    `CREATE TABLE var_lastupdatetime_v2 (
+        device_id text,
+        var_name text,
+        last_update timestamp,
+        PRIMARY KEY(device_id, var_name)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE var_lastupdatetime (
         device_id uuid,
         var_name text,
@@ -197,6 +203,14 @@ var creationQueries []string = []string{
 
     // Keeps track of which buckets have been created for use by garbage
     // collector.
+    `CREATE TABLE var_buckets_v2 (
+        device_id text,
+        var_name text,
+        lod int,
+        timeprefix text,
+        endtime timestamp,
+        PRIMARY KEY((device_id, var_name, lod), timeprefix)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE var_buckets (
         device_id uuid,
         var_name text,
@@ -213,6 +227,14 @@ var creationQueries []string = []string{
     //  uint16
     //  int32
     //  uint32
+    `CREATE TABLE varsample_int_v2 (
+        device_id text,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value int,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE varsample_int (
         device_id uuid,
         propname text,
@@ -224,6 +246,14 @@ var creationQueries []string = []string{
 
     // used for:
     //  float32
+    `CREATE TABLE varsample_float_v2 (
+        device_id text,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value float,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE varsample_float (
         device_id uuid,
         propname text,
@@ -235,6 +265,14 @@ var creationQueries []string = []string{
 
     // used for:
     //  float64
+    `CREATE TABLE varsample_double_v2 (
+        device_id text,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value double,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE varsample_double (
         device_id uuid,
         propname text,
@@ -246,6 +284,14 @@ var creationQueries []string = []string{
 
     // used for:
     //  datetime
+    `CREATE TABLE varsample_timestamp_v2 (
+        device_id text,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE varsample_timestamp (
         device_id uuid,
         propname text,
@@ -257,6 +303,14 @@ var creationQueries []string = []string{
 
     // used for:
     //  bool
+    `CREATE TABLE varsample_boolean_v2 (
+        device_id text,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value bool,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE varsample_boolean (
         device_id uuid,
         propname text,
@@ -268,17 +322,31 @@ var creationQueries []string = []string{
 
     // used for:
     //  void
+    `CREATE TABLE varsample_void_v2 (
+        device_id text,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE varsample_void (
         device_id uuid,
         propname text,
         timeprefix text,
         time timestamp,
-        value timestamp,
         PRIMARY KEY((device_id, propname, timeprefix), time)
     ) WITH COMPACT STORAGE`,
 
     // used for:
     //  string
+    `CREATE TABLE varsample_string_v2 (
+        id text,
+        propname text,
+        timeprefix text,
+        time timestamp,
+        value text,
+        PRIMARY KEY((device_id, propname, timeprefix), time)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE varsample_string (
         device_id uuid,
         propname text,
@@ -288,6 +356,17 @@ var creationQueries []string = []string{
         PRIMARY KEY((device_id, propname, timeprefix), time)
     ) WITH COMPACT STORAGE`,
 
+    `CREATE TABLE devices_v2 (
+        device_id text,
+        secret_key text,
+        friendly_name text,
+        sddl text,
+        public_access_level int,
+        last_seen timestamp,
+        location_note text,
+        ws_connected boolean,
+        PRIMARY KEY(device_id)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE devices (
         device_id uuid,
         secret_key text,
@@ -300,15 +379,12 @@ var creationQueries []string = []string{
         PRIMARY KEY(device_id)
     ) WITH COMPACT STORAGE`,
 
-    `CREATE TABLE device_group (
+    `CREATE TABLE device_permissions_v2 (
         username text,
-        group_name text,
-        group_order int,
-        device_id uuid,
-        device_friendly_name text,
-        PRIMARY KEY(username, group_name, group_order)
-    )`,
-
+        device_id text,
+        access_level int,
+        PRIMARY KEY(username, device_id)
+    ) WITH COMPACT STORAGE`,
     `CREATE TABLE device_permissions (
         username text,
         device_id uuid,
@@ -333,6 +409,14 @@ var creationQueries []string = []string{
         PRIMARY KEY(email)
     ) WITH COMPACT STORAGE`,
 
+    `CREATE TABLE notifications_v2 (
+        device_id text,
+        time_issued timestamp,
+        dismissed boolean,
+        msg text,
+        notify_type int,
+        PRIMARY KEY(device_id, time_issued)
+    ) `,
     `CREATE TABLE notifications (
         device_id uuid,
         time_issued timestamp,
@@ -394,15 +478,19 @@ func (dl *CassDatalayer) EraseDb(keyspace string) error {
 }
 
 func (dl *CassDatalayer) PrepDb(keyspace string) error {
+    canolog.Info("PrepDb", keyspace)
     cluster := gocql.NewCluster("127.0.0.1")
+    fmt.Println("PrepDB");
 
     session, err := cluster.CreateSession()
+    fmt.Println("Create Session");
     if err != nil {
         canolog.Error("Error creating DB session: ", err)
         return err
     }
 
     // Create keyspace.
+    fmt.Println("Create Keyspace");
     err = session.Query(`
             CREATE KEYSPACE ` + keyspace + `
             WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}
@@ -413,6 +501,7 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
     }
 
     // Create a new session connecting to that keyspace.
+    fmt.Println("Cluster");
     cluster = gocql.NewCluster("127.0.0.1")
     cluster.Keyspace = keyspace
     cluster.Consistency = gocql.Quorum
@@ -424,10 +513,14 @@ func (dl *CassDatalayer) PrepDb(keyspace string) error {
 
     // Perform all creation queries.
     for _, query := range creationQueries {
-        if err := session.Query(query).Exec(); err != nil {
+        canolog.Info("Running", query)
+        fmt.Println("Query:", query);
+        err := session.Query(query).Exec()
+        if err != nil {
             // Ignore errors (just print them).
             // This allows PrepDB to be used to add new tables.  Eventually, we
             // should come up with a proper migration strategy.
+            fmt.Println("(IGNORED):", err)
             canolog.Warn("(IGNORED) ", query, ": ", err)
         }
     }

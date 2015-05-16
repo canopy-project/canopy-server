@@ -213,15 +213,6 @@ func (conn *CassConnection) DeleteAccount(username string) error {
     // the table.
 
     err = conn.session.Query(`
-            DELETE FROM device_group
-            WHERE username = ?
-    `, username).Exec()
-    if err != nil {
-        canolog.Error("Error deleting account's device groups", err)
-        return err
-    }
-
-    err = conn.session.Query(`
             DELETE FROM device_permissions
             WHERE username = ?
     `, username).Exec()
