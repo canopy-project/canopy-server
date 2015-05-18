@@ -542,6 +542,14 @@ func (dl *CassDatalayer) migrateNext(session *gocql.Session, startVersion string
             return startVersion, err
         }
         return "15.04.03", nil
+    } else if startVersion == "15.04.03" {
+        return "15.05", nil
+    } else if startVersion == "15.05" {
+        err := migrations.Migrate_15_05_to_15_06(session)
+        if err != nil {
+            return startVersion, err
+        }
+        return "15.06", nil
     }
     return  startVersion, fmt.Errorf("Unknown DB version %s", startVersion)
 }
