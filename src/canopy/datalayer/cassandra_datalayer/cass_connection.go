@@ -33,16 +33,18 @@ type CassConnection struct {
 }
 
 // Use with care.  Erases all sensor data.
-func (conn *CassConnection) ClearSensorData() {
+func (conn *CassConnection) ClearCloudVarData() {
     // TODO: Needs updating
     tables := []string{
-        "propval_int",
-        "propval_float",
-        "propval_double",
-        "propval_timestamp",
-        "propval_boolean",
-        "propval_void",
-        "propval_string",
+        "var_lastupdatetime_v2",
+        "var_buckets_v2",
+        "varsample_int_v2",
+        "varsample_float_v2",
+        "varsample_double_v2",
+        "varsample_timestamp_v2",
+        "varsample_boolean_v2",
+        "varsample_void_v2",
+        "varsample_string_v2",
     }
     for _, table := range tables {
         err := conn.session.Query(`TRUNCATE ` + table).Exec();

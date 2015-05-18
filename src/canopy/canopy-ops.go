@@ -122,10 +122,10 @@ func main() {
                 fmt.Println("Error inserting sample: ", err)
             //}
         }
-    } else if flag.Arg(0) == "clear-sensor-data" {
+    } else if flag.Arg(0) == "clear-var-data" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
-        conn.ClearSensorData();
+        conn.ClearCloudVarData();
 
     } else if flag.Arg(0) == "test-email" {
         mailer, err := mail.NewMailClient(cfg)

@@ -69,7 +69,7 @@ type Datalayer interface {
 // Connection is a connection to the database.
 type Connection interface {
     // Truncate all sensor data from the database.  Use with care!
-    ClearSensorData()
+    ClearCloudVarData()
 
     // Close this database connection.  Any subsequent calls using this
     // interface will return an error.
