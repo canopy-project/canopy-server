@@ -71,41 +71,12 @@ func (account *CassAccount) Devices() datalayer.DeviceQuery {
     }
 }
 
-/*
-    ([]datalayer.Device, error) {
-    devices := []datalayer.Device{}
-    var deviceId gocql.UUID
-    var accessLevel int
-
-    query := account.conn.session.Query(`
-            SELECT device_id, access_level FROM device_permissions 
-            WHERE username = ?
-    `, account.Username()).Consistency(gocql.One)
-    iter := query.Iter()
-    for iter.Scan(&deviceId, &accessLevel) {
-        if accessLevel > 0 {
-            device, err := account.conn.LookupDevice(deviceId)
-            if err != nil {
-                iter.Close()
-                return []datalayer.Device{}, err
-            }
-            devices = append(devices, device)
-        }
-    }
-    if err := iter.Close(); err != nil {
-        return []datalayer.Device{}, err
-    }
-
-    return devices, nil
-}
-*/
-
 // Obtain specific device, if I have permission.
-func (account *CassAccount) Device(id gocql.UUID) (datalayer.Device, error) {
+func (account *CassAccount) Device(id string) (datalayer.Device, error) {
     var accessLevel int
 
     if err := account.conn.session.Query(`
-        SELECT access_level FROM device_permissions
+        SELECT access_level FROM device_permissions_v2
         WHERE username = ? AND device_id = ?
         LIMIT 1
     `, account.Username(), id).Consistency(gocql.One).Scan(

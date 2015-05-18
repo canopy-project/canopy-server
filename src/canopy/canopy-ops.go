@@ -16,7 +16,6 @@
 package main
 
 import (
-    "github.com/gocql/gocql"
     "canopy/canolog"
     "canopy/canopy_ops"
     "canopy/config"
@@ -76,7 +75,7 @@ func main() {
             return
         }
 
-        device, err := conn.CreateDevice(flag.Arg(2), nil, "", datalayer.NoAccess)
+        device, err := conn.CreateDevice(flag.Arg(2), "", "", datalayer.NoAccess)
         if err != nil {
             fmt.Println("Unable to create device: ", err)
             return
@@ -109,11 +108,7 @@ func main() {
     } else if flag.Arg(0) == "gen-fake-sensor-data" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
         conn, _ := dl.Connect("canopy")
-        deviceId, err := gocql.ParseUUID(flag.Arg(1))
-        if err != nil {
-            fmt.Println("Error parsing UUID: ", flag.Arg(1), ":", err)
-            return;
-        }
+        deviceId := flag.Arg(1)
         _, err = conn.LookupDevice(deviceId)
         if err != nil {
             fmt.Println("Device not found: ", flag.Arg(1), ":", err)

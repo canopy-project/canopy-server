@@ -111,7 +111,7 @@ func (data sortData) Less(i, j int) bool {
     }
 
     // Ultimate tie breaker: Device UUID
-    if (data.devices[i].IDString() < data.devices[j].IDString()) {
+    if (data.devices[i].ID() < data.devices[j].ID()) {
         return true
     }
     return false
@@ -119,12 +119,12 @@ func (data sortData) Less(i, j int) bool {
 
 func (dq *CassDeviceQuery)DeviceList(start, count int32) ([]datalayer.Device, error) {
     devices := []datalayer.Device{}
-    var deviceId gocql.UUID
+    var deviceId string
     var accessLevel int
 
     // Fetch all devices (TODO: inefficient!)
     query := dq.account.conn.session.Query(`
-            SELECT device_id, access_level FROM device_permissions 
+            SELECT device_id, access_level FROM device_permissions_v2
             WHERE username = ?
     `, dq.account.Username()).Consistency(gocql.One)
     iter := query.Iter()

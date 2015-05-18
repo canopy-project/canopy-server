@@ -127,7 +127,7 @@ func deviceToJsonObj(device datalayer.Device, timestamp_type string) (map[string
     }
 
     out := map[string]interface{}{
-        "device_id" : device.ID().String(),
+        "device_id" : device.ID(),
         "friendly_name" : device.Name(),
         "location_note" : device.LocationNote(),
         "status" : statusJsonObj,

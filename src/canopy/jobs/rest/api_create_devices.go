@@ -52,7 +52,7 @@ func ApiCreateDevicesHandler(info *RestRequestInfo, sideEffects *RestSideEffects
         if !ok {
             return nil, BadInputError("String friendly name expected")
         }
-        device, err := info.Conn.CreateDevice(friendlyName, nil, "", datalayer.NoAccess);
+        device, err := info.Conn.CreateDevice(friendlyName, "", "", datalayer.NoAccess);
         if err != nil {
             return nil, InternalServerError("Error creating device")
         }

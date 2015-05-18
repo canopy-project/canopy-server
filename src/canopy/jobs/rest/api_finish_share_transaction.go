@@ -36,7 +36,7 @@ func POST__api__finish_share_transaction(info *RestRequestInfo, sideEffect *Rest
         return nil, NotLoggedInError()
     }
 
-    device, err := info.Conn.LookupDeviceByStringID(deviceId)
+    device, err := info.Conn.LookupDevice(deviceId)
     if err != nil {
         // TODO: return proper error
         return nil, InternalServerError("Looking up device")

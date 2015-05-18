@@ -191,8 +191,10 @@ func RestJobWrapper(handler RestJobHandler) jobqueue.HandlerFunc {
         username_string, password, err := parseBasicAuth(authHeader)
         if err == nil {
             // was a UUID provided?
+            // TODO: Need to update this logic (and specified validation
+            // criteria) to allow for non-UUID device IDs.
             if len(username_string) == 36 {
-                device, err := info.Conn.LookupDeviceByStringID(username_string)
+                device, err := info.Conn.LookupDevice(username_string)
                 if err != nil {
                     RestSetError(resp, IncorrectUsernameOrPasswordError().Log())
                     return

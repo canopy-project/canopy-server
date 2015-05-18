@@ -23,7 +23,6 @@ import (
     "canopy/datalayer/cassandra_datalayer"
     "canopy/sddl"
     "time"
-    "github.com/gocql/gocql"
     "net/http"
     "fmt"
 )
@@ -111,17 +110,6 @@ func ProcessDeviceComm(
     // 2) <deviceId> parameter
     // 3) "device_id" field in payload
     if device == nil && deviceIdString != "" {
-        // Parse UUID
-        uuid, err := gocql.ParseUUID(deviceIdString)
-        if err != nil {
-            return ServiceResponse{
-                HttpCode: http.StatusBadRequest,
-                Err: fmt.Errorf("Invalid UUID %s: %s", deviceIdString, err),
-                Response: `{"result" : "error", "error_type" : "device_uuid_required"}`,
-                Device: nil,
-            }
-        }
-
         // Get secret key from payload if necessary
         if secretKey == "" {
             secretKey, ok = payloadObj["secret_key"].(string)
@@ -136,7 +124,7 @@ func ProcessDeviceComm(
         }
 
         // lookup device
-        device, err = conn.LookupDeviceVerifySecretKey(uuid, secretKey)
+        device, err = conn.LookupDeviceVerifySecretKey(deviceIdString, secretKey)
         if err != nil {
             return ServiceResponse{
                 HttpCode: http.StatusInternalServerError,
@@ -160,17 +148,6 @@ func ProcessDeviceComm(
             }
         }
 
-        // Parse UUID
-        uuid, err := gocql.ParseUUID(deviceIdStringFromPayload)
-        if err != nil {
-            return ServiceResponse{
-                HttpCode: http.StatusBadRequest,
-                Err: fmt.Errorf("Invalid UUID %s: %s", deviceIdStringFromPayload, err),
-                Response: `{"result" : "error", "error_type" : "device_uuid_required"}`,
-                Device: nil,
-            }
-        }
-
         // Is <device> already set?
         // If not: set it.
         // If so: ensure consistency
@@ -190,7 +167,7 @@ func ProcessDeviceComm(
             }
 
             // Lookup device
-            device, err = conn.LookupDeviceVerifySecretKey(uuid, secretKey)
+            device, err = conn.LookupDeviceVerifySecretKey(deviceIdStringFromPayload, secretKey)
             if err != nil {
                 return ServiceResponse{
                     HttpCode: http.StatusInternalServerError,
@@ -200,10 +177,10 @@ func ProcessDeviceComm(
                 }
             }
         } else {
-            if device.ID().String() != deviceIdStringFromPayload {
+            if device.ID() != deviceIdStringFromPayload {
                 return ServiceResponse{
                     HttpCode: http.StatusBadRequest,
-                    Err: fmt.Errorf("Inconsistent device ID: %s %s", device.ID().String(), deviceIdStringFromPayload),
+                    Err: fmt.Errorf("Inconsistent device ID: %s %s", device.ID(), deviceIdStringFromPayload),
                     Response: `{"result" : "error", "error_type" : "bad_payload"}`,
                     Device: nil,
                 }

@@ -18,7 +18,6 @@ import (
     "canopy/cloudvar"
     "canopy/datalayer"
     "canopy/sddl"
-    "github.com/gocql/gocql"
     "time"
 )
 
@@ -35,22 +34,17 @@ func getDeviceByIdString(info *RestRequestInfo) (datalayer.Device, RestError) {
         }
         return info.Device, nil
     } else {
-        uuid, err := gocql.ParseUUID(deviceIdString)
-        if err != nil {
-            return nil, URLNotFoundError()
-        }
-
         // TODO: support anonymous device creation
 
         if info.Account != nil {
-            device, err := info.Account.Device(uuid)
+            device, err := info.Account.Device(deviceIdString)
             if err != nil {
                 // TODO: What errors to return here?
                 return nil, InternalServerError("Device lookup failed").Log()
             }
             return device, nil
         } else if info.Device != nil {
-            if deviceIdString != string(info.Device.IDString()) {
+            if deviceIdString != info.Device.ID() {
                 // TODO: what error to return?
                 // TODO: This should be allowed if the device has adequate
                 // permissions.

@@ -34,7 +34,7 @@ func POST__api__share(info *RestRequestInfo, sideEffects *RestSideEffects) (map[
         return nil, BadInputError("String \"device_id\" expected")
     }
 
-    device, err := info.Conn.LookupDeviceByStringID(deviceId)
+    device, err := info.Conn.LookupDevice(deviceId)
     if err != nil {
         return nil, BadInputError("Device not found")
     }

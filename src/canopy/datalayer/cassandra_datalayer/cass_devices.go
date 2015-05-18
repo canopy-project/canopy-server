@@ -28,7 +28,7 @@ import (
 
 type CassDevice struct {
     conn *CassConnection
-    deviceId gocql.UUID
+    deviceId string
     doc sddl.Document
     docString string
     last_seen *time.Time
@@ -195,12 +195,8 @@ func (device *CassDevice) HistoricDataByName(cloudVarName string, curTime, start
     return device.HistoricData(varDef, curTime, startTime, endTime)
 }
 
-func (device *CassDevice) ID() gocql.UUID {
+func (device *CassDevice) ID() string{
     return device.deviceId
-}
-
-func (device *CassDevice) IDString() string{
-    return device.deviceId.String()
 }
 
 func (device *CassDevice) SecretKey() string {
@@ -208,7 +204,7 @@ func (device *CassDevice) SecretKey() string {
 }
 
 func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, error) {
-    var uuid gocql.UUID
+    var deviceId string
     var timestamp time.Time
     var dismissed bool
     var msg string
@@ -216,16 +212,16 @@ func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, err
 
     query := device.conn.session.Query(`
             SELECT device_id, time_issued, dismissed, msg, notify_type
-            FROM notifications
+            FROM notifications_v2
             WHERE device_id = ?
     `, device.ID()).Consistency(gocql.One)
 
     iter := query.Iter()
     notifications := []datalayer.Notification{}
 
-    for iter.Scan(&uuid, &timestamp, &dismissed, &msg, &notifyType) {
+    for iter.Scan(&deviceId, &timestamp, &dismissed, &msg, &notifyType) {
         notifications = append(notifications, &CassNotification{
-                uuid, timestamp, dismissed, msg, notifyType})
+                deviceId, timestamp, dismissed, msg, notifyType})
     }
 
     if err := iter.Close(); err != nil {
@@ -238,7 +234,7 @@ func (device *CassDevice) HistoricNotifications() ([]datalayer.Notification, err
 
 func (device *CassDevice)InsertNotification(notifyType int, t time.Time, msg string) error {
     err := device.conn.session.Query(`
-            INSERT INTO notifications (device_id, time_issued, dismissed, msg, notify_type)
+            INSERT INTO notifications_v2 (device_id, time_issued, dismissed, msg, notify_type)
             VALUES (?, ?, false, ?, ?)
     `, device.ID(), t, msg, notifyType).Exec()
     if err != nil {
@@ -250,246 +246,6 @@ func (device *CassDevice)InsertNotification(notifyType int, t time.Time, msg str
 func (device *CassDevice) LastActivityTime() *time.Time {
     return device.last_seen
 }
-
-func (device *CassDevice) insertSensorSample_int(propname string, t time.Time, value int32) error {
-    err := device.conn.session.Query(`
-            INSERT INTO propval_int (device_id, propname, time, value)
-            VALUES (?, ?, ?, ?)
-    `, device.ID(), propname, t, value).Exec()
-    if err != nil {
-        return err;
-    }
-    return nil;
-}
-
-func (device *CassDevice) insertSensorSample_float(propname string, t time.Time, value float32) error {
-    err := device.conn.session.Query(`
-            INSERT INTO propval_float (device_id, propname, time, value)
-            VALUES (?, ?, ?, ?)
-    `, device.ID(), propname, t, value).Exec()
-    if err != nil {
-        return err;
-    }
-    return nil;
-}
-
-func (device *CassDevice) insertSensorSample_double(propname string, t time.Time, value float64) error {
-    err := device.conn.session.Query(`
-            INSERT INTO propval_double (device_id, propname, time, value)
-            VALUES (?, ?, ?, ?)
-    `, device.ID(), propname, t, value).Exec()
-    if err != nil {
-        return err;
-    }
-    return nil;
-}
-
-func (device *CassDevice) insertSensorSample_timestamp(propname string, t time.Time, value time.Time) error {
-    err := device.conn.session.Query(`
-            INSERT INTO propval_timestamp (device_id, propname, time, value)
-            VALUES (?, ?, ?, ?)
-    `, device.ID(), propname, t, value).Exec()
-    if err != nil {
-        return err;
-    }
-    return nil;
-}
-
-func (device *CassDevice) insertSensorSample_boolean(propname string, t time.Time, value bool) error {
-    err := device.conn.session.Query(`
-            INSERT INTO propval_boolean (device_id, propname, time, value)
-            VALUES (?, ?, ?, ?)
-    `, device.ID(), propname, t, value).Exec()
-    if err != nil {
-        return err;
-    }
-    return nil;
-}
-
-// TODO: rename this routine
-func (device *CassDevice) insertSensorSample_void(propname string, t time.Time) error {
-    err := device.conn.session.Query(`
-            INSERT INTO propval_void (device_id, propname, time)
-            VALUES (?, ?, ?)
-    `, device.ID(), propname, t).Exec()
-    if err != nil {
-        return err;
-    }
-    return nil;
-}
-
-// TODO: rename this routine
-func (device *CassDevice) insertSensorSample_string(propname string, t time.Time, value string) error {
-    err := device.conn.session.Query(`
-            INSERT INTO propval_string (device_id, propname, time, value)
-            VALUES (?, ?, ?, ?)
-    `, device.ID(), propname, t, value).Exec()
-    if err != nil {
-        return err;
-    }
-    return nil;
-}
-
-
-/*func (device *CassDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
-    varname := varDef.Name()
-
-    switch varDef.Datatype() {
-    case sddl.DATATYPE_VOID:
-        return device.insertSensorSample_void(varname, t);
-    case sddl.DATATYPE_STRING:
-        v, ok := value.(string)
-        if !ok {
-            return fmt.Errorf("InsertSample expects string value for %s", varname)
-        }
-        return device.insertSensorSample_string(varname, t, v);
-    case sddl.DATATYPE_BOOL:
-        v, ok := value.(bool)
-        if !ok {
-            return fmt.Errorf("InsertSample expects bool value for %s", varname)
-        }
-        return device.insertSensorSample_boolean(varname, t, v);
-    case sddl.DATATYPE_INT8:
-        v, ok := value.(int8)
-        if !ok {
-            return fmt.Errorf("InsertSample expects int8 value for %s", varname)
-        }
-        return device.insertSensorSample_int(varname, t, int32(v));
-    case sddl.DATATYPE_UINT8:
-        v, ok := value.(uint8)
-        if !ok {
-            return fmt.Errorf("InsertSample expects uint8 value for %s", varname)
-        }
-        return device.insertSensorSample_int(varname, t, int32(v));
-    case sddl.DATATYPE_INT16:
-        v, ok := value.(int16)
-        if !ok {
-            return fmt.Errorf("InsertSample expects int16 value for %s", varname)
-        }
-        return device.insertSensorSample_int(varname, t, int32(v));
-    case sddl.DATATYPE_UINT16:
-        v, ok := value.(uint16)
-        if !ok {
-            return fmt.Errorf("InsertSample expects uint16 value for %s", varname)
-        }
-        return device.insertSensorSample_int(varname, t, int32(v));
-    case sddl.DATATYPE_INT32:
-        v, ok := value.(int32)
-        if !ok {
-            return fmt.Errorf("InsertSample expects int32 value for %s", varname)
-        }
-        return device.insertSensorSample_int(varname, t, v);
-    case sddl.DATATYPE_UINT32:
-        v, ok := value.(uint32)
-        if !ok {
-            return fmt.Errorf("InsertSample expects uint32 value for %s", varname)
-        }
-        return device.insertSensorSample_int(varname, t, int32(v)) // TODO: verify this works as expected
-    case sddl.DATATYPE_FLOAT32:
-        v, ok := value.(float32)
-        if !ok {
-            return fmt.Errorf("InsertSample expects float32 value for %s", varname)
-        }
-        return device.insertSensorSample_float(varname, t, v);
-    case sddl.DATATYPE_FLOAT64:
-        v, ok := value.(float64)
-        if !ok {
-            return fmt.Errorf("InsertSample expects float64 value for %s", varname)
-        }
-        return device.insertSensorSample_double(varname, t, v);
-    case sddl.DATATYPE_DATETIME:
-        v, ok := value.(time.Time)
-        if !ok {
-            return fmt.Errorf("InsertSample expects time.Time value for %s", varname)
-        }
-        return device.insertSensorSample_timestamp(varname, t, v);
-    default:
-        return fmt.Errorf("InsertSample unsupported datatype ", varDef.Datatype())
-    }
-}*/
-
-/*func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.DatatypeEnum) (*cloudvar.CloudVarSample, error) {
-    var timestamp time.Time
-    var sample *cloudvar.CloudVarSample
-
-    tableName, err := tableNameByDatatype(datatype)
-    if err != nil {
-        return nil, err
-    }
-
-    query := device.conn.session.Query(`
-            SELECT time, value
-            FROM ` + tableName + `
-            WHERE device_id = ?
-                AND propname = ?
-            ORDER BY time DESC
-            LIMIT 1`, device.ID(), varname).Consistency(gocql.One)
-
-    switch datatype {
-    case sddl.DATATYPE_VOID:
-        err = query.Scan(&timestamp)
-        sample = &cloudvar.CloudVarSample{timestamp, nil}
-    case sddl.DATATYPE_STRING:
-        var value string
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_BOOL:
-        var value bool
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_INT8:
-        var value int8
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_UINT8:
-        var value uint8
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_INT16:
-        var value int16
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_UINT16:
-        var value uint16
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_INT32:
-        var value int32
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_UINT32:
-        var value uint32
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_FLOAT32:
-        var value float32
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_FLOAT64:
-        var value float64
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_DATETIME:
-        var value time.Time
-        err = query.Scan(&timestamp, &value)
-        sample = &cloudvar.CloudVarSample{timestamp, value}
-    case sddl.DATATYPE_INVALID:
-        return nil, fmt.Errorf("Cannot get property values for DATATYPE_INVALID");
-    default:
-        return nil, fmt.Errorf("Cannot get property values for datatype %d", datatype);
-    }
-
-    if err != nil {
-        return nil, fmt.Errorf("Error reading latest property value: ", err)
-    }
-
-    return sample, nil
-}*/
-
-/*func (device *CassDevice) LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error) {
-    return device.getLatestData_generic(varDef.Name(), varDef.Datatype())
-}*/
-
 
 func (device *CassDevice) LatestDataByName(varName string) (*cloudvar.CloudVarSample, error) {
     varDef, err := device.LookupVarDef(varName)
@@ -541,7 +297,7 @@ func (device *CassDevice) SetAccountAccess(account datalayer.Account, access dat
 
 func (device *CassDevice) SetLocationNote(locationNote string) error {
     err := device.conn.session.Query(`
-            UPDATE devices
+            UPDATE devices_v2
             SET location_note = ?
             WHERE device_id = ?
     `, locationNote, device.ID()).Exec()
@@ -554,7 +310,7 @@ func (device *CassDevice) SetLocationNote(locationNote string) error {
 
 func (device *CassDevice) SetName(name string) error {
     err := device.conn.session.Query(`
-            UPDATE devices
+            UPDATE devices_v2
             SET friendly_name = ?
             WHERE device_id = ?
     `, name, device.ID()).Exec()
@@ -573,7 +329,7 @@ func (device *CassDevice) SetSDDLDocument(doc sddl.Document) error {
     }
 
     err = device.conn.session.Query(`
-            UPDATE devices
+            UPDATE devices_v2
             SET sddl = ?
             WHERE device_id = ?
     `, sddlText, device.ID()).Exec()
@@ -591,7 +347,7 @@ func (device *CassDevice) UpdateLastActivityTime(tp *time.Time) error {
         t = *tp
     }
     err := device.conn.session.Query(`
-            UPDATE devices
+            UPDATE devices_v2
             SET last_seen = ?
             WHERE device_id = ?
     `, t, device.ID()).Exec()
@@ -604,7 +360,7 @@ func (device *CassDevice) UpdateLastActivityTime(tp *time.Time) error {
 
 func (device *CassDevice) UpdateWSConnected(connected bool) error {
     err := device.conn.session.Query(`
-            UPDATE devices
+            UPDATE devices_v2
             SET ws_connected = ?
             WHERE device_id = ?
     `, connected, device.ID()).Exec()

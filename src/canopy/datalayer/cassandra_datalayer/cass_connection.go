@@ -34,6 +34,7 @@ type CassConnection struct {
 
 // Use with care.  Erases all sensor data.
 func (conn *CassConnection) ClearSensorData() {
+    // TODO: Needs updating
     tables := []string{
         "propval_int",
         "propval_float",
@@ -153,20 +154,18 @@ func (conn *CassConnection) CreateAccount(
 
 func (conn *CassConnection) CreateDevice(
         name string, 
-        uuid *gocql.UUID, 
+        id string, 
         secretKey string, 
         publicAccessLevel datalayer.AccessLevel) (datalayer.Device, error) {
     // TODO: validate parameters 
-    var id gocql.UUID
     var err error
 
-    if uuid == nil {
-        id, err = gocql.RandomUUID()
+    if id == "" {
+        uuid, err := gocql.RandomUUID()
         if err != nil {
             return nil, err
         }
-    } else {
-        id = *uuid
+        id = uuid.String()
     }
     
     if secretKey == "" {
@@ -177,7 +176,7 @@ func (conn *CassConnection) CreateDevice(
     }
     
     err = conn.session.Query(`
-            INSERT INTO devices (device_id, secret_key, friendly_name, public_access_level)
+            INSERT INTO devices_v2 (device_id, secret_key, friendly_name, public_access_level)
             VALUES (?, ?, ?, ?)
     `, id, secretKey, name, publicAccessLevel).Exec()
     if err != nil {
@@ -213,7 +212,7 @@ func (conn *CassConnection) DeleteAccount(username string) error {
     // the table.
 
     err = conn.session.Query(`
-            DELETE FROM device_permissions
+            DELETE FROM device_permissions_v2
             WHERE username = ?
     `, username).Exec()
     if err != nil {
@@ -242,7 +241,7 @@ func (conn *CassConnection) DeleteAccount(username string) error {
     return nil
 }
 
-func (conn *CassConnection)DeleteDevice(deviceId gocql.UUID) error {
+func (conn *CassConnection)DeleteDevice(deviceId string) error {
     // TODO: Should we archive the device, not actually delete it?
     device, err := conn.LookupDevice(deviceId)
     if err != nil {
@@ -251,7 +250,7 @@ func (conn *CassConnection)DeleteDevice(deviceId gocql.UUID) error {
     }
 
     err = conn.session.Query(`
-            DELETE FROM devices
+            DELETE FROM devices_v2
             WHERE device_id = ?
     `, device.ID()).Exec()
     if err != nil {
@@ -343,7 +342,7 @@ func (conn *CassConnection) LookupAccountVerifyPassword(
 }
 
 func (conn *CassConnection) LookupDevice(
-        deviceId gocql.UUID) (datalayer.Device, error) {
+        deviceId string) (datalayer.Device, error) {
     var device CassDevice
 
     device.deviceId = deviceId
@@ -353,7 +352,7 @@ func (conn *CassConnection) LookupDevice(
 
     err := conn.session.Query(`
         SELECT friendly_name, location_note, secret_key, sddl, last_seen, ws_connected
-        FROM devices
+        FROM devices_v2
         WHERE device_id = ?
         LIMIT 1`, deviceId).Consistency(gocql.One).Scan(
             &device.name,
@@ -389,7 +388,7 @@ func (conn *CassConnection) LookupDevice(
     return &device, nil
 }
 func (conn *CassConnection) LookupDeviceVerifySecretKey(
-        deviceId gocql.UUID, 
+        deviceId string, 
         secret string) (datalayer.Device, error) {
 
     device, err := conn.LookupDevice(deviceId)
@@ -403,29 +402,6 @@ func (conn *CassConnection) LookupDeviceVerifySecretKey(
     }
 
     return device, nil
-}
-
-func (conn *CassConnection) LookupDeviceByStringID(
-        id string) (datalayer.Device, error) {
-
-    deviceId, err := gocql.ParseUUID(id)
-    if err != nil {
-        canolog.Error(err)
-        return nil, err
-    }
-    return conn.LookupDevice(deviceId)
-}
-
-func (conn *CassConnection) LookupDeviceByStringIDVerifySecretKey(
-        id, 
-        secret string) (datalayer.Device, error) {
-
-    deviceId, err := gocql.ParseUUID(id)
-    if err != nil {
-        canolog.Error(err)
-        return nil, err
-    }
-    return conn.LookupDeviceVerifySecretKey(deviceId, secret)
 }
 
 func (conn *CassConnection) PigeonSystem() datalayer.PigeonSystem {

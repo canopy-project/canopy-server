@@ -16,17 +16,13 @@
 package cassandra_datalayer
 
 import (
-    //"canopy/datalayer"
-    "github.com/gocql/gocql"
     "time"
-    //"canopy/sddl"
-    //"canopy/canolog"
     "fmt"
 )
 
 
 type CassNotification struct {
-    deviceId gocql.UUID
+    deviceId string
     t time.Time
     isDismissed bool
     msg string

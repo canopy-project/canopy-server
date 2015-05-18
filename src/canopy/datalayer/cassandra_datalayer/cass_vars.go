@@ -373,7 +373,7 @@ func crossesStratificationBoundary(t0, t1 time.Time,
 // Track a bucket in the database for garbage collection purposes
 func (device *CassDevice)addBucket(varName string, bucket *bucketStruct) error {
     err := device.conn.session.Query(`
-            UPDATE var_buckets
+            UPDATE var_buckets_v2
             SET endtime = ?
             WHERE device_id = ?
                 AND var_name = ?
@@ -390,29 +390,29 @@ func (device *CassDevice)addBucket(varName string, bucket *bucketStruct) error {
 func varTableNameByDatatype(datatype sddl.DatatypeEnum) (string, error) {
     switch datatype {
     case sddl.DATATYPE_VOID:
-        return "varsample_void", nil
+        return "varsample_void_v2", nil
     case sddl.DATATYPE_STRING:
-        return "varsample_string", nil
+        return "varsample_string_v2", nil
     case sddl.DATATYPE_BOOL:
-        return "varsample_boolean", nil
+        return "varsample_boolean_v2", nil
     case sddl.DATATYPE_INT8:
-        return "varsample_int", nil
+        return "varsample_int_v2", nil
     case sddl.DATATYPE_UINT8:
-        return "varsample_int", nil
+        return "varsample_int_v2", nil
     case sddl.DATATYPE_INT16:
-        return "varsample_int", nil
+        return "varsample_int_v2", nil
     case sddl.DATATYPE_UINT16:
-        return "varsample_int", nil
+        return "varsample_int_v2", nil
     case sddl.DATATYPE_INT32:
-        return "varsample_int", nil
+        return "varsample_int_v2", nil
     case sddl.DATATYPE_UINT32:
-        return "varsample_int", nil
+        return "varsample_int_v2", nil
     case sddl.DATATYPE_FLOAT32:
-        return "varsample_float", nil
+        return "varsample_float_v2", nil
     case sddl.DATATYPE_FLOAT64:
-        return "varsample_double", nil
+        return "varsample_double_v2", nil
     case sddl.DATATYPE_DATETIME:
-        return "varsample_timestamp", nil
+        return "varsample_timestamp_v2", nil
     case sddl.DATATYPE_INVALID:
         return "", fmt.Errorf("DATATYPE_INVALID not allowed in varTableNameByDatatype");
     default: 
@@ -477,7 +477,7 @@ func (device *CassDevice)varLastUpdateTime(varName string) (time.Time, error) {
     // We use Quorum consistency here for strong conistency guarantee.
     query := device.conn.session.Query(`
             SELECT last_update
-            FROM var_lastupdatetime
+            FROM var_lastupdatetime_v2
             WHERE device_id = ?
                 AND var_name = ?
     `, device.ID(), varName).Consistency(gocql.One)
@@ -499,7 +499,7 @@ func (device *CassDevice)varSetLastUpdateTime(varName string, t time.Time) error
     // TODO: How to use QUORUM for writes?
     // QUORUM causes error to get thrown on some instances.
     err := device.conn.session.Query(`
-            UPDATE var_lastupdatetime
+            UPDATE var_lastupdatetime_v2
             SET last_update = ?
             WHERE device_id = ?
                 AND var_name = ?
@@ -770,7 +770,7 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
 
     query := device.conn.session.Query(`
             SELECT timeprefix, endtime
-            FROM var_buckets
+            FROM var_buckets_v2
             WHERE device_id = ?
                 AND var_name = ?
                 AND lod = ?
@@ -822,7 +822,7 @@ func (device *CassDevice)garbageCollectLOD(curTime time.Time,
             // Cleanup var_buckets table, but only if we actually deleted the
             // bucket in the previous step
             err := device.conn.session.Query(`
-                DELETE FROM var_buckets
+                DELETE FROM var_buckets_v2
                 WHERE device_id = ?
                     AND var_name = ?
                     AND lod = ?
@@ -856,7 +856,7 @@ func (device *CassDevice) getLatestData_generic(varname string, datatype sddl.Da
     // Get most recent LOD0 bucket
     query := device.conn.session.Query(`
             SELECT timeprefix
-            FROM var_buckets
+            FROM var_buckets_v2
             WHERE device_id = ?
                 AND var_name = ?
                 AND lod = ?

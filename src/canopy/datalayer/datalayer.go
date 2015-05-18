@@ -18,7 +18,6 @@ package datalayer
 import (
     "canopy/cloudvar"
     "canopy/sddl"
-    "github.com/gocql/gocql"
     "time"
     "errors"
 )
@@ -79,16 +78,16 @@ type Connection interface {
     // Create a new user account in the database.
     CreateAccount(username, email, password string) (Account, error)
 
-    // Create a new device in the database.  If <uuid> is nil, then the
+    // Create a new device in the database.  If <device_id> is "", then the
     // implementation will assign a newly created UUID.  If <secretKey> is nil,
     // then the implementation will assign a newly created Secret Key.
-    CreateDevice(name string, uuid *gocql.UUID, secretKey string, publicAccessLevel AccessLevel) (Device, error)
+    CreateDevice(name, deviceId, secretKey string, publicAccessLevel AccessLevel) (Device, error)
 
     // Remove a user account from the database.
     DeleteAccount(username string) error
 
     // Remove a device from the database.
-    DeleteDevice(deviceId gocql.UUID) error
+    DeleteDevice(deviceId string) error
 
     // Lookup a user account from the database (without password verification).
     LookupAccount(usernameOrEmail string) (Account, error)
@@ -99,18 +98,10 @@ type Connection interface {
     LookupAccountVerifyPassword(usernameOrEmail, password string) (Account, error)
 
     // Lookup a device from the database (without secret key verification).
-    LookupDevice(deviceId gocql.UUID) (Device, error)
+    LookupDevice(deviceId string) (Device, error)
 
     // Lookup a device from the database and verify the secret key
-    LookupDeviceVerifySecretKey(deviceId gocql.UUID, secret string) (Device, error)
-
-    // Lookup a device from the database, using string representation of its
-    // UUID (without secret key verification).
-    LookupDeviceByStringID(id string) (Device, error)
-
-    // Lookup a device from the database, using string representation of its
-    // UUID, and verify the secret key.
-    LookupDeviceByStringIDVerifySecretKey(id, secret string) (Device, error)
+    LookupDeviceVerifySecretKey(deviceId string, secret string) (Device, error)
 
     // Get the datalayer interface for the Pigeon system
     PigeonSystem() PigeonSystem
@@ -128,7 +119,7 @@ type Account interface {
     Devices() DeviceQuery
 
     // Get device by ID, but only if this account has access to it.
-    Device(id gocql.UUID) (Device, error)
+    Device(id string) (Device, error)
 
     // Get user's email address.
     Email() string
@@ -191,11 +182,8 @@ type Device interface {
     // Get historic notifications originating from this device
     HistoricNotifications() ([]Notification, error)
 
-    // Get the UUID of this device.
-    ID() gocql.UUID
-
-    // Get the UUID of this device.
-    IDString() string
+    // Get the ID of this device.
+    ID() string
 
     // Store a Cloud Variable data sample.
     // <value> must have an appropriate dynamic type.  See documentation in

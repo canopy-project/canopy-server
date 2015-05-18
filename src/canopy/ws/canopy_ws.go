@@ -73,8 +73,7 @@ func NewCanopyWebsocketServer(cfg config.Config, outbox jobqueue.Outbox, pigeonS
                 } else {
                     device = resp.Device
                     if inbox == nil {
-                        deviceIdString := device.ID().String()
-                        inbox, err = pigeonServer.CreateInbox("canopy_ws:" + deviceIdString)
+                        inbox, err = pigeonServer.CreateInbox("canopy_ws:" + device.ID())
                         if err != nil {
                             canolog.Error("Error initializing inbox:", err)
                             return
