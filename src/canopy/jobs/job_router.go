@@ -43,6 +43,7 @@ func InitJobServer(cfg config.Config, pigeonServer jobqueue.Server) error {
     routes := map[string]jobqueue.HandlerFunc{
         "api/activate": rest.RestJobWrapper(rest.ApiActivateHandler),
         "api/create_devices": rest.RestJobWrapper(rest.ApiCreateDevicesHandler),
+        "api/create_org": rest.RestJobWrapper(rest.ApiCreateOrgHandler),
         "api/create_user": rest.RestJobWrapper(rest.ApiCreateUserHandler),
         "GET:api/device/id": rest.RestJobWrapper(rest.GET__api__device__id),
         "POST:api/device/id": rest.RestJobWrapper(rest.POST__api__device__id),

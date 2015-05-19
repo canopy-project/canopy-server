@@ -105,6 +105,10 @@ func URLNotFoundError() *GenericRestError {
     return NewGenericRestError(http.StatusNotFound, "url_not_found", "")
 }
 
+func UnauthorizedError(msg string) *GenericRestError {
+    return NewGenericRestError(http.StatusUnauthorized, "unauthorized", msg)
+}
+
 func UsernameNotAvailableError() *GenericRestError {
     return NewGenericRestError(http.StatusBadRequest, "username_not_available", "")
 }
