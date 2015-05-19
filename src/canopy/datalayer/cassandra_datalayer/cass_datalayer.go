@@ -437,6 +437,39 @@ var creationQueries []string = []string{
         workers set<text>,
         PRIMARY KEY(key)
     ) `,
+
+    `CREATE TABLE organizations (
+        id uuid,
+        name text,
+        PRIMARY KEY(id)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE organization_names (
+        name text,
+        id uuid,
+        PRIMARY KEY(name)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE teams (
+        org_id uuid,
+        name text,
+        PRIMARY KEY(org_id, name)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE account_teams (
+        username text,
+        org_id uuid,
+        name text,
+        PRIMARY KEY((username), org_id, name)
+    ) WITH COMPACT STORAGE`,
+
+    `CREATE TABLE device_team_permissions (
+        org_id uuid,
+        team text,
+        device_id text,
+        access_level int,
+        PRIMARY KEY((org_id, team), device_id)
+    ) WITH COMPACT STORAGE`,
 }
 
 type CassDatalayer struct {
