@@ -277,7 +277,7 @@ func (conn *CassConnection)IsNameAvailable(name string) (bool, error) {
     // Look for name in account table
     var count int
     err = conn.session.Query(`
-            SELECT COUNT(*), 
+            SELECT COUNT(*)
             FROM accounts 
             WHERE username = ?
             LIMIT 1
@@ -290,7 +290,7 @@ func (conn *CassConnection)IsNameAvailable(name string) (bool, error) {
 
     // Look for name in orgnization_names table
     err = conn.session.Query(`
-            SELECT COUNT(*), 
+            SELECT COUNT(*)
             FROM organization_names 
             WHERE name = ?
             LIMIT 1

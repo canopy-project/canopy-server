@@ -16,6 +16,7 @@
 package cassandra_datalayer
 
 import (
+    "canopy/canolog"
     "canopy/datalayer"
     "fmt"
     "github.com/gocql/gocql"
@@ -28,12 +29,31 @@ type CassOrganization struct {
 }
 
 func (org *CassOrganization) AddAccountToTeam(account datalayer.Account, team string) error {
-    return fmt.Errorf("not implemented yet")
+    // Add account to team
+    err := org.conn.session.Query(`
+            INSERT INTO account_teams (username, org_id, name)
+            VALUES (?, ?, ?)
+    `, account.Username(), org.id, team).Exec()
+    if err != nil {
+        canolog.Error("Error adding account to team: ", err)
+        return err
+    }
+
+    return nil
 }
 
 func (org *CassOrganization) CreateTeam(team string) error {
     // Create Team
-    return fmt.Errorf("not implemented yet")
+    err := org.conn.session.Query(`
+            INSERT INTO teams (org_id, name)
+            VALUES (?, ?)
+    `, org.id, team).Exec()
+    if err != nil {
+        canolog.Error("Error storing team: ", err)
+        return err
+    }
+
+    return nil
 }
 
 func (org *CassOrganization) ID() string {

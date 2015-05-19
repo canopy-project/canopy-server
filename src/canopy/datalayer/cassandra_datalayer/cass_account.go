@@ -71,7 +71,7 @@ func (account *CassAccount)CreateOrganization(
 
     available, err := account.conn.IsNameAvailable(name)
     if err != nil {
-        return nil, fmt.Errorf("Internal error occurred check for name availability")
+        return nil, fmt.Errorf("Internal error occurred check for name availability: %s", err.Error())
     } else if !available{
         return nil, fmt.Errorf("That name is not available")
     }
