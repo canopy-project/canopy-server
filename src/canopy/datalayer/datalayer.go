@@ -89,6 +89,10 @@ type Connection interface {
     // Remove a device from the database.
     DeleteDevice(deviceId string) error
 
+    // Check if username or organization name is taken
+    // NOTE: Usernames and organization names share the same namespace
+    IsNameAvailable(name string) (bool, error)
+
     // Lookup a user account from the database (without password verification).
     LookupAccount(usernameOrEmail string) (Account, error)
 
@@ -115,6 +119,13 @@ type Account interface {
     // Mark this account as activated, using an activation code.
     Activate(username, code string) error
 
+    // Create a new organization in the database and make this Account an
+    // owner.
+    CreateOrganization(name string) (Organization, error)
+
+    // Remove an organization from the database
+    DeleteOrganization(org Organization) (error)
+
     // Get all devices that user has access to.
     Devices() DeviceQuery
 
@@ -130,6 +141,9 @@ type Account interface {
 
     // Has this account been activated?
     IsActivated() bool
+
+    // Get all organizations that this account belongs to
+    Organizations() ([]Organization, error)
 
     // Reset password.  Like SetPassword but requires a valid Password Reset
     // Code, and invalidates <code> on success.
@@ -234,6 +248,10 @@ type Device interface {
     // device.
     SetAccountAccess(account Account, access AccessLevel, sharing ShareLevel) error
 
+    // Set the access and sharing permissions that an organization's members
+    // (of a particular role) have for this device.
+    SetTeamAccess(org Organization, team string, access AccessLevel, sharing ShareLevel) error
+
     // Set the user-assigned location note for this device.
     SetLocationNote(locationNote string) error
 
@@ -275,6 +293,29 @@ type Notification interface {
 
     // Get the requested notification type.
     NotifyType() int
+}
+
+// Organization is an entity that can own devices.
+// Each User Account may be a member of 0 or more Organizations.
+// User accounts and organizations share the same namespace, but Organizations
+// cannot login.
+type Organization interface {
+    // Add account to a team.
+    AddAccountToTeam(account Account, team string) error
+
+    // Create Team
+    CreateTeam(team string) error
+
+    // Get organization's internal ID
+    ID() string
+
+    // Get organization's display name
+    Name() string
+
+    // Set organization's display name.  This shares a namespace and validation
+    // criteria with all User Accounts.
+    // Saves changes to the database.
+    SetName(string) error
 }
 
 type PigeonSystem interface {

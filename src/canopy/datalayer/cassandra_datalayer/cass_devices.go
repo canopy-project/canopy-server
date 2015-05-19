@@ -170,6 +170,20 @@ func (device *CassDevice) SetAccountAccess(account datalayer.Account, access dat
     return err
 }
 
+func (device *CassDevice) SetTeamAccess(org datalayer.Organization, team string, access datalayer.AccessLevel, sharing datalayer.ShareLevel) error {
+    org2, ok := org.(*CassOrganization)
+    if !ok {
+        return fmt.Errorf("Type error in SetTeamAccess")
+    }
+    /* TODO: Incorporate sharing level */
+    err := device.conn.session.Query(`
+            INSERT INTO device_team_permissions (org_id, team, device_id, access_level)
+            VALUES (?, ?, ?, ?)
+    `, org2.id, team, device.ID(), access).Exec()
+
+    return err
+}
+
 func (device *CassDevice) SetLocationNote(locationNote string) error {
     err := device.conn.session.Query(`
             UPDATE devices_v2

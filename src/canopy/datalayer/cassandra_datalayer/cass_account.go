@@ -63,6 +63,71 @@ func (account *CassAccount) Activate(username, code string) error {
     return nil;
 }
 
+func (account *CassAccount)CreateOrganization(
+        name string) (datalayer.Organization, error) {
+
+    // TODO: Transactionize
+    // TODO: Input validation
+
+    available, err := account.conn.IsNameAvailable(name)
+    if err != nil {
+        return nil, fmt.Errorf("Internal error occurred check for name availability")
+    } else if !available{
+        return nil, fmt.Errorf("That name is not available")
+    }
+
+    id, err := gocql.RandomUUID()
+    if err != nil {
+        return nil, err
+    }
+
+    // Create entry in organizations 
+    err = account.conn.session.Query(`
+            INSERT INTO organizations (id, name)
+            VALUES (?, ?)
+    `, id, name).Exec()
+    if err != nil {
+        canolog.Error("Error creating organization: ", err)
+        return nil, err
+    }
+
+    // Create entry in organization_names table
+    err = account.conn.session.Query(`
+            INSERT INTO organization_names (name, id)
+            VALUES (?, ?)
+    `, name, id).Exec()
+    if err != nil {
+        canolog.Error("Error storing organization name: ", err)
+        return nil, err
+    }
+
+    // Create org object
+    org := &CassOrganization{
+        conn: account.conn,
+        id: id,
+        name: name,
+    }
+
+    // Create __owners__ team
+    err = org.CreateTeam("__owners__")
+    if err != nil {
+        canolog.Error("Error create __owners__", err)
+        return nil, err
+    }
+
+    // Add account to __owners__ team
+    err = org.AddAccountToTeam(account, "__owners__")
+    if err != nil {
+        canolog.Error("Error create __owners__", err)
+        return nil, err
+    }
+
+    return org, nil
+}
+
+func (account *CassAccount)DeleteOrganization(org datalayer.Organization) error {
+    return fmt.Errorf("Not implemented")
+}
 
 // Obtain list of devices I have access to.
 func (account *CassAccount) Devices() datalayer.DeviceQuery {
@@ -125,6 +190,10 @@ func (account *CassAccount)GenResetPasswordCode() (string, error) {
 
 func (account *CassAccount) IsActivated() bool {
     return account.activated
+}
+
+func (account *CassAccount) Organizations() ([]datalayer.Organization, error) {
+    return []datalayer.Organization{}, fmt.Errorf("Not implemented")
 }
 
 func (account *CassAccount) ResetPassword(code, newPassword string) error {

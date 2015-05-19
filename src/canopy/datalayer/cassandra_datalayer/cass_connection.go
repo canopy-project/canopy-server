@@ -267,6 +267,43 @@ func (conn *CassConnection)DeleteDevice(deviceId string) error {
     return nil
 }
 
+func (conn *CassConnection)IsNameAvailable(name string) (bool, error) {
+    // TODO: Use this during account creation as well.
+    err := validateUsername(name)
+    if err != nil {
+        return false, err
+    }
+
+    // Look for name in account table
+    var count int
+    err = conn.session.Query(`
+            SELECT COUNT(*), 
+            FROM accounts 
+            WHERE username = ?
+            LIMIT 1
+    `, name).Consistency(gocql.One).Scan(&count)
+    if err != nil {
+        return false, err
+    } else if (count == 1) {
+        return false, nil
+    }
+
+    // Look for name in orgnization_names table
+    err = conn.session.Query(`
+            SELECT COUNT(*), 
+            FROM organization_names 
+            WHERE name = ?
+            LIMIT 1
+    `, name).Consistency(gocql.One).Scan(&count)
+    if err != nil {
+        return false, err
+    } else if (count == 1) {
+        return false, nil
+    }
+
+    return true, nil
+}
+
 func (conn *CassConnection) LookupAccount(
         usernameOrEmail string) (datalayer.Account, error) {
     var account CassAccount
