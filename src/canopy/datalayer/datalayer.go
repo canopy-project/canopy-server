@@ -107,6 +107,9 @@ type Connection interface {
     // Lookup a device from the database and verify the secret key
     LookupDeviceVerifySecretKey(deviceId string, secret string) (Device, error)
 
+    // Lookup organization from the database.
+    LookupOrganization(name string) (Organization, error)
+
     // Get the datalayer interface for the Pigeon system
     PigeonSystem() PigeonSystem
 }

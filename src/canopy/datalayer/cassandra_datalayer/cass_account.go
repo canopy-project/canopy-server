@@ -193,7 +193,32 @@ func (account *CassAccount) IsActivated() bool {
 }
 
 func (account *CassAccount) Organizations() ([]datalayer.Organization, error) {
-    return []datalayer.Organization{}, fmt.Errorf("Not implemented")
+    orgIds := map[gocql.UUID]bool{}
+    orgs := []datalayer.Organization{}
+    var orgId gocql.UUID
+
+    query := account.conn.session.Query(`
+            SELECT org_id FROM account_teams
+            WHERE username = ?
+    `, account.Username()).Consistency(gocql.One)
+    iter := query.Iter()
+    for iter.Scan(&orgId) {
+        orgIds[orgId] = true
+    }
+    if err := iter.Close(); err != nil {
+        return orgs, err
+    }
+
+    // Manual join
+    for id, _ := range orgIds {
+        org, err := account.conn.lookupOrganizationById(id)
+        if err != nil {
+            return orgs, errors.New("Error looking up orgs: " + err.Error())
+        }
+        orgs = append(orgs, org)
+    }
+
+    return orgs, nil
 }
 
 func (account *CassAccount) ResetPassword(code, newPassword string) error {

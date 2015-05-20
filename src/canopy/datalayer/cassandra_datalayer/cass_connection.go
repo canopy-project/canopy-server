@@ -426,6 +426,7 @@ func (conn *CassConnection) LookupDevice(
 
     return &device, nil
 }
+
 func (conn *CassConnection) LookupDeviceVerifySecretKey(
         deviceId string, 
         secret string) (datalayer.Device, error) {
@@ -441,6 +442,50 @@ func (conn *CassConnection) LookupDeviceVerifySecretKey(
     }
 
     return device, nil
+}
+
+func (conn *CassConnection) LookupOrganization(name string) (datalayer.Organization, error) {
+    var id gocql.UUID
+
+    err := conn.session.Query(`
+        SELECT id FROM organization_names
+        WHERE name = ?
+        LIMIT 1
+    `, name).Consistency(gocql.One).Scan(&id)
+    if err != nil {
+            return nil, err
+    }
+
+    // Create org object
+    org := &CassOrganization{
+        conn: conn,
+        id: id,
+        name: name,
+    }
+
+    return org, nil
+}
+
+func (conn *CassConnection) lookupOrganizationById(id gocql.UUID) (datalayer.Organization, error) {
+    var name string
+
+    err := conn.session.Query(`
+        SELECT name FROM organizations
+        WHERE id = ?
+        LIMIT 1
+    `, id).Consistency(gocql.One).Scan(&name)
+    if err != nil {
+            return nil, err
+    }
+
+    // Create org object
+    org := &CassOrganization{
+        conn: conn,
+        id: id,
+        name: name,
+    }
+
+    return org, nil
 }
 
 func (conn *CassConnection) PigeonSystem() datalayer.PigeonSystem {
