@@ -28,7 +28,7 @@ import(
 // This handler forwards an HTTP request along as a Pigeon job.
 func CanopyRestJobForwarder(
         jobKey string, 
-        cookieStore *sessions.CookieStore,
+        sessionStore sessions.Store,
         allowOrigin string,
         outbox jobqueue.Outbox) http.HandlerFunc {
 
@@ -50,10 +50,10 @@ func CanopyRestJobForwarder(
         canolog.Info("Request: ", r.Method, r.URL, " BY ", r.RemoteAddr)
 
         // Check for session-based AUTH
-        cookieUsername := ""
-        if cookieStore != nil {
-            session, _ := cookieStore.Get(r, "canopy-login-session")
-            cookieUsername, _ = session.Values["logged_in_username"].(string)
+        sessionUsername := ""
+        if sessionStore != nil {
+            session, _ := sessionStore.Get(r, "canopy-login-session")
+            sessionUsername, _ = session.Values["logged_in_username"].(string)
         }
 
         // Read message body
@@ -69,7 +69,7 @@ func CanopyRestJobForwarder(
             "url-vars" : mux.Vars(r),
             "query" : r.URL.Query(), // map[string][]string
             "auth-header" : r.Header["Authorization"],
-            "cookie-username" : cookieUsername,
+            "cookie-username" : sessionUsername,
             "http-body" : bodyString,
         }
         //
@@ -86,6 +86,13 @@ func CanopyRestJobForwarder(
             w.Header().Set("Access-Control-Allow-Origin", allowOrigin)
         }
 
+        // Never cache API endpoints.
+        // This fixes problems with IE not taking session cookie changes into
+        // account.
+        w.Header().Set("Expires", "Tue, 03 Jul 2001 06:00:00 GMT")
+        w.Header().Set("Last-Modified", "{now} GMT")
+        w.Header().Set("Cache-Control", "max-age=0, no-cache, must-revalidate, proxy-revalidate")
+
         // Wait for pigeon response
         resp := (<-respChan).Body()
 
@@ -99,10 +106,10 @@ func CanopyRestJobForwarder(
 
         clearCookies, ok := resp["clear-cookies"].([]string)
         if ok {
-            session, _ := cookieStore.Get(r, "canopy-login-session")
-            for _, cookie := range clearCookies {
-                canolog.Info("Clearing cookie: ", session, session.Values, cookie)
-                session.Values[cookie] = ""
+            session, _ := sessionStore.Get(r, "canopy-login-session")
+            for _, sessionVar := range clearCookies {
+                canolog.Info("Clearing session variable: ", session, session.Values, sessionVar)
+                session.Values[sessionVar] = ""
                 canolog.Info("Cleared")
             }
             err := session.Save(r, w)
@@ -115,9 +122,9 @@ func CanopyRestJobForwarder(
 
         setCookies, ok := resp["set-cookies"].(map[string]string)
         if ok {
-            session, _ := cookieStore.Get(r, "canopy-login-session")
+            session, _ := sessionStore.Get(r, "canopy-login-session")
             for key, value := range setCookies {
-                canolog.Info("Setting cookie: ", key, ":", value)
+                canolog.Info("Setting session variable: ", key, ":", value)
                 session.Values[key] = value
             }
             err := session.Save(r, w)
