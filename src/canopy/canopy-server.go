@@ -106,11 +106,6 @@ func main() {
         os.Exit(1)
     }()
 
-    if (cfg.OptHostname() == "") {
-        canolog.Error("You must set the configuration option \"hostname\"")
-        return
-    }
-
     if (cfg.OptPasswordSecretSalt() == "") {
         canolog.Error("You must set the configuration option \"password-secret-salt\"")
         return
