@@ -81,7 +81,7 @@ func main() {
     defer func() {
         r := recover()
         if r != nil {
-        var buf [4096]byte
+            var buf [4096]byte
             runtime.Stack(buf[:], false)
             canolog.Error("PANIC ", r, string(buf[:]))
             panic(r)
@@ -102,6 +102,9 @@ func main() {
     go func() {
         <-c2
         canolog.Info("SIGTERM recieved")
+        var buf [4096]byte
+        runtime.Stack(buf[:], false)
+	canolog.Error("SIGTERM ", r, string(buf[:]))
         shutdown()
         os.Exit(1)
     }()
