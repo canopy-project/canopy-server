@@ -180,7 +180,7 @@ type Response interface {
 func NewPigeonSystem(cfg config.Config) (System, error) {
     dl := cassandra_datalayer.NewDatalayer(cfg)
     // TODO: share DB connection
-    conn, err := dl.Connect("canopy")
+    conn, err := dl.Connect()
     if err != nil {
         return nil, err
     }

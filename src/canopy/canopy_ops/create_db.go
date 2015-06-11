@@ -43,7 +43,7 @@ func (CreateDBCommand)Match(cmdString string) bool {
 
 func (CreateDBCommand)Perform(info CommandInfo) {
     dl := cassandra_datalayer.NewDatalayer(info.Cfg)
-    err := dl.PrepDb("canopy")
+    err := dl.PrepDb(3) // 3 = replication factor
     if err != nil {
         fmt.Println(err)
     }

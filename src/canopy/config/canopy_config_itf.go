@@ -27,6 +27,9 @@ type Config interface {
 
     OptAllowAnonDevices() bool
     OptAllowOrigin() string
+    OptCassandraDefaultConsistency() string
+    OptCassandraKeyspace() string
+    OptCassandraHosts() []string
     OptEmailService() string
     OptEnableHTTP() bool
     OptEnableHTTPS() bool
@@ -54,6 +57,9 @@ func NewDefaultConfig(buildVersion, buildDate, buildCommit string) Config {
         buildVersion: buildVersion,
         buildDate: buildDate,
         buildCommit: buildCommit,
+        cassandraHosts: []string{"127.0.0.1"},
+        cassandraKeyspace: "canopy",
+        cassandraDefaultConsistency: "ANY",
         enableHTTPS: true,
         httpPort: 80,
         httpsPort: 443,

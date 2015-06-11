@@ -34,7 +34,7 @@ func InitJobServer(cfg config.Config, pigeonServer jobqueue.Server) error {
     }
 
     dl := cassandra_datalayer.NewDatalayer(cfg)
-    conn, err := dl.Connect("canopy")
+    conn, err := dl.Connect()
     if err != nil {
         return err
     }
