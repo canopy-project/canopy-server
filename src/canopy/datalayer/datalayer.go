@@ -54,14 +54,14 @@ const (
 // Datalayer provides an abstracted interface for interacting with Canopy's
 // backend perstistant datastore.
 type Datalayer interface {
-    // Connect to the database named <keyspace>.
-    Connect(keyspace string) (Connection, error)
+    // Connect to the configured database
+    Connect() (Connection, error)
 
-    // Completely erase the database named <keyspace>.  Handle with care!
-    EraseDb(keyspace string) error
+    // Completely erase the configured database.  Handle with care!
+    EraseDb() error
 
-    // Prepare (i.e., create) a new database named <keyspace>.
-    PrepDb(keyspace string) error
+    // Prepare (i.e., create) a new database with given replication factor.
+    PrepDb(replicationFactor int32) error
 
     // Migrate database from one version to another
     MigrateDB(keyspace, startVersion, endVersion string) error

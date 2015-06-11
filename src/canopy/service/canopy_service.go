@@ -82,7 +82,7 @@ func ProcessDeviceComm(
     // If conn is nil, open a datalayer connection.
     if conn == nil {
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, err = dl.Connect("canopy")
+        conn, err = dl.Connect()
         if err != nil {
             return ServiceResponse{
                 HttpCode: http.StatusInternalServerError,

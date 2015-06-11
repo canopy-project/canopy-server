@@ -29,6 +29,9 @@ type CanopyConfig struct {
     buildDate string
     buildCommit string
     buildVersion string
+    cassandraDefaultConsistency string
+    cassandraKeyspace string
+    cassandraHosts []string
     emailService string
     enableHTTP bool
     enableHTTPS bool
@@ -50,27 +53,33 @@ type CanopyConfig struct {
 
 func (config *CanopyConfig) ToString() string {
     return fmt.Sprint(`SERVER CONFIG SETTINGS:
-allow-anon-devices:  `, config.allowAnonDevices, `
-allow-origin:        `, config.allowOrigin, `
-email-service:       `, config.emailService, `
-enable-http:         `, config.enableHTTP, `
-enable-https:        `, config.enableHTTPS, `
-forward-other-hosts: `, config.forwardOtherHosts, `
-hostname:            `, config.hostname, `
-http-port:           `, config.httpPort, `
-https-cert-file:     `, config.httpsCertFile, `
-https-port:          `, config.httpsPort, `
-https-priv-key-file: `, config.httpsPrivKeyFile, `
-js-client-path:      `, config.javascriptClientPath, `
-log-file:            `, config.logFile, `
-sendgrid-username:   `, config.sendgridUsername, `
-web-manager-path:    `, config.webManagerPath)
+allow-anon-devices:            `, config.allowAnonDevices, `
+allow-origin:                  `, config.allowOrigin, `
+cassandra-default-consistency: `, config.cassandraDefaultConsistency, `
+cassandra-keyspace:            `, config.cassandraKeyspace, `
+cassandra-hosts:               `, config.cassandraHosts, `
+email-service:                 `, config.emailService, `
+enable-http:                   `, config.enableHTTP, `
+enable-https:                  `, config.enableHTTPS, `
+forward-other-hosts:           `, config.forwardOtherHosts, `
+hostname:                      `, config.hostname, `
+http-port:                     `, config.httpPort, `
+https-cert-file:               `, config.httpsCertFile, `
+https-port:                    `, config.httpsPort, `
+https-priv-key-file:           `, config.httpsPrivKeyFile, `
+js-client-path:                `, config.javascriptClientPath, `
+log-file:                      `, config.logFile, `
+sendgrid-username:             `, config.sendgridUsername, `
+web-manager-path:              `, config.webManagerPath)
 }
 
 func (config *CanopyConfig) ToJsonObject() map[string]interface{}{
     return map[string]interface{} {
         "allow-anon-devices" : config.allowAnonDevices,
         "allow-origin" : config.allowOrigin,
+        "cassandra-default-consistency" : config.cassandraDefaultConsistency,
+        "cassandra-keyspace" : config.cassandraKeyspace,
+        "cassandra-hosts" : config.cassandraHosts,
         "email-service" : config.emailService,
         "enable-http" : config.enableHTTP,
         "enable-https" : config.enableHTTPS,
@@ -498,6 +507,18 @@ func (config *CanopyConfig) OptAllowAnonDevices() bool {
 
 func (config *CanopyConfig) OptAllowOrigin() string {
     return config.allowOrigin
+}
+
+func (config *CanopyConfig) OptCassandraDefaultConsistency() string {
+    return config.cassandraDefaultConsistency
+}
+
+func (config *CanopyConfig) OptCassandraKeyspace() string {
+    return config.cassandraKeyspace
+}
+
+func (config *CanopyConfig) OptCassandraHosts() []string {
+    return config.cassandraHosts
 }
 
 func (config *CanopyConfig) OptEmailService() string {

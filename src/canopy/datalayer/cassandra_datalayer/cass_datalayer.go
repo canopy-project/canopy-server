@@ -363,10 +363,52 @@ func NewCassDatalayer(cfg config.Config) *CassDatalayer {
     return &CassDatalayer{cfg: cfg}
 }
 
-func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) {
-    cluster := gocql.NewCluster("127.0.0.1")
-    cluster.Keyspace = keyspace
-    cluster.Consistency = gocql.Any
+func consistencyFromString(cons string) (gocql.Consistency, error) {
+    switch cons {
+    case "ANY":
+        return gocql.Any, nil
+    case "ONE":
+        return gocql.One, nil
+    case "TWO":
+        return gocql.Two, nil
+    case "THREE":
+        return gocql.Three, nil
+    case "QUORUM":
+        return gocql.Quorum, nil
+    case "ALL":
+        return gocql.All, nil
+    case "LOCAL_QUORUM":
+        return gocql.LocalQuorum, nil
+    case "EACH_QUORUM":
+        return gocql.EachQuorum, nil
+    case "LOCAL_ONE":
+        return gocql.LocalOne, nil
+    default:
+        return gocql.Any, fmt.Errorf("Unknown consistency %s", cons)
+    }
+}
+
+// Create a gocql ClusterConfig based on Canopy Config options
+func initCluster(cfg config.Config) (*gocql.ClusterConfig, error) {
+    var err error
+    hosts := cfg.OptCassandraHosts()
+    cluster := gocql.NewCluster(hosts...)
+    cluster.Keyspace = cfg.OptCassandraKeyspace()
+    cluster.Consistency, err = consistencyFromString(cfg.OptCassandraDefaultConsistency())
+    if err != nil {
+        return nil, err
+    }
+
+    return cluster, nil
+}
+
+// Create a gocql Session based on Canopy Config options
+func initSession(cfg config.Config) (*gocql.Session, error) {
+    cluster, err := initCluster(cfg)
+    if err != nil {
+        canolog.Error("Error creating DB cluster config: ", err)
+        return nil, err
+    }
 
     session, err := cluster.CreateSession()
     if err != nil {
@@ -374,52 +416,84 @@ func (dl *CassDatalayer) Connect(keyspace string) (datalayer.Connection, error) 
         return nil, err
     }
 
+    return session, nil
+}
+
+// Create a gocql Session without a keyspace selected
+// (Used for DB creation/deletion)
+func initSessionNoKeyspace(cfg config.Config) (*gocql.Session, error) {
+    var err error
+    hosts := cfg.OptCassandraHosts()
+    cluster := gocql.NewCluster(hosts...)
+    cluster.Consistency, err = consistencyFromString(cfg.OptCassandraDefaultConsistency())
+    if err != nil {
+        canolog.Error("Error creating DB cluster config: ", err)
+        return nil, err
+    }
+
+    session, err := cluster.CreateSession()
+    if err != nil {
+        canolog.Error("Error creating DB session: ", err)
+        return nil, err
+    }
+
+    return session, nil
+}
+
+func (dl *CassDatalayer) Connect() (datalayer.Connection, error) {
+    session, err := initSession(dl.cfg)
+    if err != nil {
+        return nil, err
+    }
     return &CassConnection{
         dl: dl,
         session: session,
     }, nil
 }
 
-func (dl *CassDatalayer) EraseDb(keyspace string) error {
-    cluster := gocql.NewCluster("127.0.0.1")
-
-    session, err := cluster.CreateSession()
+func (dl *CassDatalayer) EraseDb() error {
+    session, err := initSessionNoKeyspace(dl.cfg)
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
+    keyspace := dl.cfg.OptCassandraKeyspace()
     err = session.Query(`DROP KEYSPACE ` + keyspace + ``).Exec()
     return err
 }
 
-func (dl *CassDatalayer) PrepDb(keyspace string) error {
-    cluster := gocql.NewCluster("127.0.0.1")
-
-    session, err := cluster.CreateSession()
+func createKeyspace(cfg config.Config, replicationFactor int32) error {
+    session, err := initSessionNoKeyspace(cfg)
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
         return err
     }
 
     // Create keyspace.
-    err = session.Query(`
-            CREATE KEYSPACE ` + keyspace + `
-            WITH REPLICATION = {'class' : 'SimpleStrategy', 'replication_factor' : 1}
-    `).Exec()
+    // TODO: Use NetworkTopologyStrategy?
+    err = session.Query(fmt.Sprintf(`
+            CREATE KEYSPACE %s
+            WITH REPLICATION = {
+                'class' : 'SimpleStrategy', 
+                'replication_factor' : %d
+            }
+    `, cfg.OptCassandraKeyspace(), replicationFactor)).Exec()
+    if err != nil {
+        return err
+    }
+    return nil
+}
+
+func (dl *CassDatalayer) PrepDb(replicationFactor int32) error {
+    err := createKeyspace(dl.cfg, replicationFactor)
     if err != nil {
         // Ignore errors (just log them).
-        canolog.Warn("(IGNORED) ", err)
+        canolog.Warn("(IGNORED) Error creating keyspace: ", err)
     }
 
     // Create a new session connecting to that keyspace.
-    cluster = gocql.NewCluster("127.0.0.1")
-    cluster.Keyspace = keyspace
-    cluster.Consistency = gocql.Quorum
-    session, err = cluster.CreateSession()
+    session, err := initSession(dl.cfg)
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
-        return err
+        canolog.Warn("(IGNORED) Error creating session: ", err)
     }
 
     // Perform all creation queries.
@@ -454,13 +528,9 @@ func (dl *CassDatalayer) migrateNext(session *gocql.Session, startVersion string
 }
 
 func (dl *CassDatalayer) MigrateDB(keyspace, startVersion, endVersion string) error {
-    var err error
-    cluster := gocql.NewCluster("127.0.0.1")
-    cluster.Keyspace = keyspace
-
-    session, err := cluster.CreateSession()
+    session, err := initSession(dl.cfg)
     if err != nil {
-        canolog.Error("Error creating DB session: ", err)
+        canolog.Error("Error creating session: ", err)
         return err
     }
 
