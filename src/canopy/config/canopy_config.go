@@ -438,6 +438,24 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.allowAnonDevices, ok = v.(bool)
         case "allow-origin":
             config.allowOrigin, ok = v.(string)
+        case "cassandra-default-consistency":
+            config.cassandraDefaultConsistency, ok = v.(string)
+        case "cassandra-keyspace":
+            config.cassandraKeyspace, ok = v.(string)
+        case "cassandra-hosts":
+            var list []interface{}
+            list, ok = v.([]interface{})
+            if ok {
+                config.cassandraHosts = []string{}
+                for _, item := range list {
+                    var host string
+                    host, ok = item.(string)
+                    if !ok {
+                        break
+                    }
+                    config.cassandraHosts = append(config.cassandraHosts, host)
+                }
+            }
         case "email-service":
             var emailService string
             emailService, ok = v.(string)
