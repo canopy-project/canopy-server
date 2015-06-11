@@ -473,8 +473,9 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.hostname, ok = v.(string)
         case "http-port": 
             var port float64
-            port, ok := v.(float64)
+            port, ok = v.(float64)
             if ok {
+                // TODO: verify integer provided
                 config.httpPort = int16(port)
             }
         case "https-cert-file": 
@@ -608,7 +609,7 @@ func (config *CanopyConfig) OptWebManagerPath() string {
 }
 
 func justGetOptLogFile() string {
-    out := "/var/log/canopy/canopy-server.log"
+    out := "/var/log/canopy/server.log"
 
     logFile := os.Getenv("CCS_LOG_FILE")
     if logFile != "" {
