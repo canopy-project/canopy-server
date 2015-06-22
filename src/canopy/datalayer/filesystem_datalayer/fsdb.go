@@ -18,23 +18,6 @@ import os
 //
 // <path>/data/accounts/<username>
 // <path>/data/devices/<id>
-//
-// <path>/data/pigeon/workers
-//
-//      {
-//          "192.168.1.24" : true
-//      }
-//
-// <path>/data/pigeon/listeners
-//
-//      {
-//          "key0" : {
-//              "192.158.1.24" : true
-//          }
-//          "key1" : {
-//              "192.158.1.22" : true
-//          }
-//      }
 
 type FsdbDatalayer struct {
     cfg config.Config
@@ -279,72 +262,6 @@ func (device *FsdbDevice) WSConnected() bool {
 }
 
 
-func (pigeon *PigeonSystem) GetListeners(key string) ([]string, error) {
-    file, err := os.Open(dl.datapath()  + "/pigeon/workers")
-    if err != nil {
-        return nil, err
-    }
-
-    // Read file and parse JSON
-    listeners := &(map[string][]string {})
-    err = json.NewDecoder(file).Decode(listeners)
-    if err != nil {
-        return nil, err
-    }
-
-    return workers.JsonWorkers, nil
-}
-
-func (pigeon *PigeonSystem) loadListeners() (map[string][]string, error) {
-    file, err := os.Open(dl.datapath()  + "/pigeon/workers")
-    if err != nil {
-        return nil, err
-    }
-
-    // Read file and parse JSON
-    workers = &FsdbWorkers{}
-    err = json.NewDecoder(file).Decode(workers)
-    if err != nil {
-        return nil, err
-    }
-}
-
-func (pigeon *PigeonSystem) saveListeners() (map[string]interface{}, error) {
-}
-
-func (pigeon *PigeonSystem) loadWorkers() (map[string]bool, error) {
-}
-
-func (pigeon *PigeonSystem) RegisterListener(hostname, key string) error {
-    listeners, err := pigeon.loadListeners()
-}
-
-func (pigeon *PigeonSystem) RegisterWorker(hostname string) error {
-    // Read
-    workers, err := pigeon.Workers()
-    if err != nil {
-        return err
-    }
-
-    // Modifiy
-    workers
-}
-
-func (pigeon *PigeonSystem) Workers() ([]string, error) {
-    file, err := os.Open(dl.datapath()  + "/pigeon/workers")
-    if err != nil {
-        return nil, err
-    }
-
-    // Read file and parse JSON
-    workers = &FsdbWorkers{}
-    err = json.NewDecoder(file).Decode(workers)
-    if err != nil {
-        return nil, err
-    }
-
-    return workers.JsonWorkers, nil
-}
 
 func NewDatalayer(cfg config.Config) datalayer.Datalayer {
     return &FsdbDatalayer{cfg: cfg, path: "/var/canopy/db"}
