@@ -204,6 +204,7 @@ func (device *CassDevice) IDString() string{
 }
 
 func (device *CassDevice) SecretKey() string {
+    // TODO: Secret key should be like password, NOT stored in plaintext.
     return device.secretKey
 }
 

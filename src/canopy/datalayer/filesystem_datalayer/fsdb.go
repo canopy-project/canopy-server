@@ -35,6 +35,18 @@ type FsdbAccount struct {
     JsonPasswordResetCodeExpiry time.Time `json:"password_reset_expiry"`
 }
 
+type FsdbDevice struct {
+    conn *FsdbConnection
+    doc sddl.Document
+    JsonID string `json:"id"`
+    JsonLastSeen time.Time `json:"last_seen"`
+    JsonLocationNote string `json:"location_note"`
+    JsonName string `json:"name"`
+    JsonPublicAccessLevel int `json:"public_access_level"`
+    JsonSecretKey string `json:"secret_key"`
+    JsonWSConnected bool `json:"ws_connected"`
+}
+
 func (dl *FsdbDatalayer) Connect() datalayer.Connection, error {
     return &FsdbConnection{}, nil
 }
@@ -141,6 +153,122 @@ func (acocunt *FsdbAccount) Username() string {
 func (acocunt *FsdbAccount) VerifyPassword(password string) bool {
     // TODO: implement
     return false
+}
+
+func (device *FsdbDevice) ExtendSDDL(jsn map[string]interface{}) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) HistoricData(varDef sddl.VarDef, curTime, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) HistoricDataByName(cloudVarName string, curTime, startTime, endTime time.Time) ([]cloudvar.CloudVarSample, error) {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) HistoricNotifications() ([]Notification, error) {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) ID() gocql.UUID {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) IDString() string {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) InsertSample(varDef sddl.VarDef, t time.Time, value interface{}) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) InsertNotification(notifyType int, t time.Time, msg string) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) LastActivityTime() *time.Time {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) LatestData(varDef sddl.VarDef) (*cloudvar.CloudVarSample, error) {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) LatestDataByName(cloudVarName string) (*cloudvar.CloudVarSample, error) {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) LocationNote() string {
+    return device.JsonLocationNote
+}
+
+func (device *FsdbDevice) LookupVarDef(cloudVarName string) (sddl.VarDef, error) {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) Name() string {
+    return device.JsonName
+}
+
+func (device *FsdbDevice) PublicAccessLevel() AccessLevel {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) SDDLDocument() sddl.Document {
+    return device.doc
+}
+
+func (device *FsdbDevice) SDDLDocumentString() string {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) SecretKey() string {
+    return device.JSONSe
+}
+
+func (device *FsdbDevice) SetAccountAccess(account Account, access AccessLevel, sharing ShareLevel) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) SetLocationNote(locationNote string) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) SetName(name string) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) SetSDDLDocument(doc sddl.Document) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) UpdateLastActivityTime(t *time.Time) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) UpdateWSConnected(connected bool) error {
+    // TODO: implement
+}
+
+func (device *FsdbDevice) WSConnected() bool {
+    return device.JsonWSConnected
+}
+
+func (pigeon *PigeonSystem) GetListeners(key string) ([]string, error) {
+    // TODO: implement
+}
+
+func (pigeon *PigeonSystem) RegisterListener(hostname, key string) error {
+    // TODO: implement
+}
+
+func (pigeon *PigeonSystem) RegisterWorker(hostname string) error {
+    // TODO: implement
+}
+
+func (pigeon *PigeonSystem) Workers() ([]string, error) {
+    // TODO: implement
 }
 
 func NewDatalayer(cfg config.Config) datalayer.Datalayer {
