@@ -29,7 +29,8 @@ func rootRedirectHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func AddRoutes(r *mux.Router, cfg config.Config, pigeonSys jobqueue.System) error {
-    store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
+    //store := sessions.NewCookieStore([]byte(cfg.OptProductionSecret()))
+    store := sessions.NewFilesystemStore("", []byte(cfg.OptProductionSecret()))
     
     outbox := pigeonSys.NewOutbox()
 

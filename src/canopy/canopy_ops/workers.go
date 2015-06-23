@@ -14,8 +14,8 @@
 
 package canopy_ops
 
-// canopy-ops reset-db
-// Wipe entire database, then initalize a new database
+// canopy-ops workers
+// List pigeon workers
 
 import (
     "canopy/datalayer/cassandra_datalayer"
@@ -43,7 +43,7 @@ func (WorkersCommand)Match(cmdString string) bool {
 
 func (WorkersCommand)Perform(info CommandInfo) {
     dl := cassandra_datalayer.NewDatalayer(info.Cfg)
-    conn, err := dl.Connect("canopy")
+    conn, err := dl.Connect()
     if err != nil {
         fmt.Println(err)
     }

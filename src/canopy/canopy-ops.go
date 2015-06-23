@@ -59,15 +59,15 @@ func main() {
         cmd.Perform(info)
     } else if flag.Arg(0) == "create-account" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        conn, _ := dl.Connect()
         conn.CreateAccount(flag.Arg(1), flag.Arg(2), flag.Arg(3))
     } else if flag.Arg(0) == "delete-account" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        conn, _ := dl.Connect()
         conn.DeleteAccount(flag.Arg(1))
     } else if flag.Arg(0) == "create-device" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        conn, _ := dl.Connect()
 
         account, err := conn.LookupAccount(flag.Arg(1))
         if err != nil {
@@ -88,7 +88,7 @@ func main() {
         }
     } else if flag.Arg(0) == "list-devices" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        conn, _ := dl.Connect()
 
         account, err := conn.LookupAccount(flag.Arg(1))
         if err != nil {
@@ -107,7 +107,7 @@ func main() {
         
     } else if flag.Arg(0) == "gen-fake-sensor-data" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        conn, _ := dl.Connect()
         deviceId := flag.Arg(1)
         _, err = conn.LookupDevice(deviceId)
         if err != nil {
@@ -124,7 +124,7 @@ func main() {
         }
     } else if flag.Arg(0) == "clear-var-data" {
         dl := cassandra_datalayer.NewDatalayer(cfg)
-        conn, _ := dl.Connect("canopy")
+        conn, _ := dl.Connect()
         conn.ClearCloudVarData();
 
     } else if flag.Arg(0) == "test-email" {

@@ -43,5 +43,5 @@ func (EraseDBCommand)Match(cmdString string) bool {
 
 func (EraseDBCommand)Perform(info CommandInfo) {
     dl := cassandra_datalayer.NewDatalayer(info.Cfg)
-    dl.EraseDb("canopy")
+    dl.EraseDb()
 }

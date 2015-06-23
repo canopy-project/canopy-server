@@ -43,8 +43,8 @@ func (ResetDBCommand)Match(cmdString string) bool {
 
 func (ResetDBCommand)Perform(info CommandInfo) {
     dl := cassandra_datalayer.NewDatalayer(info.Cfg)
-    dl.EraseDb("canopy")
-    err := dl.PrepDb("canopy")
+    dl.EraseDb()
+    err := dl.PrepDb(3) // 3 = replication factor
     if err != nil {
         fmt.Println(err)
     }
