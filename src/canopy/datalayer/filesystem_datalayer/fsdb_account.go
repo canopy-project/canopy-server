@@ -29,6 +29,12 @@ import os
 //     ...
 //  }
 //
+//
+//  <path>/data/perm_acct_device/<username>
+//  {
+//      "<UUID>" : <access_level>,
+//      "<UUID>" : <access_level>,
+//  }
 
 type FsdbAccount struct {
     conn *FsdbConnection
