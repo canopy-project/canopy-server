@@ -34,7 +34,7 @@ package fsdb
 
 
 func (pigeon *PigeonSystem) GetListeners(key string) ([]string, error) {
-    body, err := loadJsonGeneric(dl.datapath() + "/pigeion/listeners")
+    body, err := loadJsonGeneric(dl.datapath() + "/pigeon/listeners")
     if err != nil {
         return nil, error
     }
@@ -57,7 +57,7 @@ func (pigeon *PigeonSystem) GetListeners(key string) ([]string, error) {
 
 func (pigeon *PigeonSystem) RegisterListener(hostname, key string) error {
     // Read
-    body, err := loadJsonGeneric(dl.datapath() + "/pigeion/listeners")
+    body, err := loadJsonGeneric(dl.datapath() + "/pigeon/listeners")
     if err != nil {
         return error
     }
@@ -66,7 +66,7 @@ func (pigeon *PigeonSystem) RegisterListener(hostname, key string) error {
     body[key][hostname] = true
 
     // Write
-    err := saveJsonGeneric(body, dl.datapath() + "/pigeion/listeners")
+    err := saveJsonGeneric(body, dl.datapath() + "/pigeon/listeners")
     if err != nil {
         return error
     }
@@ -76,7 +76,7 @@ func (pigeon *PigeonSystem) RegisterListener(hostname, key string) error {
 
 func (pigeon *PigeonSystem) RegisterWorker(hostname string) error {
     // Read
-    body, err := loadJsonGeneric(dl.datapath() + "/pigeion/workers")
+    body, err := loadJsonGeneric(dl.datapath() + "/pigeon/workers")
     if err != nil {
         return error
     }
@@ -85,7 +85,7 @@ func (pigeon *PigeonSystem) RegisterWorker(hostname string) error {
     body[hostname] = true
 
     // Write
-    err := saveJsonGeneric(body, dl.datapath() + "/pigeion/workers")
+    err := saveJsonGeneric(body, dl.datapath() + "/pigeon/workers")
     if err != nil {
         return error
     }
@@ -94,7 +94,7 @@ func (pigeon *PigeonSystem) RegisterWorker(hostname string) error {
 }
 
 func (pigeon *PigeonSystem) Workers() ([]string, error) {
-    body, err := loadJsonGeneric(dl.datapath() + "/pigeion/workers")
+    body, err := loadJsonGeneric(dl.datapath() + "/pigeon/workers")
     if err != nil {
         return nil, error
     }

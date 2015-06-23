@@ -24,17 +24,6 @@ type FsdbDatalayer struct {
     path string // i.e. "/var/canopy/db"
 }
 
-type FsdbAccount struct {
-    conn *FsdbConnection
-    JsonUsername string `json:"username"`
-    JsonEmail string `json:"email"`
-    JsonPasswordHash string `json:"password_hash"`
-    JsonActivated bool `json:"activated"`
-    JsonActivationCode string `json:"activation_code"`
-    JsonPasswordResetCode string `json:"password_reset_code"`
-    JsonPasswordResetCodeExpiry time.Time `json:"password_reset_expiry"`
-}
-
 type FsdbDevice struct {
     conn *FsdbConnection
     doc sddl.Document
@@ -46,12 +35,6 @@ type FsdbDevice struct {
     JsonSecretKey string `json:"secret_key"`
     JsonWSConnected bool `json:"ws_connected"`
 }
-
-type JsonWorkersObj struct {
-    JsonWorkers []string `json:workers`
-}
-
-type JsonListeners map[string][]string
 
 func (dl *FsdbDatalayer) Connect() datalayer.Connection, error {
     return &FsdbConnection{}, nil
@@ -108,57 +91,6 @@ func (conn *FsdbConnection) LookupAccount(usernameOrEmail string) (Account, erro
     }
 
     return account
-}
-
-func (account *FsdbAccount) ActivationCode() string {
-    return account.JsonActivationCode
-}
-
-func (account *FsdbAccount) Activate(username, code string) error {
-    return fmt.Errorf("Not implemented")
-}
-
-func (acocunt *FsdbAccount) Devices() DeviceQuery {
-    // TODO: implement
-    return nil
-}
-
-func (acocunt *FsdbAccount) Device(id gocql.UUID) (Device, error) {
-    // TODO: implement
-    return nil, fmt.Errorf("Not implemented")
-}
-
-func (acocunt *FsdbAccount) Email() string {
-    return account.JsonEmail
-}
-
-func (acocunt *FsdbAccount) GenResetPasswordCode() (string, error) {
-    return "", fmt.Errorf("Not implemented")
-}
-
-func (acocunt *FsdbAccount) IsActivated() bool {
-    return account.JsonActivated
-}
-
-func (acocunt *FsdbAccount) ResetPassword(code, newPassword string) error {
-    return fmt.Errorf("Not implemented")
-}
-
-func (acocunt *FsdbAccount) SetEmail(newEmail string) error {
-    return fmt.Errorf("Not implemented")
-}
-
-func (acocunt *FsdbAccount) SetPassword(newPassword string) error {
-    return fmt.Errorf("Not implemented")
-}
-
-func (acocunt *FsdbAccount) Username() string {
-    return account.JsonUsername
-}
-
-func (acocunt *FsdbAccount) VerifyPassword(password string) bool {
-    // TODO: implement
-    return false
 }
 
 func (device *FsdbDevice) ExtendSDDL(jsn map[string]interface{}) error {
@@ -260,8 +192,6 @@ func (device *FsdbDevice) UpdateWSConnected(connected bool) error {
 func (device *FsdbDevice) WSConnected() bool {
     return device.JsonWSConnected
 }
-
-
 
 func NewDatalayer(cfg config.Config) datalayer.Datalayer {
     return &FsdbDatalayer{cfg: cfg, path: "/var/canopy/db"}
