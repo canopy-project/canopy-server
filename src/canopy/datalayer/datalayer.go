@@ -306,6 +306,9 @@ type Organization interface {
     // Add account to a team.
     AddAccountToTeam(account Account, team string) error
 
+    // Add member
+    AddMember(account Account) error
+
     // Create Team
     CreateTeam(team string) error
 
@@ -315,11 +318,18 @@ type Organization interface {
     // Check if user account is a member of this organization
     IsMember(account Account) (bool, error)
 
+    // Check if user account is an owner of this organization
+    IsOwner(account Account) (bool, error)
+
     // List user accounts that are members of this organization
     Members() ([]Account, error)
 
     // Get organization's display name
     Name() string
+
+    // Remove member
+    // Also removes from all teams
+    RemoveMember(account Account) error
 
     // Set organization's display name.  This shares a namespace and validation
     // criteria with all User Accounts.

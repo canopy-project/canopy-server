@@ -41,7 +41,14 @@ func (org *CassOrganization) AddAccountToTeam(account datalayer.Account, team st
 
     // Add account to organization member table
     // TODO: sanitize inputs
-    err = org.conn.session.Query(`
+    err = org.AddMember(account)
+    return err
+}
+
+func (org *CassOrganization) AddMember(account datalayer.Account) error {
+    // Add account to organization member table
+    // TODO: sanitize inputs
+    err := org.conn.session.Query(`
             UPDATE organization_members
             SET usernames = usernames + {'` + account.Username() + `'}
             WHERE name = ?
@@ -87,6 +94,10 @@ func (org *CassOrganization) IsMember(account datalayer.Account) (bool, error) {
     return false, nil
 }
 
+func (org *CassOrganization) IsOwner(account datalayer.Account) (bool, error) {
+    return false, fmt.Errorf("Not implemented")
+}
+
 func (org *CassOrganization) Members() ([]datalayer.Account, error) {
     var usernames []string
     rows, err := org.conn.session.Query(`
@@ -117,6 +128,25 @@ func (org *CassOrganization) Members() ([]datalayer.Account, error) {
 
 func (org *CassOrganization) Name() string {
     return org.name
+}
+
+func (org *CassOrganization) RemoveMember(account datalayer.Account) error {
+    // Remove account from organization member table
+    // TODO: sanitize inputs
+    err := org.conn.session.Query(`
+            UPDATE organization_members
+            SET usernames = usernames - {'` + account.Username() + `'}
+            WHERE name = ?
+    `, org.name).Exec()
+    if err != nil {
+        canolog.Error("Error removing account as member of organization: ", err)
+        return err;
+    }
+
+    // TODO: Remove from teams table
+    //
+    // TODO: Remove from account membership table
+    return fmt.Errorf("Not fully implemented")
 }
 
 func (org *CassOrganization) SetName(name string) error {

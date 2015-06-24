@@ -61,3 +61,64 @@ func GET__api__org__name__members(info *RestRequestInfo, sideEffects *RestSideEf
 
     return out, nil
 }
+
+// Add/Remoe members
+func POST__api__org__name__members(info *RestRequestInfo, sideEffects *RestSideEffects) (map[string]interface{}, RestError) {
+    if info.Account == nil {
+        return nil, NotLoggedInError().Log()
+    }
+
+    // Lookup organization by name
+    org, err := info.Conn.LookupOrganization(info.URLVars["name"])
+    if err != nil {
+        // TODO: determine actual cause of error
+        return nil, URLNotFoundError().Log()
+    }
+
+    // Is authenticated user member of this organization?
+    // TODO: They need to be the owner.
+    ok, err := org.IsOwner(info.Account)
+    if !ok || err != nil {
+        return nil, UnauthorizedError("Must be owner of org to add members").Log()
+    }
+
+    addMemberObj, ok := info.BodyObj["add_member"].(map[string]interface{})
+    if ok {
+        user, ok := addMemberObj["user"].(string)
+        if !ok {
+            return nil, BadInputError("Expected string \"user\"").Log()
+        }
+        acct, err := info.Conn.LookupAccount(user)
+        if err != nil {
+            // TODO: Proper error reporting
+            return nil, InternalServerError(err.Error()).Log()
+        }
+
+        err = org.AddMember(acct)
+        if err != nil {
+            // TODO: Proper error reporting
+            return nil, InternalServerError(err.Error()).Log()
+        }
+    }
+
+    removeMember, ok := info.BodyObj["remove_member"].(string)
+    if ok {
+        acct, err := info.Conn.LookupAccount(removeMember)
+        if err != nil {
+            // TODO: Proper error reporting
+            return nil, InternalServerError(err.Error()).Log()
+        }
+
+        err = org.RemoveMember(acct)
+        if err != nil {
+            // TODO: Proper error reporting
+            return nil, InternalServerError(err.Error()).Log()
+        }
+    }
+
+    out := map[string]interface{} {
+        "result" : "ok",
+    }
+
+    return out, nil
+}
