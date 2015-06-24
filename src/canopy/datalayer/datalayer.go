@@ -312,6 +312,12 @@ type Organization interface {
     // Get organization's internal ID
     ID() string
 
+    // Check if user account is a member of this organization
+    IsMember(account Account) (bool, error)
+
+    // List user accounts that are members of this organization
+    Members() ([]Account, error)
+
     // Get organization's display name
     Name() string
 

@@ -39,6 +39,17 @@ func (org *CassOrganization) AddAccountToTeam(account datalayer.Account, team st
         return err
     }
 
+    // Add account to organization member table
+    // TODO: sanitize inputs
+    err = org.conn.session.Query(`
+            UPDATE organization_members
+            SET usernames = usernames + {'` + account.Username() + `'}
+            WHERE name = ?
+    `, org.name).Exec()
+    if err != nil {
+        canolog.Error("Error adding account as member of organization: ", err)
+        return err;
+    }
     return nil
 }
 
@@ -58,6 +69,50 @@ func (org *CassOrganization) CreateTeam(team string) error {
 
 func (org *CassOrganization) ID() string {
     return org.id.String()
+}
+
+func (org *CassOrganization) IsMember(account datalayer.Account) (bool, error) {
+    // TODO: inefficient
+    members, err := org.Members()
+    if err != nil {
+        return false, err
+    }
+
+    for _, member := range members {
+        if member.Username() == account.Username() {
+            return true, nil
+        }
+    }
+
+    return false, nil
+}
+
+func (org *CassOrganization) Members() ([]datalayer.Account, error) {
+    var usernames []string
+    rows, err := org.conn.session.Query(`
+            SELECT usernames FROM organization_members
+            WHERE name = ?
+    `, org.name).Consistency(gocql.One).Iter().SliceMap();
+    if err != nil {
+        canolog.Error(err)
+    }
+    if len(rows) != 1 {
+        return nil, fmt.Errorf("Expected 1 DB row for usernames ")
+    }
+    usernames = rows[0]["usernames"].([]string)
+
+    // Lookup account objects
+    // TODO: inefficient manual join here
+    out := []datalayer.Account{}
+    for _, username := range usernames {
+        account, err := org.conn.LookupAccount(username)
+        if err != nil {
+            return []datalayer.Account{}, err
+        }
+        out = append(out, account)
+    }
+
+    return out, nil
 }
 
 func (org *CassOrganization) Name() string {
