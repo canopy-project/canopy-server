@@ -202,25 +202,22 @@ func (account *CassAccount) IsActivated() bool {
 }
 
 func (account *CassAccount) Organizations() ([]datalayer.Organization, error) {
-    orgIds := map[gocql.UUID]bool{}
+    // TODO: no longer need to use map to "uniquify" results
     orgs := []datalayer.Organization{}
-    var orgId gocql.UUID
 
-    query := account.conn.session.Query(`
-            SELECT org_id FROM account_teams
+    rows, err := account.conn.session.Query(`
+            SELECT org_id FROM account_orgs
             WHERE username = ?
-    `, account.Username()).Consistency(gocql.One)
-    iter := query.Iter()
-    for iter.Scan(&orgId) {
-        orgIds[orgId] = true
-    }
-    if err := iter.Close(); err != nil {
-        return orgs, err
+    `, account.Username()).Consistency(gocql.One).Iter().SliceMap()
+    if err != nil {
+        canolog.Error(err)
+        return []datalayer.Organization{}, err
     }
 
     // Manual join
-    for id, _ := range orgIds {
-        org, err := account.conn.lookupOrganizationById(id)
+    for _, row := range rows {
+        org_id := row["org_id"].(gocql.UUID)
+        org, err := account.conn.lookupOrganizationById(org_id)
         if err != nil {
             return orgs, errors.New("Error looking up orgs: " + err.Error())
         }

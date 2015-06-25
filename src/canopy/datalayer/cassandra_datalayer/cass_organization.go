@@ -46,8 +46,9 @@ func (org *CassOrganization) AddAccountToTeam(account datalayer.Account, team st
 }
 
 func (org *CassOrganization) AddMember(account datalayer.Account, owner bool) error {
-    // Add account to organization member table
-    // TODO: sanitize inputs
+    // TODO: transactionize
+ 
+    // Add account to organization_membership
     err := org.conn.session.Query(`
             INSERT INTO organization_membership
                 (org_id, username, is_owner)
@@ -59,7 +60,18 @@ func (org *CassOrganization) AddMember(account datalayer.Account, owner bool) er
         return err;
     }
 
-    // TODO: Also add to account_teams?
+    // Add account to account_orgs (this table acts as an index)
+    err = org.conn.session.Query(`
+            INSERT INTO account_orgs
+                (username, org_id)
+            VALUES
+                (?, ?)
+    `, account.Username(), org.id).Exec()
+    if err != nil {
+        canolog.Error("Error indexing account as member of organization: ", err)
+        return err;
+    }
+
     return nil
 }
 
