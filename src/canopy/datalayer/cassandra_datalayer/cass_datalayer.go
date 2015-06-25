@@ -450,11 +450,12 @@ var creationQueries []string = []string{
         PRIMARY KEY(name)
     ) WITH COMPACT STORAGE`,
 
-    `CREATE TABLE organization_members (
-        name text,
-        usernames set<text>,
-        PRIMARY KEY(name)
-    )`,
+    `CREATE TABLE organization_membership (
+        org_id uuid,
+        username text,
+        is_owner boolean,
+        PRIMARY KEY((org_id), username)
+    ) WITH COMPACT STORAGE`,
 
     `CREATE TABLE teams (
         org_id uuid,

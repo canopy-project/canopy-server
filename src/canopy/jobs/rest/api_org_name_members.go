@@ -48,8 +48,9 @@ func GET__api__org__name__members(info *RestRequestInfo, sideEffects *RestSideEf
     memberJsonList := []map[string]interface{} {}
     for _, member := range members {
         memberJsonList = append(memberJsonList, map[string]interface{} {
-                "username" : member.Username(),
-                "email" : member.Email(),
+                "username" : member.Account.Username(),
+                "email" : member.Account.Email(),
+                "is_owner" : member.IsOwner,
                 // TODO: add teams
         })
     }
@@ -94,7 +95,7 @@ func POST__api__org__name__members(info *RestRequestInfo, sideEffects *RestSideE
             return nil, InternalServerError(err.Error()).Log()
         }
 
-        err = org.AddMember(acct)
+        err = org.AddMember(acct, false)
         if err != nil {
             // TODO: Proper error reporting
             return nil, InternalServerError(err.Error()).Log()

@@ -108,19 +108,28 @@ func (account *CassAccount)CreateOrganization(
         name: name,
     }
 
-    // Create __owners__ team
-    err = org.CreateTeam("__owners__")
+    // Add account as member
+    err = org.AddMember(account, true)
     if err != nil {
-        canolog.Error("Error create __owners__", err)
+        canolog.Error("Error adding owner", err)
         return nil, err
     }
 
+    // Create __owners__ team
+    // TODO: Revisit
+    //err = org.CreateTeam("__owners__")
+    //if err != nil {
+    //    canolog.Error("Error create __owners__", err)
+    //    return nil, err
+    //}
+
     // Add account to __owners__ team
-    err = org.AddAccountToTeam(account, "__owners__")
-    if err != nil {
-        canolog.Error("Error create __owners__", err)
-        return nil, err
-    }
+    // TODO: Revisit
+    //err = org.AddAccountToTeam(account, "__owners__")
+    //if err != nil {
+    //    canolog.Error("Error create __owners__", err)
+    //    return nil, err
+    //}
 
     return org, nil
 }

@@ -50,6 +50,11 @@ const (
     NotificationType_InApp
 )
 
+type OrganizationMemberInfo struct {
+    Account Account
+    IsOwner bool
+}
+
 // Datalayer provides an abstracted interface for interacting with Canopy's
 // backend perstistant datastore.
 type Datalayer interface {
@@ -307,7 +312,7 @@ type Organization interface {
     AddAccountToTeam(account Account, team string) error
 
     // Add member
-    AddMember(account Account) error
+    AddMember(account Account, isOwner bool) error
 
     // Create Team
     CreateTeam(team string) error
@@ -322,7 +327,7 @@ type Organization interface {
     IsOwner(account Account) (bool, error)
 
     // List user accounts that are members of this organization
-    Members() ([]Account, error)
+    Members() ([]OrganizationMemberInfo, error)
 
     // Get organization's display name
     Name() string

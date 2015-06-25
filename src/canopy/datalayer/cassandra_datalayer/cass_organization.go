@@ -41,22 +41,25 @@ func (org *CassOrganization) AddAccountToTeam(account datalayer.Account, team st
 
     // Add account to organization member table
     // TODO: sanitize inputs
-    err = org.AddMember(account)
+    //err = org.AddMember(account, false)
     return err
 }
 
-func (org *CassOrganization) AddMember(account datalayer.Account) error {
+func (org *CassOrganization) AddMember(account datalayer.Account, owner bool) error {
     // Add account to organization member table
     // TODO: sanitize inputs
     err := org.conn.session.Query(`
-            UPDATE organization_members
-            SET usernames = usernames + {'` + account.Username() + `'}
-            WHERE name = ?
-    `, org.name).Exec()
+            INSERT INTO organization_membership
+                (org_id, username, is_owner)
+            VALUES
+                (?, ?, ?)
+    `, org.id, account.Username(), owner).Exec()
     if err != nil {
         canolog.Error("Error adding account as member of organization: ", err)
         return err;
     }
+
+    // TODO: Also add to account_teams?
     return nil
 }
 
@@ -86,7 +89,7 @@ func (org *CassOrganization) IsMember(account datalayer.Account) (bool, error) {
     }
 
     for _, member := range members {
-        if member.Username() == account.Username() {
+        if member.Account.Username() == account.Username() {
             return true, nil
         }
     }
@@ -95,34 +98,42 @@ func (org *CassOrganization) IsMember(account datalayer.Account) (bool, error) {
 }
 
 func (org *CassOrganization) IsOwner(account datalayer.Account) (bool, error) {
-    return false, fmt.Errorf("Not implemented")
+    // TODO: inefficient
+    members, err := org.Members()
+    if err != nil {
+        return false, err
+    }
+
+    for _, member := range members {
+        if (member.Account.Username() == account.Username()) && member.IsOwner {
+            return true, nil
+        }
+    }
+
+    return false, nil
 }
 
-func (org *CassOrganization) Members() ([]datalayer.Account, error) {
-    var usernames []string
+func (org *CassOrganization) Members() ([]datalayer.OrganizationMemberInfo, error) {
+    var out []datalayer.OrganizationMemberInfo
     rows, err := org.conn.session.Query(`
-            SELECT usernames FROM organization_members
-            WHERE name = ?
-    `, org.name).Consistency(gocql.One).Iter().SliceMap();
+            SELECT username, is_owner 
+            FROM organization_membersship
+            WHERE org_id = ?
+    `, org.id).Consistency(gocql.One).Iter().SliceMap();
     if err != nil {
         canolog.Error(err)
+        return []datalayer.OrganizationMemberInfo{}, err
     }
-    if len(rows) != 1 {
-        return nil, fmt.Errorf("Expected 1 DB row for usernames ")
-    }
-    usernames = rows[0]["usernames"].([]string)
-
-    // Lookup account objects
-    // TODO: inefficient manual join here
-    out := []datalayer.Account{}
-    for _, username := range usernames {
+    for _, row := range rows {
+        // TODO: inefficient manual join here
+        username := row["username"].(string)
+        isOwner := row["is_owner"].(bool)
         account, err := org.conn.LookupAccount(username)
         if err != nil {
-            return []datalayer.Account{}, err
+            return []datalayer.OrganizationMemberInfo{}, err
         }
-        out = append(out, account)
+        out = append(out, datalayer.OrganizationMemberInfo{account, isOwner})
     }
-
     return out, nil
 }
 
@@ -134,10 +145,9 @@ func (org *CassOrganization) RemoveMember(account datalayer.Account) error {
     // Remove account from organization member table
     // TODO: sanitize inputs
     err := org.conn.session.Query(`
-            UPDATE organization_members
-            SET usernames = usernames - {'` + account.Username() + `'}
-            WHERE name = ?
-    `, org.name).Exec()
+            DELETE FROM organization_membership
+            WHERE org_id = ?  AND username = ?
+    `, org.id, account.Username()).Exec()
     if err != nil {
         canolog.Error("Error removing account as member of organization: ", err)
         return err;
