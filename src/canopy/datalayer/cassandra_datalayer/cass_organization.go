@@ -129,7 +129,7 @@ func (org *CassOrganization) Members() ([]datalayer.OrganizationMemberInfo, erro
     var out []datalayer.OrganizationMemberInfo
     rows, err := org.conn.session.Query(`
             SELECT username, is_owner 
-            FROM organization_membersship
+            FROM organization_membership
             WHERE org_id = ?
     `, org.id).Consistency(gocql.One).Iter().SliceMap();
     if err != nil {
