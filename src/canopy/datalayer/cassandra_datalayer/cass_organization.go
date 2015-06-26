@@ -75,16 +75,48 @@ func (org *CassOrganization) AddMember(account datalayer.Account, owner bool) er
     return nil
 }
 
-func (org *CassOrganization) CreateTeam(team string) error {
+func (org *CassOrganization) CreateTeam(team string, url_alias string) error {
+    // TODO: validate input
+    // TODO: URLify
+    // TODO: Check if team already exists
+
     // Create Team
     err := org.conn.session.Query(`
-            INSERT INTO teams (org_id, name)
-            VALUES (?, ?)
-    `, org.id, team).Exec()
+            INSERT INTO teams (org_id, url_alias, name)
+            VALUES (?, ?, ?)
+    `, org.id, url_alias, team).Exec()
     if err != nil {
         canolog.Error("Error storing team: ", err)
         return err
     }
+
+    return nil
+}
+
+func (org *CassOrganization) DeleteTeam(url_alias string) error {
+    // TODO: Check if team already exists
+
+    // Delete Team
+    err := org.conn.session.Query(`
+            DELETE FROM teams
+            WHERE org_id = ?  AND url_alias = ?
+    `, org.id, url_alias).Exec()
+    if err != nil {
+        canolog.Error("Error deleting team from DB: ", err)
+        return err
+    }
+
+    // Delete Team Membership
+    err = org.conn.session.Query(`
+            DELETE FROM team_membership
+            WHERE org_id = ?  AND team_url_alias = ?
+    `, org.id, url_alias).Exec()
+    if err != nil {
+        canolog.Error("Error deleting team membership data from DB: ", err)
+        return err
+    }
+
+    // TODO: also delete account_membership data
 
     return nil
 }

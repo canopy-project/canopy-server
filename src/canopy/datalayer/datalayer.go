@@ -315,7 +315,10 @@ type Organization interface {
     AddMember(account Account, isOwner bool) error
 
     // Create Team
-    CreateTeam(team string) error
+    CreateTeam(teamName, teamUrlAlias string) error
+
+    // Delete Team
+    DeleteTeam(teamUrlAlias string) error
 
     // Get organization's internal ID
     ID() string
