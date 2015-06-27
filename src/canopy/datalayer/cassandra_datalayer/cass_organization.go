@@ -28,6 +28,12 @@ type CassOrganization struct {
     name string
 }
 
+type CassTeam struct {
+    org *CassOrganization
+    urlAlias string
+    name string
+}
+
 func (org *CassOrganization) AddAccountToTeam(account datalayer.Account, team string) error {
     // Add account to team
     err := org.conn.session.Query(`
@@ -221,5 +227,127 @@ func (org *CassOrganization) SetName(name string) error {
     }
 
     org.name = name
+    return nil
+}
+
+func (org *CassOrganization) Team(teamUrlAlias string) (datalayer.Team, error) {
+    var name string
+
+    err := org.conn.session.Query(`
+        SELECT name FROM teams
+        WHERE org_id = ? AND url_alias = ?
+        LIMIT 1
+    `, org.id, teamUrlAlias).Consistency(gocql.One).Scan(&name)
+    if err != nil {
+        return nil, err
+    }
+
+    // Create team object
+    team := &CassTeam{
+        org: org,
+        urlAlias: teamUrlAlias,
+        name: name,
+    }
+
+    return team, nil
+}
+
+func (org *CassOrganization) Teams() ([]datalayer.Team, error) {
+    var out []datalayer.Team
+
+    rows, err := org.conn.session.Query(`
+        SELECT team_url_alias, name FROM teams
+        WHERE org_id = ?
+        `, org.id).Consistency(gocql.One).Iter().SliceMap();
+    if err != nil {
+        canolog.Error(err)
+        return []datalayer.Team{}, err
+    }
+    for _, row := range rows {
+        // Create team object
+        team := &CassTeam{
+            org: org,
+            urlAlias: row["url_alias"].(string),
+            name: row["name"].(string),
+        }
+        out = append(out, team)
+    }
+    return out, nil
+}
+
+func (team *CassTeam) AddMember(account datalayer.Account) error {
+    // Is account a member of the organization?
+    isMember, err := team.org.IsMember(account)
+    if !isMember {
+        return fmt.Errorf("Only organization members can be added to team")
+    } else if err != nil {
+        return err
+    }
+
+    // Add to team_membership table
+    err = team.org.conn.session.Query(`
+            INSERT INTO team_membership (org_id, team_url_alias, username)
+            VALUES (?, ?, ?)
+    `, team.org.id, team.urlAlias, account.Username()).Exec()
+    if err != nil {
+        canolog.Error("Error adding account as member of team: ", err)
+        return err;
+    }
+
+    // TODO: Add to account_teams table?
+    /*err := org.conn.session.Query(
+            INSERT INTO account_teams (org_id, team_url_alias, username)
+            VALUES (?, ?, ?)
+    `, org.id, team.urlAlias, account.Username()).Exec()
+    if err != nil {
+        canolog.Error("Error adding account as member of team: ", err)
+        return err;*/
+
+    return nil
+}
+
+func (team *CassTeam) Name() string {
+    return team.name
+}
+
+func (team *CassTeam) UrlAlias() string {
+    return team.urlAlias
+}
+
+func (team *CassTeam) Members() ([]datalayer.OrganizationMemberInfo, error) {
+    var out []datalayer.OrganizationMemberInfo
+    rows, err := team.org.conn.session.Query(`
+            SELECT username, is_owner 
+            FROM team_membership
+            WHERE org_id = ? AND team_url_alias = ?
+    `, team.org.id, team.urlAlias).Consistency(gocql.One).Iter().SliceMap();
+    if err != nil {
+        canolog.Error(err)
+        return []datalayer.OrganizationMemberInfo{}, err
+    }
+    for _, row := range rows {
+        // TODO: inefficient manual join here
+        username := row["username"].(string)
+        isOwner := row["is_owner"].(bool)
+        account, err := team.org.conn.LookupAccount(username)
+        if err != nil {
+            return []datalayer.OrganizationMemberInfo{}, err
+        }
+        out = append(out, datalayer.OrganizationMemberInfo{account, isOwner})
+    }
+    return out, nil
+}
+
+func (team *CassTeam) RemoveMember(account datalayer.Account) error {
+    // Remove from team_membership table
+    err := team.org.conn.session.Query(`
+            DELETE FROM team_membership
+            WHERE org_id = ?  AND team_url_alias = ? AND username = ?
+    `, team.org.id, team.urlAlias, account.Username()).Exec()
+    if err != nil {
+        canolog.Error("Error removing account as member of team: ", err)
+        return err;
+    }
+
     return nil
 }

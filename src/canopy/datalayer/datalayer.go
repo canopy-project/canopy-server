@@ -343,6 +343,29 @@ type Organization interface {
     // criteria with all User Accounts.
     // Saves changes to the database.
     SetName(string) error
+
+    // Lookup team by url alias
+    Team(teamUrlAlias string) (Team, error)
+
+    // Obtain list of teams within this organization
+    Teams() ([]Team, error)
+}
+
+type Team interface {
+    // Add member to team
+    AddMember(account Account) error
+
+    // Get team's display name
+    Name() string
+
+    // Get team's URL alias
+    UrlAlias() string
+
+    // List user accounts that are members of this organization
+    Members() ([]OrganizationMemberInfo, error)
+
+    // Remove member from team
+    RemoveMember(account Account) error
 }
 
 type PigeonSystem interface {
