@@ -256,7 +256,7 @@ func (org *CassOrganization) Teams() ([]datalayer.Team, error) {
     var out []datalayer.Team
 
     rows, err := org.conn.session.Query(`
-        SELECT team_url_alias, name FROM teams
+        SELECT url_alias, name FROM teams
         WHERE org_id = ?
         `, org.id).Consistency(gocql.One).Iter().SliceMap();
     if err != nil {
