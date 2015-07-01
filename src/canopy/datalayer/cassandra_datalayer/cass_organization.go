@@ -317,7 +317,7 @@ func (team *CassTeam) UrlAlias() string {
 func (team *CassTeam) Members() ([]datalayer.OrganizationMemberInfo, error) {
     var out []datalayer.OrganizationMemberInfo
     rows, err := team.org.conn.session.Query(`
-            SELECT username, is_owner 
+            SELECT username
             FROM team_membership
             WHERE org_id = ? AND team_url_alias = ?
     `, team.org.id, team.urlAlias).Consistency(gocql.One).Iter().SliceMap();
@@ -328,12 +328,11 @@ func (team *CassTeam) Members() ([]datalayer.OrganizationMemberInfo, error) {
     for _, row := range rows {
         // TODO: inefficient manual join here
         username := row["username"].(string)
-        isOwner := row["is_owner"].(bool)
         account, err := team.org.conn.LookupAccount(username)
         if err != nil {
             return []datalayer.OrganizationMemberInfo{}, err
         }
-        out = append(out, datalayer.OrganizationMemberInfo{account, isOwner})
+        out = append(out, datalayer.OrganizationMemberInfo{account, false}) // TODO
     }
     return out, nil
 }
