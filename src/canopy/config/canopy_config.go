@@ -446,7 +446,7 @@ func (config *CanopyConfig) LoadConfigJson(jsonObj map[string]interface{}) error
             config.hostname, ok = v.(string)
         case "http-port": 
             var port float64
-            port, ok := v.(float64)
+            port, ok = v.(float64)
             if ok {
                 config.httpPort = int16(port)
             }
